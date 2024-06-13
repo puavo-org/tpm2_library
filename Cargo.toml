@@ -1,0 +1,6 @@
+[workspace]
+members = [
+    "tpm2_call",
+    "tpm2_cli",
+]
+resolver = "2"
