@@ -239,3 +239,35 @@ impl fmt::Display for ResponseCode {
         }
     }
 }
+
+/// `TPM_CAP_LAST`
+pub const CAP_LAST: u32 = 0x0000_0009;
+
+/// `TPM_CAP_VENDOR_PROPERTY`: manufacturer-specific
+pub const CAP_VENDOR_PROPERTY: u32 = 0x0000_0100;
+
+/// `TPM_CAP`
+#[derive(FromRepr, Debug, PartialEq)]
+#[repr(u32)]
+pub enum Capability {
+    /// `TPM_CAP_ALGS`
+    Algs = 0x0000_0000,
+    /// `TPM_CAP_HANDLES`
+    Handles = 0x0000_0001,
+    /// `TPM_CAP_COMMANDS`
+    Commands = 0x0000_0002,
+    /// `TPM_CAP_PP_COMMANDS`
+    PpCommands = 0x0000_0003,
+    /// `TPM_CAP_AUDIT_COMMANDS`
+    AuditCommands = 0x0000_0004,
+    /// `TPM_CAP_PCRS`
+    Pcrs = 0x0000_0005,
+    /// `TPM_CAP_TPM_PROPERTIES`
+    TpmProperties = 0x0000_0006,
+    /// `TPM_CAP_PCR_PROPERTIES`
+    PcrProperties = 0x0000_0007,
+    /// `TPM_CAP_ECC_CURVES`
+    EccCurves = 0x0000_0008,
+    /// `TPM_CAP_AUTH_POLICIES`
+    AuthPolicies = 0x0000_0009,
+}
