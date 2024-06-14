@@ -271,3 +271,23 @@ pub enum Capability {
     /// `TPM_CAP_AUTH_POLICIES`
     AuthPolicies = 0x0000_0009,
 }
+
+/// `TPM_HT`
+#[derive(FromRepr, Debug, PartialEq)]
+#[repr(u8)]
+pub enum HandleType {
+    /// `TPM_HT_PCR`
+    Pcr = 0x00,
+    /// `TPM_HT_NV_INDEX`
+    NvIndex = 0x01,
+    /// `TPM_HT_HMAC_SESSION` and `TPM_HT_LOADED_SESSION`
+    HmacSession = 0x02,
+    /// `TPM_HT_POLICY_SESSION` and `TPM_HT_SAVED_SESSION`
+    PolicySession = 0x03,
+    /// `TPM_HT_PERMANENT`
+    Permanent = 0x40,
+    /// `TPM_HT_TRANSIENT`
+    Transient = 0x80,
+    /// `TPM_HT_PERSISTENT`
+    Persistent = 0x81,
+}
