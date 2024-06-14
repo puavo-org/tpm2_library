@@ -20,3 +20,9 @@ git push origin $MAJOR.$MINOR.$PATCH
 ## Tags
 
 Add a Signed-off-by trailer to the new commits.
+
+## Backwards compatibility
+
+* Patch versions are backwards compatible.
+* Minor versions are keptmostly backwards compatible, but we're not going to
+  hung up on it.
