@@ -16,9 +16,9 @@ pub struct Cli {
 
 #[derive(Subcommand, Debug)]
 pub enum Commands {
-    /// Decode TPM 2.0 return code
-    Rc {
-        /// Return code
+    /// Decode response code
+    ResponseCode {
+        /// Response code
         #[arg(value_parser = maybe_hex::<u16>)]
         rc: u16,
     },
@@ -27,7 +27,7 @@ pub enum Commands {
 fn main() {
     let cli = Cli::parse();
     match &cli.command {
-        Commands::Rc { rc } => {
+        Commands::ResponseCode { rc } => {
             let out_rc = ResponseCode::try_from(*rc);
             if let Ok(out_rc) = out_rc {
                 println!("{out_rc}");
