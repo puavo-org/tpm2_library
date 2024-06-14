@@ -27,7 +27,7 @@ publish:
   image: rust:latest
   script:
     - cargo b --verbose
-    - cargo publish -p tpm2_class
+    - cargo publish -p tpm2_call
     - cargo publish -p tpm2_cli
   only:
     - tags
