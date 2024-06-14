@@ -7,6 +7,7 @@ homepage = "https://gitlab.com/tpm2_library"
 repository = "https://gitlab.com/tpm2_library.git"
 edition = "2021"
 rust-version = "1.78"
+readme = "../README.md"
 
 [dependencies]
 strum_macros = "0.26.4"
