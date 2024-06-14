@@ -9,6 +9,6 @@ edition = "2021"
 rust-version = "1.78"
 
 [dependencies]
-tpm2_call = { path = "../tpm2_call", version = "0.1.0" }
+tpm2_call = "0.1.0"
 clap = { version = "4.0", features = ["derive"] }
 clap-num = "1.1.1"
