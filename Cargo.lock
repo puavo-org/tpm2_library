@@ -189,14 +189,14 @@ dependencies = [
 
 [[package]]
 name = "tpm2_call"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "strum_macros",
 ]
 
 [[package]]
 name = "tpm2_cli"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "clap",
  "clap-num",
