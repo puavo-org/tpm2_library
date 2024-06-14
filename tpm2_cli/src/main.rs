@@ -5,7 +5,7 @@
 
 use clap::{Parser, Subcommand};
 use clap_num::maybe_hex;
-use tpm2_call::ReturnCode;
+use tpm2_call::ResponseCode;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -28,7 +28,7 @@ fn main() {
     let cli = Cli::parse();
     match &cli.command {
         Commands::Rc { rc } => {
-            let out_rc = ReturnCode::try_from(*rc);
+            let out_rc = ResponseCode::try_from(*rc);
             if let Ok(out_rc) = out_rc {
                 println!("{out_rc}");
             } else {

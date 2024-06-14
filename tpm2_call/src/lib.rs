@@ -14,7 +14,7 @@ pub const RC_WARN: u16 = 0x0900;
 
 #[derive(FromRepr, Debug, PartialEq)]
 #[repr(u16)]
-pub enum ReturnCode {
+pub enum ResponseCode {
     Success = 0x0000,
     BadTag = 0x001E,
     Initialize = RC_VER1,
@@ -115,10 +115,10 @@ pub enum ReturnCode {
     NotUsed = RC_WARN + 0x07F,
 }
 
-pub struct ReturnCodeError;
+pub struct ResponseCodeError;
 
-impl TryFrom<u16> for ReturnCode {
-    type Error = ReturnCodeError;
+impl TryFrom<u16> for ResponseCode {
+    type Error = ResponseCodeError;
 
     fn try_from(value: u16) -> Result<Self, Self::Error> {
         Self::from_repr(if value & RC_FMT1 != 0 {
@@ -131,11 +131,11 @@ impl TryFrom<u16> for ReturnCode {
             // RC_VER0
             value & 0x7F
         })
-        .ok_or(ReturnCodeError)
+        .ok_or(ResponseCodeError)
     }
 }
 
-impl fmt::Display for ReturnCode {
+impl fmt::Display for ResponseCode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::Success => write!(f, "TPM_RC_SUCCESS"),
