@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: MIT
-
 #![deny(clippy::all)]
 #![deny(clippy::pedantic)]
 
