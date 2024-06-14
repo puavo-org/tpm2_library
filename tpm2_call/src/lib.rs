@@ -8,6 +8,46 @@ use core::fmt;
 use core::option::Option;
 use strum_macros::FromRepr;
 
+/// `TPM_CC_FIRST`
+pub const CC_FIRST: u32 = 0x0000_011F;
+
+/// `TPM_CC_LAST`
+pub const CC_LAST: u32 = 0x0000_0193;
+
+/// `TPM_CC`
+#[derive(FromRepr, Debug, PartialEq)]
+#[repr(u32)]
+pub enum CommandCode {
+    /// `TPM_CC_CreatePrimary`
+    CreatePrimary = 0x0000_0131,
+    /// `TPM_CC_DictionaryAttackLockReset`
+    DictionaryAttackLockReset = 0x0000_0139,
+    /// `TPM_CC_Create`
+    Create = 0x0000_0153,
+    /// `TPM_CC_Load`
+    Load = 0x0000_0157,
+    /// `TPM_CC_Unseal`
+    Unseal = 0x0000_015E,
+    /// `TPM_CC_FlushContext`
+    FlushContext = 0x0000_0165,
+    /// `TPM_CC_StartAuthSession`
+    StartAuthSession = 0x0000_0176,
+    /// `TPM_CC_GetCapability`
+    GetCapability = 0x0000_017A,
+    /// `TPM_CC_GetRandom`
+    GetRandom = 0x0000_017B,
+    /// `TPM_CC_PCR_Read`
+    PcrRead = 0x0000_017E,
+    /// `TPM_CC_PolicyPCR`
+    PolicyPcr = 0x0000_017F,
+    /// `TPM_CC_PCR_Extend`
+    PcrExtend = 0x0000_0182,
+    /// `TPM_CC_PolicyGetDigest`
+    PolicyGetDigest = 0x0000_0189,
+    /// `TPM_CC_PolicyPassword`
+    PolicyPassword = 0x0000_018C,
+}
+
 pub const RC_VER1: u16 = 0x0100;
 pub const RC_FMT1: u16 = 0x0080;
 pub const RC_WARN: u16 = 0x0900;
