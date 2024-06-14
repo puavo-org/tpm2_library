@@ -240,6 +240,46 @@ impl fmt::Display for ResponseCode {
     }
 }
 
+/// `TPM_ST`
+#[derive(FromRepr, Debug, PartialEq)]
+#[repr(u16)]
+pub enum StructuredTag {
+    /// `TPM_ST_RSP_COMMAND`
+    RspCommand = 0x00C4,
+    /// `TPM_ST_NULL`
+    Null = 0x8000,
+    /// `TPM_ST_NO_SESSIONS`
+    NoSessions = 0x8001,
+    /// `TPM_ST_SESSIONS`
+    Sessions = 0x8002,
+    /// `TPM_ST_ATTEST_NV`
+    AttestNv = 0x8014,
+    /// `TPM_ST_ATTEST_COMMAND_AUDIT`
+    AttestCommandAudit = 0x8015,
+    /// `TPM_ST_ATTEST_SESSION_AUDIT`
+    AttestSessionAudit = 0x8016,
+    /// `TPM_ST_ATTEST_CERTIFY`
+    AttesCertify = 0x8017,
+    /// `TPM_ST_ATTEST_QUOTE`
+    AttestQuote = 0x8018,
+    /// `TPM_ST_ATTEST_TIME`
+    AttestTime = 0x8019,
+    /// `TPM_ST_ATTEST_CREATION`
+    AttestCreation = 0x801A,
+    /// `TPM_ST_CREATION`
+    Creation = 0x8021,
+    /// `TPM_ST_VERIFIED`
+    Verified = 0x8022,
+    /// `TPM_ST_AUTH_SECRET`
+    AuthSecret = 0x8023,
+    /// `TPM_ST_HASHCHECK`
+    HashCheck = 0x0024,
+    /// `TPM_ST_AUTH_SIGNED`
+    AuthSigned = 0x0025,
+    /// `TPM_ST_FU_MANIFEST`: a structure describing a Field Upgrade Policy
+    FuManifest = 0x0029,
+}
+
 /// `TPM_CAP_LAST`
 pub const CAP_LAST: u32 = 0x0000_0009;
 
