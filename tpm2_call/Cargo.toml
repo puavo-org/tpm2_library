@@ -1,7 +1,7 @@
 [package]
 name = "tpm2_call"
 description = "TPM 2.0 library protocol"
-version = "0.1.0"
+version = "0.1.1"
 license = "MIT"
 homepage = "https://gitlab.com/tpm2_library"
 repository = "https://gitlab.com/tpm2_library.git"
