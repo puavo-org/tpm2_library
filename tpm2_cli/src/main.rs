@@ -19,8 +19,8 @@ pub enum Commands {
     /// Decode response code
     ResponseCode {
         /// Response code
-        #[arg(value_parser = maybe_hex::<u16>)]
-        rc: u16,
+        #[arg(value_parser = maybe_hex::<u32>)]
+        rc: u32,
     },
 }
 
@@ -32,7 +32,7 @@ fn main() {
             if let Ok(out_rc) = out_rc {
                 println!("{out_rc}");
             } else {
-                println!(); // N/A
+                println!("unknown {rc:#010x}");
             }
         }
     }

@@ -48,12 +48,12 @@ pub enum CommandCode {
     PolicyPassword = 0x0000_018C,
 }
 
-pub const RC_VER1: u16 = 0x0100;
-pub const RC_FMT1: u16 = 0x0080;
-pub const RC_WARN: u16 = 0x0900;
+pub const RC_VER1: u32 = 0x0100;
+pub const RC_FMT1: u32 = 0x0080;
+pub const RC_WARN: u32 = 0x0900;
 
 #[derive(FromRepr, Debug, PartialEq)]
-#[repr(u16)]
+#[repr(u32)]
 pub enum ResponseCode {
     Success = 0x0000,
     BadTag = 0x001E,
@@ -155,12 +155,10 @@ pub enum ResponseCode {
     NotUsed = RC_WARN + 0x07F,
 }
 
-pub struct ResponseCodeError;
+impl TryFrom<u32> for ResponseCode {
+    type Error = ResponseCode;
 
-impl TryFrom<u16> for ResponseCode {
-    type Error = ResponseCodeError;
-
-    fn try_from(value: u16) -> Result<Self, Self::Error> {
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
         Self::from_repr(if value & RC_FMT1 != 0 {
             value & (0x3F + RC_FMT1)
         } else if value & RC_WARN != 0 {
@@ -171,7 +169,7 @@ impl TryFrom<u16> for ResponseCode {
             // RC_VER0
             value & 0x7F
         })
-        .ok_or(ResponseCodeError)
+        .ok_or(ResponseCode::NotUsed)
     }
 }
 
