@@ -371,3 +371,18 @@ pub enum HandleType {
     /// `TPM_HT_PERSISTENT`
     Persistent = 0x81,
 }
+
+/// Mask off the handle type
+pub const HR_HANDLE_MASK: u32 = 0x00FF_FFFF;
+
+/// Masks off the handle index
+pub const HR_RANGE_MASK: u32 = 0xFF00_0000;
+
+/// Shift bits for the handle type
+pub const HR_SHIFT: u32 = 24;
+
+/// The first transient handle
+pub const HR_TRANSIENT: u32 = (HandleType::Transient as u32) << HR_SHIFT;
+
+/// The first persistent handle
+pub const HR_PERSISTENT: u32 = (HandleType::Persistent as u32) << HR_SHIFT;
