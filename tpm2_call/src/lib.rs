@@ -283,7 +283,7 @@ impl fmt::Display for ResponseCode {
 /// `TPM_ST`
 #[derive(FromRepr, Debug, PartialEq)]
 #[repr(u16)]
-pub enum StructuredTag {
+pub enum Tag {
     /// `TPM_ST_RSP_COMMAND`
     RspCommand = 0x00C4,
     /// `TPM_ST_NULL`
