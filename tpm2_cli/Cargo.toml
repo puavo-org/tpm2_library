@@ -1,7 +1,7 @@
 [package]
 name = "tpm2_cli"
 description = "TPM 2.0 command-line interface"
-version = "0.2.2"
+version = "0.2.3"
 license = "MIT"
 homepage = "https://gitlab.com/jarkkojs/tpm2_library"
 repository = "https://gitlab.com/jarkkojs/tpm2_library.git"
@@ -10,7 +10,7 @@ rust-version = "1.78"
 readme = "../README.md"
 
 [dependencies]
-tpm2_call = { path = "../tpm2_call", version = "0.2.0"  }
+tpm2_call = { path = "../tpm2_call", version = "0.2.3"  }
 clap = { version = "4.0", features = ["derive"] }
 clap-num = "1.1.1"
 log = "0.4.21"

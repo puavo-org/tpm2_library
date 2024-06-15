@@ -297,14 +297,14 @@ dependencies = [
 
 [[package]]
 name = "tpm2_call"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "strum_macros",
 ]
 
 [[package]]
 name = "tpm2_cli"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "bincode",
  "clap",
