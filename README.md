@@ -1,3 +1,12 @@
+Subcrates:
+
+* `tpm2_call` has the goal of providing rustified constants covering TPM2 2.0
+  Structures Specification. All the content in this crate operating system
+  agnostic.
+* `tpm2_cli` is a command-line interface to a TPM 2.0 chip. It is Linux-only
+  application using by default /dev/tpmrm0, which is available to users within
+  `tss` group in a systemd-based environment.
+
 ## Commits
 
 Commit messaged follow
