@@ -329,7 +329,7 @@ pub const CAP_VENDOR_PROPERTY: u32 = 0x0000_0100;
 /// `TPM_CAP`
 #[derive(FromRepr, Debug, PartialEq)]
 #[repr(u32)]
-pub enum Capability {
+pub enum TpmCap {
     /// `TPM_CAP_ALGS`
     Algs = 0x0000_0000,
     /// `TPM_CAP_HANDLES`

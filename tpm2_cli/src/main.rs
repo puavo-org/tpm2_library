@@ -12,7 +12,7 @@ use std::{
     os::unix::fs::FileTypeExt,
     path::Path,
 };
-use tpm2_call::{Capability, TpmCc, TpmRc, TpmTag, HR_PERSISTENT, HR_TRANSIENT};
+use tpm2_call::{TpmCap, TpmCc, TpmRc, TpmTag, HR_PERSISTENT, HR_TRANSIENT};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -64,7 +64,7 @@ where
     buf.extend(&target.serialize(&(TpmTag::NoSessions as u16)).unwrap());
     buf.extend(&target.serialize(&22_u32).unwrap());
     buf.extend(&target.serialize(&(TpmCc::GetCapability as u32)).unwrap());
-    buf.extend(&target.serialize(&(Capability::Handles as u32)).unwrap());
+    buf.extend(&target.serialize(&(TpmCap::Handles as u32)).unwrap());
     buf.extend(&target.serialize(&property).unwrap());
     buf.extend(&target.serialize(&property_count).unwrap());
     file.write_all(&buf)?;
