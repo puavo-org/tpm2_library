@@ -355,7 +355,7 @@ pub enum Capability {
 /// `TPM_HT`
 #[derive(FromRepr, Debug, PartialEq)]
 #[repr(u8)]
-pub enum HandleType {
+pub enum TpmHandle {
     /// `TPM_HT_PCR`
     Pcr = 0x00,
     /// `TPM_HT_NV_INDEX`
@@ -382,10 +382,10 @@ pub const HR_RANGE_MASK: u32 = 0xFF00_0000;
 pub const HR_SHIFT: u32 = 24;
 
 /// The first transient handle
-pub const HR_TRANSIENT: u32 = (HandleType::Transient as u32) << HR_SHIFT;
+pub const HR_TRANSIENT: u32 = (TpmHandle::Transient as u32) << HR_SHIFT;
 
 /// The first persistent handle
-pub const HR_PERSISTENT: u32 = (HandleType::Persistent as u32) << HR_SHIFT;
+pub const HR_PERSISTENT: u32 = (TpmHandle::Persistent as u32) << HR_SHIFT;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[repr(C, align(2))]
