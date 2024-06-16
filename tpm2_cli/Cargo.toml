@@ -1,5 +1,5 @@
 [package]
-name = "tpm2-cli"
+name = "tpm2_cli"
 description = "TPM 2.0 command-line interface"
 version = "0.3.2"
 license = "MIT"
