@@ -296,16 +296,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "tpm2_call"
-version = "0.3.1"
-dependencies = [
- "serde",
- "strum_macros",
-]
-
-[[package]]
-name = "tpm2_cli"
-version = "0.3.1"
+name = "tpm2-cli"
+version = "0.3.2"
 dependencies = [
  "bincode",
  "clap",
@@ -313,6 +305,14 @@ dependencies = [
  "env_logger",
  "log",
  "tpm2_call",
+]
+
+[[package]]
+name = "tpm2_call"
+version = "0.3.2"
+dependencies = [
+ "serde",
+ "strum_macros",
 ]
 
 [[package]]
