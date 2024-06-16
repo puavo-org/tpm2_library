@@ -5,6 +5,7 @@
 use core::convert::From;
 use core::fmt;
 use core::option::Option;
+use serde::{Deserialize, Serialize};
 use strum_macros::FromRepr;
 
 /// `TPM_CC_FIRST`
@@ -385,3 +386,21 @@ pub const HR_TRANSIENT: u32 = (HandleType::Transient as u32) << HR_SHIFT;
 
 /// The first persistent handle
 pub const HR_PERSISTENT: u32 = (HandleType::Persistent as u32) << HR_SHIFT;
+
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[repr(C, align(2))]
+pub struct TpmHeader {
+    tag: u16,
+    size: u32,
+    code: u32,
+}
+
+impl TpmHeader {
+    /// Creates a new instance
+    #[must_use]
+    pub const fn new(tag: Tag, size: u32, code: CommandCode) -> Self {
+        let tag = tag as u16;
+        let code = code as u32;
+        Self { tag, size, code }
+    }
+}

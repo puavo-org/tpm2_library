@@ -10,4 +10,5 @@ rust-version = "1.78"
 readme = "../README.md"
 
 [dependencies]
+serde = { version = "1.0.203", features = ["derive"] }
 strum_macros = "0.26.4"

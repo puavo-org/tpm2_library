@@ -299,6 +299,7 @@ dependencies = [
 name = "tpm2_call"
 version = "0.2.3"
 dependencies = [
+ "serde",
  "strum_macros",
 ]
 
