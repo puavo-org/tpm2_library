@@ -10,7 +10,7 @@ rust-version = "1.78"
 readme = "../README.md"
 
 [dependencies]
-tpm2_call = { path = "../tpm2_call", version = "0.3.2"  }
+tpm2_call = { path = "../call", version = "0.3.2"  }
 clap = { version = "4.0", features = ["derive"] }
 clap-num = "1.1.1"
 log = "0.4.21"

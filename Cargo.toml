@@ -1,6 +1,3 @@
 [workspace]
-members = [
-    "tpm2_call",
-    "tpm2_cli",
-]
+members = [ "call", "cli" ]
 resolver = "2"
