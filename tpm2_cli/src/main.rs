@@ -7,12 +7,38 @@ use clap::{Parser, Subcommand};
 use clap_num::maybe_hex;
 use log::{debug, error};
 use std::{
-    fs::{self, OpenOptions},
+    fs::{self, File, OpenOptions},
     io::{Error, ErrorKind, Read, Result, Write},
     os::unix::fs::FileTypeExt,
     path::Path,
 };
 use tpm2_call::{TpmCap, TpmCc, TpmRc, TpmTag, HR_PERSISTENT, HR_TRANSIENT};
+
+/// Holds an open character device file for a TPM chip.
+struct TpmChip(File);
+
+impl TpmChip {
+    /// Opens the character device for a TPM chip
+    pub fn open(path: &str) -> Result<TpmChip> {
+        let path = Path::new(path);
+        if !path.exists() {
+            return Err(Error::from(ErrorKind::InvalidInput));
+        }
+        let Ok(metadata) = fs::metadata(path) else {
+            return Err(Error::from(ErrorKind::InvalidInput));
+        };
+        if !metadata.file_type().is_char_device() {
+            return Err(Error::from(ErrorKind::InvalidInput));
+        }
+        let Ok(path) = std::fs::canonicalize(path) else {
+            return Err(Error::from(ErrorKind::InvalidInput));
+        };
+        debug!("{}", path.to_str().unwrap());
+        Ok(TpmChip(
+            OpenOptions::new().read(true).write(true).open(path)?,
+        ))
+    }
+}
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -42,18 +68,7 @@ pub enum Commands {
     },
 }
 
-fn is_char_device(path: &str) -> bool {
-    let path = Path::new(path);
-    if !path.exists() {
-        return false;
-    }
-    let Ok(metadata) = fs::metadata(path) else {
-        return false;
-    };
-    metadata.file_type().is_char_device()
-}
-
-fn write_get_handles_command<T>(file: &mut T, property: u32, property_count: u32) -> Result<()>
+fn write_get_capability<T>(file: &mut T, property: u32, property_count: u32) -> Result<()>
 where
     T: Write,
 {
@@ -71,7 +86,7 @@ where
     Ok(())
 }
 
-fn read_get_handles_response<T>(
+fn read_get_capability<T>(
     file: &mut T,
     handles: &mut Vec<u32>,
     property_count_max: u32,
@@ -122,57 +137,38 @@ fn main() {
             transient,
             persistent,
         } => {
-            if !is_char_device(&cli.device) {
-                error!("invalid device");
+            let mut chip = TpmChip::open(&cli.device).unwrap_or_else(|err| {
+                error!("{err}");
                 std::process::exit(1);
-            }
-            let Ok(device) = std::fs::canonicalize(&cli.device) else {
-                error!("invalid device");
-                std::process::exit(1);
-            };
-            if let Some(device) = device.to_str() {
-                debug!("device: {device}");
-            }
-            let mut file = OpenOptions::new()
-                .read(true)
-                .write(true)
-                .open(device)
-                .unwrap_or_else(|err| {
-                    error!("{err}");
-                    std::process::exit(1);
-                });
+            });
             if *transient {
-                write_get_handles_command(&mut file, HR_TRANSIENT, MAX_HANDLES).unwrap_or_else(
+                write_get_capability(&mut chip.0, HR_TRANSIENT, MAX_HANDLES).unwrap_or_else(
                     |err| {
                         error!("{err}");
                         std::process::exit(1);
                     },
                 );
                 let mut handles = vec![];
-                read_get_handles_response(&mut file, &mut handles, MAX_HANDLES).unwrap_or_else(
-                    |err| {
-                        error!("{err}");
-                        std::process::exit(1);
-                    },
-                );
+                read_get_capability(&mut chip.0, &mut handles, MAX_HANDLES).unwrap_or_else(|err| {
+                    error!("{err}");
+                    std::process::exit(1);
+                });
                 for handle in handles {
                     println!("{handle:#010x}");
                 }
             }
             if *persistent {
-                write_get_handles_command(&mut file, HR_PERSISTENT, MAX_HANDLES).unwrap_or_else(
+                write_get_capability(&mut chip.0, HR_PERSISTENT, MAX_HANDLES).unwrap_or_else(
                     |err| {
                         error!("{err}");
                         std::process::exit(1);
                     },
                 );
                 let mut handles = vec![];
-                read_get_handles_response(&mut file, &mut handles, MAX_HANDLES).unwrap_or_else(
-                    |err| {
-                        error!("{err}");
-                        std::process::exit(1);
-                    },
-                );
+                read_get_capability(&mut chip.0, &mut handles, MAX_HANDLES).unwrap_or_else(|err| {
+                    error!("{err}");
+                    std::process::exit(1);
+                });
                 for handle in handles {
                     println!("{handle:#010x}");
                 }
