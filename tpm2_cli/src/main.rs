@@ -12,7 +12,7 @@ use std::{
     os::unix::fs::FileTypeExt,
     path::Path,
 };
-use tpm2_call::{Capability, CommandCode, ResponseCode, Tag, HR_PERSISTENT, HR_TRANSIENT};
+use tpm2_call::{Capability, Tag, TpmCc, TpmRc, HR_PERSISTENT, HR_TRANSIENT};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -26,7 +26,7 @@ pub struct Cli {
 #[derive(Subcommand, Debug)]
 pub enum Commands {
     /// Decode response code
-    ResponseCode {
+    TpmRc {
         /// Response code
         #[arg(value_parser = maybe_hex::<u32>)]
         rc: u32,
@@ -63,11 +63,7 @@ where
         .with_big_endian();
     buf.extend(&target.serialize(&(Tag::NoSessions as u16)).unwrap());
     buf.extend(&target.serialize(&22_u32).unwrap());
-    buf.extend(
-        &target
-            .serialize(&(CommandCode::GetCapability as u32))
-            .unwrap(),
-    );
+    buf.extend(&target.serialize(&(TpmCc::GetCapability as u32)).unwrap());
     buf.extend(&target.serialize(&(Capability::Handles as u32)).unwrap());
     buf.extend(&target.serialize(&property).unwrap());
     buf.extend(&target.serialize(&property_count).unwrap());
@@ -119,8 +115,8 @@ fn main() {
     env_logger::init();
     let cli = Cli::parse();
     match &cli.command {
-        Commands::ResponseCode { rc } => {
-            println!("{} {rc:#010x}", ResponseCode::from(*rc));
+        Commands::TpmRc { rc } => {
+            println!("{} {rc:#010x}", TpmRc::from(*rc));
         }
         Commands::Objects {
             transient,

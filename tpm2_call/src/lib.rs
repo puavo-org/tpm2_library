@@ -17,7 +17,7 @@ pub const CC_LAST: u32 = 0x0000_0193;
 /// `TPM_CC`
 #[derive(FromRepr, Debug, PartialEq)]
 #[repr(u32)]
-pub enum CommandCode {
+pub enum TpmCc {
     /// `TPM_CC_CreatePrimary`
     CreatePrimary = 0x0000_0131,
     /// `TPM_CC_DictionaryAttackLockReset`
@@ -54,7 +54,7 @@ pub const RC_WARN: u32 = 0x0900;
 
 #[derive(FromRepr, Debug, PartialEq)]
 #[repr(u32)]
-pub enum ResponseCode {
+pub enum TpmRc {
     Success = 0x0000,
     BadTag = 0x001E,
     Initialize = RC_VER1,
@@ -155,12 +155,12 @@ pub enum ResponseCode {
     NotUsed = RC_WARN + 0x07F,
 }
 
-impl From<u32> for ResponseCode {
+impl From<u32> for TpmRc {
     /// On success, parse `RsponseCode`.
-    /// On failure, Return `ResponseCode::NotUsed` (`TPM_RC_NOT_USED`) for any
+    /// On failure, Return `TpmRc::NotUsed` (`TPM_RC_NOT_USED`) for any
     /// invald response code, as TPM chip should never return that back to the
     /// caller in any legit use case.
-    fn from(value: u32) -> ResponseCode {
+    fn from(value: u32) -> TpmRc {
         Self::from_repr(if value & RC_FMT1 != 0 {
             value & (0x3F + RC_FMT1)
         } else if value & RC_WARN != 0 {
@@ -171,11 +171,11 @@ impl From<u32> for ResponseCode {
             // RC_VER0
             value & 0x7F
         })
-        .unwrap_or(ResponseCode::NotUsed)
+        .unwrap_or(TpmRc::NotUsed)
     }
 }
 
-impl fmt::Display for ResponseCode {
+impl fmt::Display for TpmRc {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::Success => write!(f, "TPM_RC_SUCCESS"),
@@ -398,7 +398,7 @@ pub struct TpmHeader {
 impl TpmHeader {
     /// Creates a new instance
     #[must_use]
-    pub const fn new(tag: Tag, size: u32, code: CommandCode) -> Self {
+    pub const fn new(tag: Tag, size: u32, code: TpmCc) -> Self {
         let tag = tag as u16;
         let code = code as u32;
         Self { tag, size, code }
