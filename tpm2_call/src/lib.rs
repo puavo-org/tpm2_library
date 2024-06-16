@@ -2,7 +2,7 @@
 #![deny(clippy::all)]
 #![deny(clippy::pedantic)]
 
-use core::convert::TryFrom;
+use core::convert::From;
 use core::fmt;
 use core::option::Option;
 use strum_macros::FromRepr;
@@ -154,10 +154,12 @@ pub enum ResponseCode {
     NotUsed = RC_WARN + 0x07F,
 }
 
-impl TryFrom<u32> for ResponseCode {
-    type Error = ResponseCode;
-
-    fn try_from(value: u32) -> Result<Self, Self::Error> {
+impl From<u32> for ResponseCode {
+    /// On success, parse `RsponseCode`.
+    /// On failure, Return `ResponseCode::NotUsed` (`TPM_RC_NOT_USED`) for any
+    /// invald response code, as TPM chip should never return that back to the
+    /// caller in any legit use case.
+    fn from(value: u32) -> ResponseCode {
         Self::from_repr(if value & RC_FMT1 != 0 {
             value & (0x3F + RC_FMT1)
         } else if value & RC_WARN != 0 {
@@ -168,7 +170,7 @@ impl TryFrom<u32> for ResponseCode {
             // RC_VER0
             value & 0x7F
         })
-        .ok_or(ResponseCode::NotUsed)
+        .unwrap_or(ResponseCode::NotUsed)
     }
 }
 

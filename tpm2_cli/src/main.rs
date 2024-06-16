@@ -120,12 +120,7 @@ fn main() {
     let cli = Cli::parse();
     match &cli.command {
         Commands::ResponseCode { rc } => {
-            let out_rc = ResponseCode::try_from(*rc);
-            if let Ok(out_rc) = out_rc {
-                println!("{out_rc}");
-            } else {
-                println!("unknown {rc:#010x}");
-            }
+            println!("{} {rc:#010x}", ResponseCode::from(*rc));
         }
         Commands::Objects {
             transient,
