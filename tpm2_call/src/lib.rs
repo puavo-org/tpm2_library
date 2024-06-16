@@ -283,7 +283,7 @@ impl fmt::Display for TpmRc {
 /// `TPM_ST`
 #[derive(FromRepr, Debug, PartialEq)]
 #[repr(u16)]
-pub enum Tag {
+pub enum TpmTag {
     /// `TPM_ST_RSP_COMMAND`
     RspCommand = 0x00C4,
     /// `TPM_ST_NULL`
@@ -398,7 +398,7 @@ pub struct TpmHeader {
 impl TpmHeader {
     /// Creates a new instance
     #[must_use]
-    pub const fn new(tag: Tag, size: u32, code: TpmCc) -> Self {
+    pub const fn new(tag: TpmTag, size: u32, code: TpmCc) -> Self {
         let tag = tag as u16;
         let code = code as u32;
         Self { tag, size, code }

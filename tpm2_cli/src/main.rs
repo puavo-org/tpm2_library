@@ -12,7 +12,7 @@ use std::{
     os::unix::fs::FileTypeExt,
     path::Path,
 };
-use tpm2_call::{Capability, Tag, TpmCc, TpmRc, HR_PERSISTENT, HR_TRANSIENT};
+use tpm2_call::{Capability, TpmCc, TpmRc, TpmTag, HR_PERSISTENT, HR_TRANSIENT};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -61,7 +61,7 @@ where
     let target = DefaultOptions::new()
         .with_fixint_encoding()
         .with_big_endian();
-    buf.extend(&target.serialize(&(Tag::NoSessions as u16)).unwrap());
+    buf.extend(&target.serialize(&(TpmTag::NoSessions as u16)).unwrap());
     buf.extend(&target.serialize(&22_u32).unwrap());
     buf.extend(&target.serialize(&(TpmCc::GetCapability as u32)).unwrap());
     buf.extend(&target.serialize(&(Capability::Handles as u32)).unwrap());
