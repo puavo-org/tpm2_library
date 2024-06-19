@@ -7,6 +7,7 @@ use core::convert::From;
 use core::fmt;
 use core::option::Option;
 use serde::{Deserialize, Serialize};
+use std::io::{Error, ErrorKind, Read, Result, Write};
 use strum_macros::FromRepr;
 
 /// `TPM_ALG_ID`
@@ -539,4 +540,58 @@ impl TpmHeader {
         let code = code as u32;
         Self { tag, size, code }
     }
+}
+
+/// `TPM2_GetCapability`
+///
+/// # Errors
+///
+/// Can fail when read or write operation returns corrupted data or out of
+/// memory.
+pub fn tpm2_get_capability<T>(
+    file: &mut T,
+    property: u32,
+    property_count: u32,
+    handles: &mut Vec<u32>,
+) -> Result<()>
+where
+    T: Read + Write,
+{
+    // Write command to the TPM chip.
+    let mut buf = vec![];
+    buf.extend((TpmTag::NoSessions as u16).to_be_bytes());
+    buf.extend((22_u32).to_be_bytes());
+    buf.extend((TpmCc::GetCapability as u32).to_be_bytes());
+    buf.extend((TpmCap::Handles as u32).to_be_bytes());
+    buf.extend(property.to_be_bytes());
+    buf.extend(property_count.to_be_bytes());
+    file.write_all(&buf)?;
+    // Read response from the TPM chip.
+    let mut buf = Vec::new();
+    file.read_to_end(&mut buf)?;
+    // Check that the static part of the header for `TPM2_GetCapability` takes
+    // exactly 19 bytes and the tail should be a multiple of the handle size. If
+    // these conditions are not met, the data will be corrupted.
+    if buf.len() < 19 || ((buf.len() - 19) & 0x03) != 0 {
+        return Err(Error::from(ErrorKind::InvalidData));
+    }
+    let response_size: usize = u32::from_be_bytes([buf[2], buf[3], buf[4], buf[5]]) as usize;
+    // Check that the response header contains matching size with the total size
+    // of the received data.
+    if response_size != buf.len() {
+        return Err(Error::from(ErrorKind::InvalidData));
+    }
+    let handles_count = u32::from_be_bytes([buf[15], buf[16], buf[17], buf[18]]) as usize;
+    if handles_count != ((buf.len() - 19) >> 2) {
+        return Err(Error::from(ErrorKind::InvalidData));
+    }
+    if handles_count > property_count as usize {
+        return Err(Error::from(ErrorKind::OutOfMemory));
+    }
+    for i in 0..handles_count {
+        let j: usize = i + 19;
+        let handle = u32::from_be_bytes([buf[j], buf[j + 1], buf[j + 2], buf[j + 3]]);
+        handles.push(handle);
+    }
+    Ok(())
 }

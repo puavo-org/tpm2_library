@@ -2,17 +2,17 @@
 #![deny(clippy::all)]
 #![deny(clippy::pedantic)]
 
-use bincode::{config::DefaultOptions, Options};
 use clap::{Parser, Subcommand};
 use clap_num::maybe_hex;
 use log::{debug, error};
 use std::{
     fs::{self, File, OpenOptions},
-    io::{Error, ErrorKind, Read, Result, Write},
+    io::{Error, ErrorKind, Result},
     os::unix::fs::FileTypeExt,
     path::Path,
 };
-use tpm2_call::{TpmCap, TpmCc, TpmHandle, TpmRc, TpmTag};
+use tpm2_call::tpm2_get_capability;
+use tpm2_call::{TpmHandle, TpmRc};
 
 /// Holds an open character device file for a TPM chip.
 struct TpmChip(File);
@@ -68,62 +68,6 @@ pub enum Commands {
     },
 }
 
-fn write_get_capability<T>(file: &mut T, property: u32, property_count: u32) -> Result<()>
-where
-    T: Write,
-{
-    let mut buf = vec![];
-    let target = DefaultOptions::new()
-        .with_fixint_encoding()
-        .with_big_endian();
-    buf.extend(&target.serialize(&(TpmTag::NoSessions as u16)).unwrap());
-    buf.extend(&target.serialize(&22_u32).unwrap());
-    buf.extend(&target.serialize(&(TpmCc::GetCapability as u32)).unwrap());
-    buf.extend(&target.serialize(&(TpmCap::Handles as u32)).unwrap());
-    buf.extend(&target.serialize(&property).unwrap());
-    buf.extend(&target.serialize(&property_count).unwrap());
-    file.write_all(&buf)?;
-    Ok(())
-}
-
-fn read_get_capability<T>(
-    file: &mut T,
-    handles: &mut Vec<u32>,
-    property_count_max: u32,
-) -> Result<()>
-where
-    T: Read,
-{
-    let mut buf = Vec::new();
-    file.read_to_end(&mut buf)?;
-    // Check that the static part of the header for `TPM2_GetCapability` takes
-    // exactly 19 bytes and the tail should be a multiple of the handle size. If
-    // these conditions are not met, the data will be corrupted.
-    if buf.len() < 19 || ((buf.len() - 19) & 0x03) != 0 {
-        return Err(Error::from(ErrorKind::InvalidData));
-    }
-    let response_size: usize = u32::from_be_bytes([buf[2], buf[3], buf[4], buf[5]]) as usize;
-    // Check that the response header contains matching size with the total size
-    // of the received data.
-    if response_size != buf.len() {
-        return Err(Error::from(ErrorKind::InvalidData));
-    }
-    debug!("response size: {response_size}");
-    let handles_count = u32::from_be_bytes([buf[15], buf[16], buf[17], buf[18]]) as usize;
-    if handles_count != ((buf.len() - 19) >> 2) {
-        return Err(Error::from(ErrorKind::InvalidData));
-    }
-    if handles_count > property_count_max as usize {
-        return Err(Error::from(ErrorKind::OutOfMemory));
-    }
-    for i in 0..handles_count {
-        let j: usize = i + 19;
-        let handle = u32::from_be_bytes([buf[j], buf[j + 1], buf[j + 2], buf[j + 3]]);
-        handles.push(handle);
-    }
-    Ok(())
-}
-
 const MAX_HANDLES: u32 = 16;
 
 fn main() {
@@ -142,13 +86,14 @@ fn main() {
                 std::process::exit(1);
             });
             if *transient {
-                write_get_capability(&mut chip.0, TpmHandle::Transient as u32, MAX_HANDLES)
-                    .unwrap_or_else(|err| {
-                        error!("{err}");
-                        std::process::exit(1);
-                    });
                 let mut handles = vec![];
-                read_get_capability(&mut chip.0, &mut handles, MAX_HANDLES).unwrap_or_else(|err| {
+                tpm2_get_capability(
+                    &mut chip.0,
+                    TpmHandle::Transient as u32,
+                    MAX_HANDLES,
+                    &mut handles,
+                )
+                .unwrap_or_else(|err| {
                     error!("{err}");
                     std::process::exit(1);
                 });
@@ -157,13 +102,14 @@ fn main() {
                 }
             }
             if *persistent {
-                write_get_capability(&mut chip.0, TpmHandle::Persistent as u32, MAX_HANDLES)
-                    .unwrap_or_else(|err| {
-                        error!("{err}");
-                        std::process::exit(1);
-                    });
                 let mut handles = vec![];
-                read_get_capability(&mut chip.0, &mut handles, MAX_HANDLES).unwrap_or_else(|err| {
+                tpm2_get_capability(
+                    &mut chip.0,
+                    TpmHandle::Persistent as u32,
+                    MAX_HANDLES,
+                    &mut handles,
+                )
+                .unwrap_or_else(|err| {
                     error!("{err}");
                     std::process::exit(1);
                 });
