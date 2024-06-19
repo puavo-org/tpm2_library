@@ -449,11 +449,37 @@ pub enum TpmClass {
     Persistent = 0x81,
 }
 
-/// The first transient handle
-pub const HANDLE_TRANSIENT: u32 = (TpmClass::Transient as u32) << 24;
-
-/// The first persistent handle
-pub const HANDLE_PERSISTENT: u32 = (TpmClass::Persistent as u32) << 24;
+/// `TPM_HT`
+#[derive(FromRepr, Debug, PartialEq)]
+#[repr(u32)]
+pub enum TpmHandle {
+    /// `TPM_RH_FIRST`
+    NotUsed = 0x4000_0000,
+    /// `TPM_RH_OWNER`
+    Owner = 0x4000_0001,
+    /// `TPM_RH_NULL`
+    Null = 0x4000_0007,
+    /// `TPM_RH_UNASSIGNED`
+    Unassigned = 0x4000_0008,
+    /// `TPM_RS_PW`
+    Password = 0x4000_0009,
+    /// `TPM_RH_LOCKOUT`
+    Lockout = 0x4000_000A,
+    /// `TPM_RH_ENDORSEMENT`
+    Endorsement = 0x4000_000B,
+    /// `TPM_RH_PLATFORM`
+    Platform = 0x4000_000C,
+    /// `TPM_RH_PLATFORM_NV`
+    PlatformNv = 0x4000_000D,
+    /// `TPM_RH_AUTH_00`
+    Auth00 = 0x4000_0010,
+    /// `TPM_RH_AUTH_FF`
+    AuthFF = 0x4000_010F,
+    /// The first transient handle
+    Transient = 0x8000_0000,
+    /// The first persistent handle
+    Persistent = 0x8100_0000,
+}
 
 bitflags! {
     /// `TPMA_OBJECT`
