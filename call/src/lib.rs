@@ -9,6 +9,82 @@ use core::option::Option;
 use serde::{Deserialize, Serialize};
 use strum_macros::FromRepr;
 
+/// `TPM_ALG_ID`
+#[derive(FromRepr, Debug, PartialEq)]
+#[repr(u16)]
+pub enum TpmAlg {
+    /// `TPM_AG_ERROR`
+    Error = 0x0000,
+    /// `TPM_ALG_RSA`
+    Rsa = 0x0001,
+    /// `TPM_ALG_SHA1`
+    Sha1 = 0x0004,
+    /// `TPM_ALG_HMAC`
+    Hmac = 0x0005,
+    /// `TPM_ALG_AES`
+    Aes = 0x0006,
+    /// `TPM_ALG_MGF1`
+    Mgf1 = 0x0007,
+    /// `TPM_ALG_KEYEDHASH`
+    KeyedHash = 0x0008,
+    /// `TPM_ALG_XOR`
+    Xor = 0x000A,
+    /// `TPM_ALG_SHA256`
+    Sha256 = 0x000B,
+    /// `TPM_ALG_SHA384`
+    Sha384 = 0x000C,
+    /// `TPM_ALG_SHA512`
+    Sha512 = 0x000D,
+    /// `TPM_ALG_NULL`
+    Null = 0x0010,
+    /// `TPM_ALG_SM3_256`
+    Sm3 = 0x0012,
+    /// `TPM_ALG_SM4`
+    Sm4 = 0x0013,
+    /// `TPM_ALG_RSASSA`
+    Rsassa = 0x0014,
+    /// `TPM_ALG_RSAES`
+    Rsaes = 0x0015,
+    /// `TPM_ALG_RSAPSS`
+    Rsapss = 0x0016,
+    /// `TPM_ALG_OAEP`
+    Oaep = 0x0017,
+    /// `TPM_ALG_ECDSA`
+    Ecdsa = 0x0018,
+    /// `TPM_ALG_ECDH`
+    Ecdh = 0x0019,
+    /// `TPM_ALG_ECDAA`
+    Ecdaa = 0x001A,
+    /// `TPM_ALG_SM2`
+    Sm2 = 0x001B,
+    /// `TPM_ALG_ECSCHNORR`
+    Eschnorr = 0x001C,
+    /// `TPM_ALG_ECMQV`
+    Ecmqv = 0x001D,
+    /// `TPM_ALG_KDF1_SP800_56A`
+    Kdf1Sp800_56A = 0x0020,
+    /// `TPM_ALG_KDF2`
+    Kdf = 0x0021,
+    /// `TPM_ALG_KDF1_SP800_108`
+    Kdf1Sp800_180 = 0x0022,
+    /// `TPM_ALG_ECC`
+    Ecc = 0x0023,
+    /// `TPM_ALG_SYMCIPHER`
+    SymCipher = 0x0025,
+    /// `TPM_ALG_CAMELLIA`
+    Camellia = 0x0026,
+    /// `TPM_ALG_CTR`
+    Ctr = 0x0040,
+    /// `TPM_ALG_OFB`
+    Ofb = 0x0041,
+    /// `TPM_ALG_CBC`
+    Cbc = 0x0042,
+    /// `TPM_ALG_CFB`
+    Cfb = 0x0043,
+    /// `TPM_ALG_ECB`
+    Ecb = 0x0044,
+}
+
 /// `TPM_CC_FIRST`
 pub const CC_FIRST: u32 = 0x0000_011F;
 
