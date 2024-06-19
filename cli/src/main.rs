@@ -12,7 +12,7 @@ use std::{
     os::unix::fs::FileTypeExt,
     path::Path,
 };
-use tpm2_call::{TpmCap, TpmCc, TpmRc, TpmTag, HR_PERSISTENT, HR_TRANSIENT};
+use tpm2_call::{TpmCap, TpmCc, TpmRc, TpmTag, HANDLE_PERSISTENT, HANDLE_TRANSIENT};
 
 /// Holds an open character device file for a TPM chip.
 struct TpmChip(File);
@@ -142,7 +142,7 @@ fn main() {
                 std::process::exit(1);
             });
             if *transient {
-                write_get_capability(&mut chip.0, HR_TRANSIENT, MAX_HANDLES).unwrap_or_else(
+                write_get_capability(&mut chip.0, HANDLE_TRANSIENT, MAX_HANDLES).unwrap_or_else(
                     |err| {
                         error!("{err}");
                         std::process::exit(1);
@@ -158,7 +158,7 @@ fn main() {
                 }
             }
             if *persistent {
-                write_get_capability(&mut chip.0, HR_PERSISTENT, MAX_HANDLES).unwrap_or_else(
+                write_get_capability(&mut chip.0, HANDLE_PERSISTENT, MAX_HANDLES).unwrap_or_else(
                     |err| {
                         error!("{err}");
                         std::process::exit(1);

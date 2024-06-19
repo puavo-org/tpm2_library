@@ -432,7 +432,7 @@ pub enum TpmCap {
 /// `TPM_HT`
 #[derive(FromRepr, Debug, PartialEq)]
 #[repr(u8)]
-pub enum TpmHandle {
+pub enum TpmClass {
     /// `TPM_HT_PCR`
     Pcr = 0x00,
     /// `TPM_HT_NV_INDEX`
@@ -449,20 +449,11 @@ pub enum TpmHandle {
     Persistent = 0x81,
 }
 
-/// Mask off the handle type
-pub const HR_HANDLE_MASK: u32 = 0x00FF_FFFF;
-
-/// Masks off the handle index
-pub const HR_RANGE_MASK: u32 = 0xFF00_0000;
-
-/// Shift bits for the handle type
-pub const HR_SHIFT: u32 = 24;
-
 /// The first transient handle
-pub const HR_TRANSIENT: u32 = (TpmHandle::Transient as u32) << HR_SHIFT;
+pub const HANDLE_TRANSIENT: u32 = (TpmClass::Transient as u32) << 24;
 
 /// The first persistent handle
-pub const HR_PERSISTENT: u32 = (TpmHandle::Persistent as u32) << HR_SHIFT;
+pub const HANDLE_PERSISTENT: u32 = (TpmClass::Persistent as u32) << 24;
 
 bitflags! {
     /// `TPMA_OBJECT`
