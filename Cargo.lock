@@ -297,7 +297,7 @@ dependencies = [
 
 [[package]]
 name = "tpm2_call"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "serde",
  "strum_macros",
@@ -305,7 +305,7 @@ dependencies = [
 
 [[package]]
 name = "tpm2_cli"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "bincode",
  "clap",
