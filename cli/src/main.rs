@@ -11,8 +11,7 @@ use std::{
     os::unix::fs::FileTypeExt,
     path::Path,
 };
-use tpm2_call::tpm2_get_capability;
-use tpm2_call::{TpmHandle, TpmRc};
+use tpm2_call::{get_capability, TpmHandle, TpmRc};
 
 /// Holds an open character device file for a TPM chip.
 struct TpmChip(File);
@@ -86,33 +85,22 @@ fn main() {
                 std::process::exit(1);
             });
             if *transient {
-                let mut handles = vec![];
-                tpm2_get_capability(
-                    &mut chip.0,
-                    TpmHandle::Transient as u32,
-                    MAX_HANDLES,
-                    &mut handles,
-                )
-                .unwrap_or_else(|err| {
-                    error!("{err}");
-                    std::process::exit(1);
-                });
+                let handles = get_capability(&mut chip.0, TpmHandle::Transient as u32, MAX_HANDLES)
+                    .unwrap_or_else(|err| {
+                        error!("{err}");
+                        std::process::exit(1);
+                    });
                 for handle in handles {
                     println!("{handle:#010x}");
                 }
             }
             if *persistent {
-                let mut handles = vec![];
-                tpm2_get_capability(
-                    &mut chip.0,
-                    TpmHandle::Persistent as u32,
-                    MAX_HANDLES,
-                    &mut handles,
-                )
-                .unwrap_or_else(|err| {
-                    error!("{err}");
-                    std::process::exit(1);
-                });
+                let handles =
+                    get_capability(&mut chip.0, TpmHandle::Persistent as u32, MAX_HANDLES)
+                        .unwrap_or_else(|err| {
+                            error!("{err}");
+                            std::process::exit(1);
+                        });
                 for handle in handles {
                     println!("{handle:#010x}");
                 }

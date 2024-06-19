@@ -6,8 +6,7 @@ use bitflags::bitflags;
 use core::convert::From;
 use core::fmt;
 use core::option::Option;
-use serde::{Deserialize, Serialize};
-use std::io::{Error, ErrorKind, Read, Result, Write};
+use std::io::{Read, Write};
 use strum_macros::FromRepr;
 
 /// `TPM_ALG_ID`
@@ -108,10 +107,10 @@ pub enum TpmCc {
     Unseal = 0x0000_015E,
     /// `TPM_CC_FlushContext`
     FlushContext = 0x0000_0165,
-    /// `TPM_CC_StartAuthSession`
-    StartAuthSession = 0x0000_0176,
     /// `TPM_CC_GetCapability`
     GetCapability = 0x0000_017A,
+    /// `TPM_CC_StartAuthSession`
+    StartAuthSession = 0x0000_0176,
     /// `TPM_CC_GetRandom`
     GetRandom = 0x0000_017B,
     /// `TPM_CC_PCR_Read`
@@ -524,40 +523,33 @@ bitflags! {
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
-#[repr(C, align(2))]
-pub struct TpmHeader {
-    tag: u16,
-    size: u32,
-    code: u32,
-}
-
-impl TpmHeader {
-    /// Creates a new instance
-    #[must_use]
-    pub const fn new(tag: TpmTag, size: u32, code: TpmCc) -> Self {
-        let tag = tag as u16;
-        let code = code as u32;
-        Self { tag, size, code }
-    }
+/// Status for `get_capability()`
+#[derive(Debug, strum_macros::Display, PartialEq)]
+pub enum Error {
+    /// Invalid data
+    InvalidData,
+    /// Invalid read
+    InvalidRead,
+    /// Invalid write
+    InvalidWrite,
 }
 
 /// `TPM2_GetCapability`
 ///
 /// # Errors
 ///
-/// Can fail when read or write operation returns corrupted data or out of
+/// * `GetCapability::InvalidData`: data is corrupted
+/// * `GetCapability::InvalidRead`: read failed
+/// * `GetCapability::InvalidWrite`: write failed
 /// memory.
-pub fn tpm2_get_capability<T>(
+pub fn get_capability<T>(
     file: &mut T,
     property: u32,
     property_count: u32,
-    handles: &mut Vec<u32>,
-) -> Result<()>
+) -> Result<Vec<u32>, Error>
 where
     T: Read + Write,
 {
-    // Write command to the TPM chip.
     let mut buf = vec![];
     buf.extend((TpmTag::NoSessions as u16).to_be_bytes());
     buf.extend((22_u32).to_be_bytes());
@@ -565,33 +557,40 @@ where
     buf.extend((TpmCap::Handles as u32).to_be_bytes());
     buf.extend(property.to_be_bytes());
     buf.extend(property_count.to_be_bytes());
-    file.write_all(&buf)?;
-    // Read response from the TPM chip.
+    file.write_all(&buf).or(Err(Error::InvalidWrite))?;
     let mut buf = Vec::new();
-    file.read_to_end(&mut buf)?;
-    // Check that the static part of the header for `TPM2_GetCapability` takes
-    // exactly 19 bytes and the tail should be a multiple of the handle size. If
-    // these conditions are not met, the data will be corrupted.
+    file.read_to_end(&mut buf).or(Err(Error::InvalidRead))?;
+
+    // Size of the response must be 19 + n * 4, where n is the number of handles
+    // returned.
     if buf.len() < 19 || ((buf.len() - 19) & 0x03) != 0 {
-        return Err(Error::from(ErrorKind::InvalidData));
+        return Err(Error::InvalidData);
     }
-    let response_size: usize = u32::from_be_bytes([buf[2], buf[3], buf[4], buf[5]]) as usize;
+
     // Check that the response header contains matching size with the total size
     // of the received data.
+    let response_size: usize = u32::from_be_bytes([buf[2], buf[3], buf[4], buf[5]]) as usize;
     if response_size != buf.len() {
-        return Err(Error::from(ErrorKind::InvalidData));
+        return Err(Error::InvalidData);
     }
+
+    // Check that the encoded count of handles matches the expected count, given
+    // the response size.
     let handles_count = u32::from_be_bytes([buf[15], buf[16], buf[17], buf[18]]) as usize;
     if handles_count != ((buf.len() - 19) >> 2) {
-        return Err(Error::from(ErrorKind::InvalidData));
+        return Err(Error::InvalidData);
     }
+
     if handles_count > property_count as usize {
-        return Err(Error::from(ErrorKind::OutOfMemory));
+        return Err(Error::InvalidData);
     }
+
+    let mut handles = vec![];
     for i in 0..handles_count {
         let j: usize = i + 19;
         let handle = u32::from_be_bytes([buf[j], buf[j + 1], buf[j + 2], buf[j + 3]]);
         handles.push(handle);
     }
-    Ok(())
+
+    Ok(handles)
 }

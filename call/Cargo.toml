@@ -11,5 +11,4 @@ readme = "../README.md"
 
 [dependencies]
 bitflags = "2.5.0"
-serde = { version = "1.0.203", features = ["derive"] }
 strum_macros = "0.26.4"
