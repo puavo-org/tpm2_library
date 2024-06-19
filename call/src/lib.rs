@@ -2,6 +2,7 @@
 #![deny(clippy::all)]
 #![deny(clippy::pedantic)]
 
+use bitflags::bitflags;
 use core::convert::From;
 use core::fmt;
 use core::option::Option;
@@ -386,6 +387,36 @@ pub const HR_TRANSIENT: u32 = (TpmHandle::Transient as u32) << HR_SHIFT;
 
 /// The first persistent handle
 pub const HR_PERSISTENT: u32 = (TpmHandle::Persistent as u32) << HR_SHIFT;
+
+bitflags! {
+    /// `TPMA_OBJECT`
+    pub struct TpmObject : u32 {
+        /// Not used
+        const NotUsed = 0x0000_0001;
+        /// Hierarchy is immutable
+        const FixedTPM = 0x0000_0002;
+        /// TPM chip reset invalidates also saved contexts
+        const StClear = 0x0000_0004;
+        /// Parent is immutable
+        const FixedParent = 0x0000_0010;
+        /// TPM-only generated secrets
+        const SensitiveDataOrigin = 0x0000_0020;
+        /// Allow user access without policy session
+        const UserWithAuth = 0x0000_0040;
+        /// Deny admin access without policy session
+        const AdminWithPolicy = 0x0000_0080;
+        /// Deny dictionary attack protections
+        const NoDa = 0x0000_0400;
+        /// Encrypted duplication
+        const EncryptedDuplication = 0x0000_0800;
+        /// Manipulate only structures of known format
+        const Restricted = 0x0001_0000;
+        /// Decrypt with the private key
+        const Decrypt = 0x0002_0000;
+        /// Decrypt with the private key
+        const Encrypt = 0x0004_0000;
+    }
+}
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[repr(C, align(2))]

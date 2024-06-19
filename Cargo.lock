@@ -76,6 +76,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "bitflags"
+version = "2.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cf4b9d6a944f767f8e5e0db018570623c85f3d925ac718db4e06d0187adb21c1"
+
+[[package]]
 name = "clap"
 version = "4.5.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -299,6 +305,7 @@ dependencies = [
 name = "tpm2_call"
 version = "0.3.4"
 dependencies = [
+ "bitflags",
  "serde",
  "strum_macros",
 ]
