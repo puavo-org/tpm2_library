@@ -403,6 +403,18 @@ pub const CAP_LAST: u32 = 0x0000_0009;
 /// `TPM_CAP_VENDOR_PROPERTY`: manufacturer-specific
 pub const CAP_VENDOR_PROPERTY: u32 = 0x0000_0100;
 
+/// `TPM_SE`
+#[derive(FromRepr, Debug, PartialEq)]
+#[repr(u8)]
+pub enum TpmSession {
+    /// `TPM_SE_HMAC`
+    Hmac = 0x00,
+    /// `TPM_SE_POLICY`
+    Policy = 0x01,
+    /// `TPM_SE_TRIAL`
+    Trial = 0x03,
+}
+
 /// `TPM_CAP`
 #[derive(FromRepr, Debug, PartialEq)]
 #[repr(u32)]
