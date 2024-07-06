@@ -91,38 +91,249 @@ pub const CC_FIRST: u32 = 0x0000_011F;
 /// `TPM_CC_LAST`
 pub const CC_LAST: u32 = 0x0000_0193;
 
-/// `TPM_CC`
+/// Enumeration of the `TPM_CC`values
+///
+/// Values for `TPM_CC` are described in the section 6.5.2 of the TPM 2.0
+/// Structures specification.
 #[derive(FromRepr, Debug, PartialEq)]
 #[repr(u32)]
 pub enum TpmCc {
+    /// `TPM_CC_NV_UndefineSpaceSpecial`
+    NvUndefineSpaceSpecial = 0x0000_011F,
+    /// `TPM_CC_EvictControl`
+    EvictControl = 0x0000_0120,
+    /// `TPM_CC_HierarchyControl`
+    HierarchyControl = 0x0000_0121,
+    /// `TPM_CC_NV_UndefineSpace`
+    NvUndefineSpace = 0x0000_0122,
+    /// `TPM_CC_ChangeEPS`
+    ChangeEps = 0x0000_0124,
+    /// `TPM_CC_ChangePPS`
+    ChangePps = 0x0000_0125,
+    /// `TPM_CC_Clear`
+    Clear = 0x0000_0126,
+    /// `TPM_CC_ClearControl`
+    ClearControl = 0x0000_0127,
+    /// `TPM_CC_ClockSet`
+    ClockSet = 0x0000_0128,
+    /// `TPM_CC_HierarchyChangeAuth`
+    HierarchyChangeAuth = 0x0000_0129,
+    /// `TPM_CC_NV_DefineSpace`
+    NvDefineSpace = 0x0000_00130,
     /// `TPM_CC_CreatePrimary`
     CreatePrimary = 0x0000_0131,
+    /// `TPM_CC_NV_GlobalWriteLock`
+    NvGlobalWriteLock = 0x0000_0132,
+    /// `TPM_CC_GetCommandAuditDigest`
+    GetCommandAuditDigest = 0x0000_0133,
+    /// `TPM_CC_NV_Increment`
+    NvIncrement = 0x0000_0134,
+    /// `TPM_CC_NV_SetBits`
+    NvSetBits = 0x0000_0135,
+    /// `TPM_CC_NV_Extend`
+    NvExtend = 0x0000_0136,
+    /// `TPM_CC_NV_Write`
+    NvWrite = 0x0000_0137,
+    /// `TPM_CC_NV_WriteLock`
+    NvWriteLock = 0x0000_0138,
     /// `TPM_CC_DictionaryAttackLockReset`
     DictionaryAttackLockReset = 0x0000_0139,
+    /// `TPM_CC_DictionaryAttackParameters`
+    DictionaryAttackParameters = 0x0000_013A,
+    /// `TPM_CC_NV_ChangeAuth`
+    NvChangeAuth = 0x0000_013B,
+    /// `TPM_CC_PCR_Event`
+    PcrEvent = 0x0000_013C,
+    /// `TPM_CC_PCR_Reset`
+    PcrReset = 0x0000_013D,
+    /// `TPM_CC_SequenceComplete`
+    SequenceComplete = 0x0000_013E,
+    /// `TPM_CC_SetAlgorithmSet`
+    SetAlgorithmSet = 0x0000_013F,
+    /// `TPM_CC_SetCommandCodeAuditStatus`
+    SetCommandCodeAuditStatus = 0x0000_0140,
+    /// `TPM_CC_FieldUpgradeData`
+    FieldUpgradeData = 0x0000_0141,
+    /// `TPM_CC_IncrementalSelfTest`
+    IncrementalSelfTest = 0x0000_0142,
+    /// `TPM_CC_SelfTest`
+    SelfTest = 0x0000_0143,
+    /// `TPM_CC_Startup`
+    Startup = 0x0000_0144,
+    /// `TPM_CC_Shutdown`
+    Shutdown = 0x0000_0145,
+    /// `TPM_CC_StirRandom`
+    StirRandom = 0x0000_0146,
+    /// `TPM_CC_ActivateCredential`
+    ActivateCredential = 0x0000_0147,
+    /// `TPM_CC_Certify`
+    Certify = 0x0000_0148,
+    /// `TPM_CC_PolicyNV`
+    PolicyNv = 0x0000_0149,
+    /// `TPM_CC_CertifyCreation`
+    CertifyCreation = 0x0000_014A,
+    /// `TPM_CC_Duplicate`
+    Duplicate = 0x0000_014B,
+    /// `TPM_CC_GetTime`
+    GetTime = 0x0000_014C,
+    /// `TPM_CC_GetSessionAuditDigest`
+    GetSessionAuditDigest = 0x0000_014D,
+    /// `TPM_CC_NV_Read`
+    NvRead = 0x0000_014E,
+    /// `TPM_CC_NV_ReadLock`
+    NvReadLock = 0x0000_014F,
+    /// `TPM_CC_ObjectChangeAuth`
+    ObjectChangeAuth = 0x0000_0150,
+    /// `TPM_CC_PolicySecret`
+    PolicySecret = 0x0000_0151,
+    /// `TPM_CC_Rewrap`
+    Rewrap = 0x0000_0152,
     /// `TPM_CC_Create`
     Create = 0x0000_0153,
+    /// `TPM_CC_ECDH_ZGen`
+    EcdhZGen = 0x0000_0154,
+    /// `TPM_CC_HMAC`
+    Hmac = 0x0000_0155,
+    /// `TPM_CC_Import`
+    Import = 0x0000_0156,
     /// `TPM_CC_Load`
     Load = 0x0000_0157,
+    /// `TPM_CC_Quote`
+    Quote = 0x0000_0158,
+    /// `TPM_CC_RSA_Decrypt`
+    RsaDecrypt = 0x0000_0159,
+    /// `TPM_CC_HMAC_Start`
+    HmacStart = 0x0000_015B,
+    /// `TPM_CC_SequenceUpdate`
+    SequenceUpdate = 0x0000_015C,
+    /// `TPM_CC_Sign`
+    Sign = 0x0000_015D,
     /// `TPM_CC_Unseal`
     Unseal = 0x0000_015E,
+    /// `TPM_CC_PolicySigned`
+    PolicySigned = 0x0000_0160,
+    /// `TPM_CC_ContextLoad`
+    ContextLoad = 0x0000_0161,
+    /// `TPM_CC_ContextSave`
+    ContextSave = 0x0000_0162,
+    /// `TPM_CC_ECDH_KeyGen`
+    EcdhKeygen = 0x0000_0163,
+    /// `TPM_CC_EncryptDecrypt`
+    EncryptDecrypt = 0x0000_0164,
     /// `TPM_CC_FlushContext`
     FlushContext = 0x0000_0165,
-    /// `TPM_CC_GetCapability`
-    GetCapability = 0x0000_017A,
+    /// `TPM_CC_LoadExternal`
+    LoadExternal = 0x0000_0167,
+    /// `TPM_CC_MakeCredential`
+    MakeCredential = 0x0000_0168,
+    /// `TPM_CC_NV_ReadPublic`
+    NvReadPublic = 0x0000_0169,
+    /// `TPM_CC_PolicyAuthorize`
+    PolicyAuthorize = 0x0000_016A,
+    /// `TPM_CC_PolicyAuthValue`
+    PolicyAuthValue = 0x0000_016B,
+    /// `TPM_CC_PolicyCommandCode`
+    PolicyCommandCode = 0x0000_016C,
+    /// `TPM_CC_PolicyCounterTimer`
+    PolicyCounterTimer = 0x0000_016D,
+    /// `TPM_CC_PolicyCpHash`
+    PolicyCpHash = 0x0000_016E,
+    /// `TPM_CC_PolicyLocality`
+    PolicyLocality = 0x0000_016F,
+    /// `TPM_CC_PolicyNameHash`
+    PolicyNameHash = 0x0000_0170,
+    /// `TPM_CC_PolicyOR`
+    PolicyOR = 0x0000_0171,
+    /// `TPM_CC_PolicyTicket`
+    PolicyTicket = 0x0000_0172,
+    /// `TPM_CC_ReadPublic`
+    ReadPublic = 0x0000_0173,
+    /// `TPM_CC_RSA_Encrypt`
+    RsaEncrypt = 0x0000_0174,
     /// `TPM_CC_StartAuthSession`
     StartAuthSession = 0x0000_0176,
+    /// `TPM_CC_VerifySignature`
+    VerifySignature = 0x0000_0177,
+    /// `TPM_CC_ECC_Parameters`
+    EccParameters = 0x0000_0178,
+    /// `TPM_CC_FirmwareRead`
+    FirmwareRead = 0x0000_0179,
+    /// `TPM_CC_GetCapability`
+    GetCapability = 0x0000_017A,
     /// `TPM_CC_GetRandom`
     GetRandom = 0x0000_017B,
+    /// `TPM_CC_GetTestResult`
+    GetTestResult = 0x0000_017C,
+    /// `TPM_CC_Hash`
+    Hash = 0x0000_017D,
     /// `TPM_CC_PCR_Read`
     PcrRead = 0x0000_017E,
     /// `TPM_CC_PolicyPCR`
     PolicyPcr = 0x0000_017F,
+    /// `TPM_CC_PolicyRestart`
+    PolicyRestart = 0x0000_0180,
+    /// `TPM_CC_ReadClock`
+    ReadClock = 0x0000_0181,
     /// `TPM_CC_PCR_Extend`
     PcrExtend = 0x0000_0182,
+    /// `TPM_CC_PCR_SetAuthValue`
+    PcrSetAuthValue = 0x0000_0183,
+    /// `TPM_CC_NV_Certify`
+    NvCertify = 0x0000_0184,
+    /// `TPM_CC_EventSequenceComplete`
+    EventSequenceComplete = 0x0000_0185,
+    /// `TPM_CC_HashSequenceStart`
+    HashSequenceStart = 0x0000_0186,
+    /// `TPM_CC_PolicyPhysicalPresence`
+    PolicyPhysicalPresence = 0x0000_0187,
+    /// `TPM_CC_PolicyDuplicationSelect`
+    PolicyDuplicationSelect = 0x0000_0188,
     /// `TPM_CC_PolicyGetDigest`
     PolicyGetDigest = 0x0000_0189,
+    /// `TPM_CC_TestParms`
+    TestParms = 0x0000_018A,
+    /// `TPM_CC_Commit`
+    Commit = 0x0000_018B,
     /// `TPM_CC_PolicyPassword`
     PolicyPassword = 0x0000_018C,
+    /// `TPM_CC_ZGen_2Phase`
+    ZGen2Phase = 0x0000_018D,
+    /// `TPM_CC_EC_Ephemeral`
+    EcEphemeral = 0x0000_018E,
+    /// `TPM_CC_PolicyNvWritten`
+    PolicyNvWritten = 0x0000_018F,
+    /// `TPM_CC_PolicyTemplate`
+    PolicyTemplate = 0x0000_0190,
+    /// `TPM_CC_CreateLoaded`
+    CreateLoaded = 0x0000_0191,
+    /// `TPM_CC_PolicyAuthorizeNV`
+    PolicyAuthorizeNv = 0x0000_0192,
+    /// `TPM_CC_EncryptDecrypt2`
+    EncryptDecrypt2 = 0x0000_0193,
+    /// `TPM_CC_AC_GetCapability`
+    AcGetCapability = 0x0000_0194,
+    /// `TPM_CC_AC_Send`
+    AcSend = 0x0000_0195,
+    /// `TPM_CC_Policy_AC_SendSelect`
+    PolicyAcSendSelect = 0x0000_0196,
+    /// `TPM_CC_CertifyX509`
+    CertifyX509 = 0x0000_0197,
+    /// `TPM_CC_ACT_SetTimeout`
+    ActSetTimeout = 0x0000_0198,
+    /// `TPM_CC_ECC_Encrypt`
+    EccEncrypt = 0x0000_0199,
+    /// `TPM_CC_ECC_Decrypt`
+    EccDecrypt = 0x0000_019A,
+    /// `TPM_CC_PolicyCapability`
+    PolicyCapability = 0x0000_019B,
+    /// `TPM_CC_PolicyParameters`
+    PolicyParameters = 0x0000_019C,
+    /// `TPM_CC_NV_DefineSpace2`
+    NvDefineSpace2 = 0x0000_019D,
+    /// `TPM_CC_NV_ReadPublic2`
+    NvReadPublic2 = 0x0000_019E,
+    /// `TPM_CC_SetCapability`
+    SetCapability = 0x0000_019F,
 }
 
 pub const RC_VER1: u32 = 0x0100;
