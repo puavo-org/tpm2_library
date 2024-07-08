@@ -752,7 +752,6 @@ pub enum Error {
 /// * `GetCapability::InvalidData`: data is corrupted
 /// * `GetCapability::InvalidRead`: read failed
 /// * `GetCapability::InvalidWrite`: write failed
-/// memory.
 pub fn get_capability<T>(
     file: &mut T,
     property: u32,
