@@ -745,13 +745,16 @@ pub enum Error {
     InvalidWrite,
 }
 
-/// `TPM2_GetCapability`
+/// Authenticated session nonce size
+pub const NONCE_SIZE: u16 = 16;
+
+/// A wrapper for `TPM2_GetCapability` command
 ///
 /// # Errors
 ///
-/// * `GetCapability::InvalidData`: data is corrupted
-/// * `GetCapability::InvalidRead`: read failed
-/// * `GetCapability::InvalidWrite`: write failed
+/// * `Error::InvalidData`: data is corrupted
+/// * `Error::InvalidRead`: read failed
+/// * `Error::InvalidWrite`: write failed
 pub fn get_capability<T>(
     file: &mut T,
     property: u32,
@@ -803,4 +806,44 @@ where
     }
 
     Ok(handles)
+}
+
+/// A wrapper for `TPM2_StartAuthSession` command
+///
+/// # Errors
+///
+/// * `Error::InvalidData`: data is corrupted
+/// * `Error::InvalidRead`: read failed
+/// * `Error::InvalidWrite`: write failed
+pub fn start_auth_session<T>(
+    file: &mut T,
+    session_type: TpmSession,
+    nonce_caller: &[u8; NONCE_SIZE as usize],
+) -> Result<[u8; NONCE_SIZE as usize], Error>
+where
+    T: Read + Write,
+{
+    let mut buf = vec![];
+    buf.extend((TpmTag::NoSessions as u16).to_be_bytes());
+    buf.extend((43_u32).to_be_bytes());
+    buf.extend((TpmCc::StartAuthSession as u32).to_be_bytes());
+    buf.extend((TpmHandle::Null as u32).to_be_bytes()); // bind
+    buf.extend((TpmHandle::Null as u32).to_be_bytes()); // tpmKey
+    buf.extend(NONCE_SIZE.to_be_bytes());
+    buf.extend(nonce_caller);
+    buf.extend((0_u16).to_be_bytes());
+    buf.extend((session_type as u8).to_be_bytes());
+    buf.extend((TpmAlg::Null as u16).to_be_bytes());
+    buf.extend((TpmAlg::Sha256 as u16).to_be_bytes());
+    file.write_all(&buf).or(Err(Error::InvalidWrite))?;
+
+    let mut buf = Vec::new();
+    file.read_to_end(&mut buf).or(Err(Error::InvalidRead))?;
+    if buf.len() != 32 {
+        return Err(Error::InvalidData);
+    }
+
+    let mut nonce_tpm = [0; 16];
+    nonce_tpm.clone_from_slice(&buf[16..32]);
+    Ok(nonce_tpm)
 }

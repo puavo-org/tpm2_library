@@ -11,7 +11,7 @@ use std::{
     os::unix::fs::FileTypeExt,
     path::Path,
 };
-use tpm2_call::{get_capability, TpmHandle, TpmRc};
+use tpm2_call::{get_capability, start_auth_session, TpmHandle, TpmRc, TpmSession};
 
 /// Holds an open character device file for a TPM chip.
 struct TpmChip(File);
@@ -65,6 +65,8 @@ pub enum Commands {
         #[arg(short, long)]
         persistent: bool,
     },
+    /// Policy
+    Policy,
 }
 
 const MAX_HANDLES: u32 = 16;
@@ -105,6 +107,19 @@ fn main() {
                     println!("{handle:#010x}");
                 }
             }
+        }
+        Commands::Policy => {
+            let mut chip = TpmChip::open(&cli.device).unwrap_or_else(|err| {
+                error!("{err}");
+                std::process::exit(1);
+            });
+            let nonce_caller = [0; 16];
+            let mut _nonce_tpm = [0; 16];
+            _nonce_tpm = start_auth_session(&mut chip.0, TpmSession::Trial, &nonce_caller)
+                .unwrap_or_else(|err| {
+                    error!("{err}");
+                    std::process::exit(1);
+                });
         }
     }
 }
