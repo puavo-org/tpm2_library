@@ -275,6 +275,18 @@ impl Display for TpmRcIndex {
     }
 }
 
+fn tpm_parse_base(value: u32) -> Result<TpmRcBase, crate::TpmErrorKind> {
+    let base_code = if (value & TPM_RC_FMT1) != 0 {
+        TPM_RC_FMT1 | (value & TPM_RC_FMT1_ERROR_MASK)
+    } else {
+        value
+    };
+    TpmRcBase::try_from(base_code).map_err(|()| crate::TpmErrorKind::InvalidDiscriminant {
+        type_name: "TpmRcBase",
+        value: u64::from(base_code),
+    })
+}
+
 tpm_enum! {
     #[derive(Debug, PartialEq, Eq, Copy, Clone)]
     #[allow(clippy::upper_case_acronyms)]
@@ -389,18 +401,6 @@ tpm_enum! {
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub struct TpmRc(u32);
 
-fn base_from_raw_rc(value: u32) -> Result<TpmRcBase, crate::TpmErrorKind> {
-    let base_code = if (value & TPM_RC_FMT1) != 0 {
-        TPM_RC_FMT1 | (value & TPM_RC_FMT1_ERROR_MASK)
-    } else {
-        value
-    };
-    TpmRcBase::try_from(base_code).map_err(|()| crate::TpmErrorKind::InvalidDiscriminant {
-        type_name: "TpmRcBase",
-        value: u64::from(base_code),
-    })
-}
-
 impl TpmRc {
     /// Returns the base of the response code.
     ///
@@ -409,7 +409,7 @@ impl TpmRc {
     /// Returns `TpmErrorKind::InvalidDiscriminant` if the base of the response
     /// code is not a recognized `TpmRcBase` variant.
     pub fn base(self) -> Result<TpmRcBase, crate::TpmErrorKind> {
-        base_from_raw_rc(self.0)
+        tpm_parse_base(self.0)
     }
 
     /// Returns the index of a parameter, handle, or session in error for format 1 response codes.
@@ -448,15 +448,7 @@ impl TryFrom<u32> for TpmRc {
     type Error = crate::TpmErrorKind;
 
     fn try_from(value: u32) -> Result<Self, Self::Error> {
-        let base_code = if (value & TPM_RC_FMT1) != 0 {
-            TPM_RC_FMT1 | (value & TPM_RC_FMT1_ERROR_MASK)
-        } else {
-            value
-        };
-        TpmRcBase::try_from(base_code).map_err(|()| crate::TpmErrorKind::InvalidDiscriminant {
-            type_name: "TpmRcBase",
-            value: u64::from(base_code),
-        })?;
+        tpm_parse_base(value)?;
         Ok(TpmRc(value))
     }
 }
