@@ -131,12 +131,8 @@ pub fn tpm_build_response<R>(
 where
     R: for<'a> TpmHeader<'a>,
 {
-    let tag = if rc.value() == 0 {
-        if R::WITH_SESSIONS {
-            TpmSt::Sessions
-        } else {
-            TpmSt::NoSessions
-        }
+    let tag = if rc.value() == 0 && R::WITH_SESSIONS && !sessions.is_empty() {
+        TpmSt::Sessions
     } else {
         TpmSt::NoSessions
     };
@@ -244,6 +240,9 @@ pub fn tpm_parse_command(buf: &[u8]) -> TpmResult<(TpmHandles, TpmCommandBody, T
                 .map_err(|_| TpmErrorKind::ValueTooLarge)?;
             auth_area = rest;
         }
+        if !auth_area.is_empty() {
+            return Err(TpmErrorKind::TrailingData);
+        }
         param_buf
     } else {
         buf
@@ -273,7 +272,7 @@ pub fn tpm_parse_response(cc: TpmCc, buf: &[u8]) -> TpmResult<TpmResponse> {
 
     let (tag_raw, remainder) = u16::parse(buf)?;
     let (size, remainder) = u32::parse(remainder)?;
-    let (code, mut body_buf) = u32::parse(remainder)?;
+    let (code, body_buf) = u32::parse(remainder)?;
 
     if buf.len() != size as usize {
         return Err(TpmErrorKind::Boundary);
@@ -307,25 +306,28 @@ pub fn tpm_parse_response(cc: TpmCc, buf: &[u8]) -> TpmResult<TpmResponse> {
             value: u64::from(cc as u32),
         })?;
 
-    let expected_tag = if dispatch.1 {
-        TpmSt::Sessions
+    let (body, mut session_area) = if tag == TpmSt::Sessions {
+        let (param_size, buf_after_size) = u32::parse(body_buf)?;
+        let param_size = param_size as usize;
+        if buf_after_size.len() < param_size {
+            return Err(TpmErrorKind::Boundary);
+        }
+        let (param_data, session_data) = buf_after_size.split_at(param_size);
+        let (body, remainder) = (dispatch.2)(param_data)?;
+        if !remainder.is_empty() {
+            return Err(TpmErrorKind::TrailingData);
+        }
+        (body, session_data)
     } else {
-        TpmSt::NoSessions
+        let (body, remainder) = (dispatch.2)(body_buf)?;
+        if !remainder.is_empty() {
+            return Err(TpmErrorKind::TrailingData);
+        }
+        (body, remainder)
     };
-    if tag != expected_tag {
-        return Err(TpmErrorKind::InvalidTag {
-            type_name: "TpmSt",
-            expected: expected_tag as u16,
-            got: tag as u16,
-        });
-    }
-
-    let (body, remainder) = (dispatch.2)(body_buf)?;
-    body_buf = remainder;
 
     let mut auth_responses = TpmAuthResponses::new();
     if tag == TpmSt::Sessions {
-        let mut session_area = body_buf;
         while !session_area.is_empty() {
             let (session, rest) = TpmsAuthResponse::parse(session_area)?;
             auth_responses
@@ -333,10 +335,9 @@ pub fn tpm_parse_response(cc: TpmCc, buf: &[u8]) -> TpmResult<TpmResponse> {
                 .map_err(|_| TpmErrorKind::ValueTooLarge)?;
             session_area = rest;
         }
-        body_buf = session_area;
     }
 
-    if !body_buf.is_empty() {
+    if !session_area.is_empty() {
         return Err(TpmErrorKind::TrailingData);
     }
 
@@ -597,7 +598,7 @@ tpm_struct!(
     TpmCc::PolicyRestart,
     false,
     true,
-    1,
+    0,
     {}
 );
 

@@ -9,10 +9,11 @@ use crate::{
     },
     message::{
         tpm_build_command, tpm_build_response, tpm_parse_command, tpm_parse_response,
-        TpmAuthCommands, TpmCommandBody, TpmEvictControlCommand, TpmFlushContextResponse,
-        TpmGetCapabilityCommand, TpmHashCommand, TpmPcrEventResponse, TpmPcrReadResponse,
+        TpmAuthCommands, TpmCommandBody, TpmContextSaveCommand, TpmEvictControlCommand,
+        TpmFlushContextCommand, TpmFlushContextResponse, TpmGetCapabilityCommand, TpmHashCommand,
+        TpmPcrEventResponse, TpmPcrReadCommand, TpmPcrReadResponse,
     },
-    TpmPersistent, TpmSession, TpmSized, TpmWriter, TPM_MAX_COMMAND_SIZE,
+    TpmPersistent, TpmSession, TpmWriter, TPM_MAX_COMMAND_SIZE,
 };
 use rstest::rstest;
 use std::{convert::TryFrom, string::ToString};
@@ -243,10 +244,19 @@ fn test_parse_get_capability_command() {
         buf[..len].to_vec()
     };
 
-    let (_handles, cmd_data, sessions) = tpm_parse_command(&generated_bytes).unwrap();
+    let expected_bytes = hex::decode("8001000000160000017a000000000000000100000080").unwrap();
+    assert_eq!(generated_bytes, expected_bytes.as_slice());
 
-    assert!(sessions.is_empty());
-    assert_eq!(cmd_data, TpmCommandBody::GetCapability(cmd));
+    match tpm_parse_command(&generated_bytes) {
+        Ok((_handles, cmd_data, sessions)) => {
+            assert_eq!(cmd_data, TpmCommandBody::GetCapability(cmd));
+            if !sessions.is_empty() {
+                dbg!(sessions);
+                panic!("sessions should be empty");
+            }
+        }
+        Err(e) => panic!("command parsing failed: {:?}", e),
+    }
 }
 
 #[rstest]
@@ -268,9 +278,131 @@ fn test_parse_hash_command() {
         buf[..len].to_vec()
     };
 
-    let (_handles, cmd_data, sessions) = tpm_parse_command(&generated_bytes).unwrap();
-    assert!(sessions.is_empty());
-    assert_eq!(cmd_data, TpmCommandBody::Hash(cmd));
+    let expected_bytes =
+        hex::decode("8001000000320000017d0020dededededededededededededededededededededededededededededededede000b40000001").unwrap();
+    assert_eq!(generated_bytes, expected_bytes.as_slice());
+
+    match tpm_parse_command(&generated_bytes) {
+        Ok((_handles, cmd_data, sessions)) => {
+            assert_eq!(cmd_data, TpmCommandBody::Hash(cmd));
+            if !sessions.is_empty() {
+                dbg!(sessions);
+                panic!("sessions should be empty");
+            }
+        }
+        Err(e) => panic!("command parsing failed: {:?}", e),
+    }
+}
+
+#[rstest]
+fn test_parse_flush_context_command() {
+    let cmd = TpmFlushContextCommand {
+        flush_handle: 0x8000_0000,
+    };
+
+    let generated_bytes = {
+        let mut buf = [0u8; TPM_MAX_COMMAND_SIZE];
+        let len = {
+            let mut writer = TpmWriter::new(&mut buf);
+            tpm_build_command(&cmd, crate::data::TpmSt::NoSessions, None, &[], &mut writer)
+                .unwrap();
+            writer.len()
+        };
+        buf[..len].to_vec()
+    };
+
+    let expected_bytes = hex::decode("80010000000e0000016580000000").unwrap();
+    assert_eq!(generated_bytes, expected_bytes.as_slice());
+
+    match tpm_parse_command(&generated_bytes) {
+        Ok((_handles, cmd_data, sessions)) => {
+            assert_eq!(cmd_data, TpmCommandBody::FlushContext(cmd));
+            if !sessions.is_empty() {
+                dbg!(sessions);
+                panic!("sessions should be empty");
+            }
+        }
+        Err(e) => panic!("command parsing failed: {:?}", e),
+    }
+}
+
+#[rstest]
+fn test_parse_pcr_read_command() {
+    let mut pcr_selection = crate::data::TpmlPcrSelection::new();
+    pcr_selection
+        .try_push(crate::data::TpmsPcrSelection {
+            hash: TpmAlgId::Sha256,
+            pcr_select: crate::data::TpmsPcrSelect::try_from(&[0xFF, 0x80, 0x01][..]).unwrap(),
+        })
+        .unwrap();
+
+    let cmd = TpmPcrReadCommand {
+        pcr_selection_in: pcr_selection,
+    };
+
+    let generated_bytes = {
+        let mut buf = [0u8; TPM_MAX_COMMAND_SIZE];
+        let len = {
+            let mut writer = TpmWriter::new(&mut buf);
+            tpm_build_command(&cmd, crate::data::TpmSt::NoSessions, None, &[], &mut writer)
+                .unwrap();
+            writer.len()
+        };
+        buf[..len].to_vec()
+    };
+
+    let expected_bytes = hex::decode("8001000000140000017e00000001000b03ff8001").unwrap();
+    assert_eq!(generated_bytes, expected_bytes.as_slice());
+
+    match tpm_parse_command(&generated_bytes) {
+        Ok((_handles, cmd_data, sessions)) => {
+            assert_eq!(cmd_data, TpmCommandBody::PcrRead(cmd.clone()));
+            if !sessions.is_empty() {
+                dbg!(sessions);
+                panic!("sessions should be empty");
+            }
+        }
+        Err(e) => panic!("command parsing failed: {:?}", e),
+    }
+}
+
+#[rstest]
+fn test_parse_context_save_command() {
+    let cmd = TpmContextSaveCommand {};
+    let save_handle = 0x8000_0001;
+    let handles = [save_handle];
+
+    let generated_bytes = {
+        let mut buf = [0u8; TPM_MAX_COMMAND_SIZE];
+        let len = {
+            let mut writer = TpmWriter::new(&mut buf);
+            tpm_build_command(
+                &cmd,
+                crate::data::TpmSt::NoSessions,
+                Some(&handles),
+                &[],
+                &mut writer,
+            )
+            .unwrap();
+            writer.len()
+        };
+        buf[..len].to_vec()
+    };
+
+    let expected_bytes = hex::decode("80010000000e0000016280000001").unwrap();
+    assert_eq!(generated_bytes, expected_bytes.as_slice());
+
+    match tpm_parse_command(&generated_bytes) {
+        Ok((res_handles, cmd_data, sessions)) => {
+            assert_eq!(res_handles.as_ref(), handles);
+            assert_eq!(cmd_data, TpmCommandBody::ContextSave(cmd));
+            if !sessions.is_empty() {
+                dbg!(sessions);
+                panic!("sessions should be empty");
+            }
+        }
+        Err(e) => panic!("command parsing failed: {:?}", e),
+    }
 }
 
 #[rstest]
