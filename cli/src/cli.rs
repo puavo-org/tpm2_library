@@ -5,13 +5,18 @@
 use crate::{Alg, Command, TpmError};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use clap_num::maybe_hex;
-use serde::{de::Visitor, Deserializer, Serialize, Serializer};
+use serde::{
+    de::{self, Deserializer, MapAccess, Visitor},
+    ser::{SerializeMap, Serializer},
+    Deserialize, Serialize,
+};
+use std::fmt;
 use tpm2_protocol::{
     data::{TpmCap, TpmRc, TpmRh, TpmuCapabilities},
     TpmPersistent, TpmTransient,
 };
 
-fn parse_hex_u32(s: &str) -> Result<u32, TpmError> {
+pub(crate) fn parse_hex_u32(s: &str) -> Result<u32, TpmError> {
     maybe_hex(s).map_err(|e| TpmError::InvalidHandle(e.to_string()))
 }
 
@@ -28,7 +33,7 @@ fn parse_tpm_rc(s: &str) -> Result<TpmRc, TpmError> {
 pub enum Object {
     Handle(TpmTransient),
     Persistent(TpmPersistent),
-    Context(String),
+    Context(serde_json::Value),
 }
 
 impl Serialize for Object {
@@ -36,62 +41,67 @@ impl Serialize for Object {
     where
         S: Serializer,
     {
-        let s = match self {
-            Object::Handle(handle) => format!("handle:{:#010x}", u32::from(*handle)),
-            Object::Persistent(handle) => format!("persistent:{:#010x}", u32::from(*handle)),
-            Object::Context(s) => format!("context:{s}"),
-        };
-        serializer.serialize_str(&s)
+        let mut map = serializer.serialize_map(Some(1))?;
+        match self {
+            Object::Handle(h) => {
+                map.serialize_entry("handle", &format!("{:#010x}", u32::from(*h)))?;
+            }
+            Object::Persistent(p) => {
+                map.serialize_entry("persistent", &format!("{:#010x}", u32::from(*p)))?;
+            }
+            Object::Context(c) => {
+                map.serialize_entry("context", c)?;
+            }
+        }
+        map.end()
     }
 }
 
-impl<'de> serde::Deserialize<'de> for Object {
+struct ObjectVisitor;
+
+impl<'de> Visitor<'de> for ObjectVisitor {
+    type Value = Object;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("an object with a single key: 'handle', 'persistent', or 'context'")
+    }
+
+    fn visit_map<V>(self, mut map: V) -> Result<Object, V::Error>
+    where
+        V: MapAccess<'de>,
+    {
+        let (key, value): (String, serde_json::Value) = map
+            .next_entry()?
+            .ok_or_else(|| de::Error::invalid_length(0, &self))?;
+
+        match key.as_str() {
+            "handle" => {
+                let s: String = serde_json::from_value(value).map_err(de::Error::custom)?;
+                let handle = parse_hex_u32(&s)
+                    .map(TpmTransient)
+                    .map_err(de::Error::custom)?;
+                Ok(Object::Handle(handle))
+            }
+            "persistent" => {
+                let s: String = serde_json::from_value(value).map_err(de::Error::custom)?;
+                let handle = parse_persistent_handle(&s).map_err(de::Error::custom)?;
+                Ok(Object::Persistent(handle))
+            }
+            "context" => Ok(Object::Context(value)),
+            _ => Err(de::Error::unknown_field(
+                &key,
+                &["handle", "persistent", "context"],
+            )),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for Object {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        struct ObjectVisitor;
-
-        impl Visitor<'_> for ObjectVisitor {
-            type Value = Object;
-
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("a string with format 'prefix:value'")
-            }
-
-            fn visit_str<E>(self, value: &str) -> Result<Object, E>
-            where
-                E: serde::de::Error,
-            {
-                let parts: Vec<&str> = value.splitn(2, ':').collect();
-                if parts.len() != 2 {
-                    return Err(E::custom(format!(
-                        "invalid object format, expected 'prefix:value', got '{value}'"
-                    )));
-                }
-                let prefix = parts[0];
-                let val_str = parts[1];
-
-                match prefix {
-                    "handle" => {
-                        let handle = parse_hex_u32(val_str).map(TpmTransient).map_err(|e| {
-                            E::custom(format!("invalid handle value '{val_str}': {e}"))
-                        })?;
-                        Ok(Object::Handle(handle))
-                    }
-                    "persistent" => {
-                        let handle = parse_persistent_handle(val_str).map_err(|e| {
-                            E::custom(format!("invalid persistent handle value '{val_str}': {e}"))
-                        })?;
-                        Ok(Object::Persistent(handle))
-                    }
-                    "context" => Ok(Object::Context(val_str.to_string())),
-                    _ => Err(E::custom(format!("unknown object prefix '{prefix}'"))),
-                }
-            }
-        }
-
-        deserializer.deserialize_str(ObjectVisitor)
+        deserializer.deserialize_map(ObjectVisitor)
     }
 }
 
@@ -103,10 +113,10 @@ impl<'de> serde::Deserialize<'de> for Object {
     disable_help_subcommand = true
 )]
 pub struct Cli {
-    #[arg(short, long, default_value = r"/dev/tpmrm0")]
+    #[arg(short, long, default_value = r"/dev/tpmrm0", global = true)]
     pub device: String,
     /// Authorization session context
-    #[arg(long)]
+    #[arg(long, global = true)]
     pub session: Option<String>,
     #[command(subcommand)]
     pub command: Option<Commands>,
@@ -129,11 +139,21 @@ impl From<Hierarchy> for TpmRh {
     }
 }
 
-#[derive(ValueEnum, Clone, Copy, Debug)]
+#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SessionType {
     Hmac,
     Policy,
     Trial,
+}
+
+impl From<SessionType> for tpm2_protocol::data::TpmSe {
+    fn from(val: SessionType) -> Self {
+        match val {
+            SessionType::Hmac => Self::Hmac,
+            SessionType::Policy => Self::Policy,
+            SessionType::Trial => Self::Trial,
+        }
+    }
 }
 
 #[derive(ValueEnum, Clone, Copy, Debug)]
@@ -181,12 +201,8 @@ pub enum Commands {
     PcrEvent(PcrEvent),
     /// Reads PCRs
     PcrRead(PcrRead),
-    /// Constrain a policy with an authorization value
-    PolicySecret(PolicySecret),
-    /// Constrain a policy to a specific PCR state
-    PolicyPcr(PolicyPcr),
-    /// Combine policies to a union policy
-    PolicyOr(PolicyOr),
+    /// Builds a policy using a policy expression
+    Policy(Policy),
     /// Encodes and print a TPM error code
     PrintError(PrintError),
     /// Resets the dictionary attack lockout timer
@@ -217,9 +233,7 @@ impl Command for Commands {
             Self::Objects(args) => args.run(device, session),
             Self::PcrEvent(args) => args.run(device, session),
             Self::PcrRead(args) => args.run(device, session),
-            Self::PolicyOr(args) => args.run(device, session),
-            Self::PolicyPcr(args) => args.run(device, session),
-            Self::PolicySecret(args) => args.run(device, session),
+            Self::Policy(args) => args.run(device, session),
             Self::PrintError(args) => args.run(device, session),
             Self::ResetLock(args) => args.run(device, session),
             Self::Save(args) => args.run(device, session),
@@ -361,32 +375,11 @@ pub struct Convert {
 }
 
 #[derive(Args, Debug)]
-pub struct PolicySecret {
-    /// Authorization handle
-    #[arg(long, value_parser = parse_hex_u32)]
-    pub auth_handle: u32,
-    /// Expiration time in seconds. A negative value generates a ticket.
-    #[arg(long, default_value_t = 0)]
-    pub expiration: i32,
+pub struct Policy {
+    /// A policy expression string (e.g. 'pcr(sha256:0,"...")')
+    pub expression: String,
     #[command(flatten)]
     pub auth: AuthArgs,
-}
-
-#[derive(Args, Debug)]
-pub struct PolicyPcr {
-    /// The PCR index to include in the policy
-    #[arg(long)]
-    pub pcr_index: u32,
-    /// The expected digest of the PCR at the time of unsealing (hex)
-    #[arg(long)]
-    pub pcr_digest: String,
-}
-
-#[derive(Args, Debug)]
-pub struct PolicyOr {
-    /// Path to a JSON session file for an OR branch
-    #[arg(long = "branch", required = true)]
-    pub branches: Vec<String>,
 }
 
 /// Retrieves all handles of a specific type from the TPM.

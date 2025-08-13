@@ -211,10 +211,11 @@ fn test_parse_tpm_pcr_event_response() {
         buf[..len].to_vec()
     };
 
-    let (parsed_resp, parsed_sessions) = tpm_parse_response(TpmCc::PcrEvent, &generated_bytes)
+    let (rc, parsed_resp, parsed_sessions) = tpm_parse_response(TpmCc::PcrEvent, &generated_bytes)
         .unwrap()
         .unwrap();
 
+    assert_eq!(rc.value(), 0);
     let resp = parsed_resp.PcrEvent().unwrap();
 
     assert_eq!(resp, original_resp);

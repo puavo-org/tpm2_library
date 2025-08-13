@@ -31,6 +31,7 @@ pub mod cli;
 pub mod command;
 pub mod crypto;
 pub mod device;
+pub mod policy;
 
 pub use self::crypto::*;
 pub use self::device::*;
@@ -59,10 +60,10 @@ pub fn execute_cli() -> Result<(), TpmError> {
         command.run(&mut device, session.as_ref())
     } else {
         println!("Options:");
-        println!("  -d, --device <DEVICE>   [default: /dev/tpmrm0]");
+        println!("  -d, --device <DEVICE>    [default: /dev/tpmrm0]");
         println!("      --session <SESSION> Authorization session context");
-        println!("  -h, --help              Print help");
-        println!("  -V, --version           Print version");
+        println!("  -h, --help               Print help");
+        println!("  -V, --version            Print version");
         Ok(())
     }
 }
@@ -330,12 +331,6 @@ where
     Ok(obj)
 }
 
-/// Reads a session file and deserializes it into `SessionData`.
-pub(crate) fn read_session_data_from_file(path: &str) -> Result<SessionData, TpmError> {
-    let json_str = fs::read_to_string(path).map_err(|e| TpmError::File(path.to_string(), e))?;
-    from_json_str(&json_str, "session")
-}
-
 /// Manages the streaming I/O for a command in the JSON Lines pipeline.
 pub struct CommandIo<'a, R: Read, W: Write> {
     reader: BufReader<R>,
@@ -398,13 +393,21 @@ impl<'a, R: Read, W: Write> CommandIo<'a, R, W> {
 /// or the data cannot be parsed.
 pub fn pop_object_data(io: &mut CommandIo<impl Read, impl Write>) -> Result<ObjectData, TpmError> {
     let obj = io.next_object()?;
-    let data_string = match obj {
-        crate::cli::Object::Context(s) => input_to_utf8(&s),
+    let envelope_value = match obj {
+        crate::cli::Object::Context(v) => Ok(v),
         _ => Err(TpmError::Execution(
             "expected a context object on the stack".to_string(),
         )),
     }?;
-    from_json_str(&data_string, "object")
+
+    let envelope: Envelope = serde_json::from_value(envelope_value)?;
+    if envelope.object_type != "object" {
+        return Err(TpmError::Json(format!(
+            "invalid object type: expected 'object', got '{}'",
+            envelope.object_type
+        )));
+    }
+    serde_json::from_value(envelope.data).map_err(|e| TpmError::Json(e.to_string()))
 }
 
 /// Parses a parent handle from a hex string in the loaded object data.
@@ -520,7 +523,10 @@ pub fn object_to_handle(chip: &mut TpmDevice, obj: &cli::Object) -> Result<TpmTr
     match obj {
         cli::Object::Handle(handle) => Ok(*handle),
         cli::Object::Persistent(handle) => Ok(TpmTransient(handle.0)),
-        cli::Object::Context(s) => {
+        cli::Object::Context(v) => {
+            let s = v.as_str().ok_or_else(|| {
+                TpmError::Parse("context object must contain a string value".to_string())
+            })?;
             let context_blob = input_to_bytes(s)?;
             let (context, _) = data::TpmsContext::parse(&context_blob)?;
             let load_cmd = TpmContextLoadCommand { context };

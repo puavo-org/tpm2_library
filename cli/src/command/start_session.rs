@@ -3,15 +3,13 @@
 // Copyright (c) 2025 Opinsys Oy
 
 use crate::{
-    cli::{SessionType, StartSession},
+    cli::{Object, StartSession},
     AuthSession, Command, Envelope, SessionData, TpmDevice, TpmError,
 };
 use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
 use rand::{thread_rng, RngCore};
 use tpm2_protocol::{
-    data::{
-        Tpm2b, TpmAlgId, TpmRh, TpmSe, TpmaSession, TpmtSymDefObject, TpmuSymKeyBits, TpmuSymMode,
-    },
+    data::{Tpm2b, TpmAlgId, TpmRh, TpmaSession, TpmtSymDefObject},
     message::TpmStartAuthSessionCommand,
 };
 
@@ -26,20 +24,13 @@ impl Command for StartSession {
         thread_rng().fill_bytes(&mut nonce_bytes);
 
         let auth_hash = TpmAlgId::from(self.hash_alg);
+        let session_type = self.session_type;
 
         let cmd = TpmStartAuthSessionCommand {
             nonce_caller: Tpm2b::try_from(nonce_bytes.as_slice())?,
             encrypted_salt: Tpm2b::default(),
-            session_type: match self.session_type {
-                SessionType::Hmac => TpmSe::Hmac,
-                SessionType::Policy => TpmSe::Policy,
-                SessionType::Trial => TpmSe::Trial,
-            },
-            symmetric: TpmtSymDefObject {
-                algorithm: TpmAlgId::Null,
-                key_bits: TpmuSymKeyBits::Null,
-                mode: TpmuSymMode::Null,
-            },
+            session_type: session_type.into(),
+            symmetric: TpmtSymDefObject::default(),
             auth_hash,
         };
 
@@ -69,8 +60,10 @@ impl Command for StartSession {
             data: serde_json::to_value(data)?,
         };
 
-        let json_out = serde_json::to_string_pretty(&envelope)?;
-        println!("{json_out}");
+        let envelope_value = serde_json::to_value(envelope)?;
+        let output_object = Object::Context(envelope_value);
+        let json_line = serde_json::to_string(&output_object)?;
+        println!("{json_line}");
 
         Ok(())
     }

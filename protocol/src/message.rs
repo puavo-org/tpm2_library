@@ -5,13 +5,13 @@
 use crate::{
     data::{
         Tpm2b, Tpm2bAuth, Tpm2bCreationData, Tpm2bData, Tpm2bDigest, Tpm2bEncryptedSecret,
-        Tpm2bMaxBuffer, Tpm2bName, Tpm2bPrivate, Tpm2bPublic, Tpm2bSensitiveCreate, Tpm2bTimeout,
-        TpmAlgId, TpmCap, TpmCc, TpmRc, TpmRh, TpmSe, TpmSt, TpmiYesNo, TpmlDigest,
-        TpmlDigestValues, TpmlPcrSelection, TpmsAuthCommand, TpmsAuthResponse, TpmsCapabilityData,
-        TpmsContext, TpmtSymDef, TpmtSymDefObject, TpmtTkAuth, TpmtTkCreation, TpmtTkHashcheck,
+        Tpm2bMaxBuffer, Tpm2bName, Tpm2bPrivate, Tpm2bPublic, Tpm2bSensitiveCreate, TpmAlgId,
+        TpmCap, TpmCc, TpmRc, TpmRh, TpmSe, TpmSt, TpmiYesNo, TpmlDigest, TpmlDigestValues,
+        TpmlPcrSelection, TpmsAuthCommand, TpmsAuthResponse, TpmsCapabilityData, TpmsContext,
+        TpmtSymDef, TpmtSymDefObject, TpmtTkCreation, TpmtTkHashcheck,
     },
     tpm_dispatch, tpm_response, tpm_struct, TpmBuild, TpmErrorKind, TpmList, TpmParse,
-    TpmPersistent, TpmResult, TpmSession, TpmSized, TpmTransient,
+    TpmPersistent, TpmResult, TpmSession, TpmSized, TpmTransient, TpmWriter,
 };
 use core::{convert::TryFrom, fmt::Debug, mem::size_of};
 
@@ -35,7 +35,9 @@ pub trait TpmHeader<'a>: TpmBuild + TpmParse<'a> + Debug + TpmSized {
     const HANDLES: usize;
 }
 
-pub type TpmResponse = Result<(TpmResponseBody, TpmAuthResponses), TpmRc>;
+/// The result of parsing a TPM response, containing either the successfully parsed
+/// body and auth areas (with a success or warning code) or a fatal error code.
+pub type TpmParseResult<'a> = Result<(TpmRc, TpmResponseBody, TpmAuthResponses), (TpmRc, &'a [u8])>;
 
 pub const TPM_HEADER_SIZE: usize = 10;
 
@@ -137,7 +139,7 @@ where
         TpmSt::NoSessions
     };
 
-    if rc.value() != 0 {
+    if rc.is_error() {
         (TpmSt::NoSessions as u16).build(writer)?;
         u32::try_from(TPM_HEADER_SIZE)?.build(writer)?;
         rc.value().build(writer)?;
@@ -265,7 +267,7 @@ pub fn tpm_parse_command(buf: &[u8]) -> TpmResult<(TpmHandles, TpmCommandBody, T
 /// * `TpmErrorKind::InvalidTag` if the tag in the buffer does not match expected
 /// * `TpmErrorKind::InvalidDiscriminant` if the buffer contains an unsupported command code
 /// * `TpmErrorKind::TrailingData` if the response has after spurious data left
-pub fn tpm_parse_response(cc: TpmCc, buf: &[u8]) -> TpmResult<TpmResponse> {
+pub fn tpm_parse_response(cc: TpmCc, buf: &[u8]) -> TpmResult<TpmParseResult> {
     if buf.len() < TPM_HEADER_SIZE {
         return Err(TpmErrorKind::Boundary);
     }
@@ -279,24 +281,14 @@ pub fn tpm_parse_response(cc: TpmCc, buf: &[u8]) -> TpmResult<TpmResponse> {
     }
 
     let rc = TpmRc::try_from(code)?;
+    if rc.is_error() {
+        return Ok(Err((rc, body_buf)));
+    }
+
     let tag = TpmSt::try_from(tag_raw).map_err(|()| TpmErrorKind::InvalidDiscriminant {
         type_name: "TpmSt",
         value: u64::from(tag_raw),
     })?;
-
-    if rc.value() != 0 {
-        if tag != TpmSt::NoSessions {
-            return Err(TpmErrorKind::InvalidTag {
-                type_name: "TpmSt",
-                expected: TpmSt::NoSessions as u16,
-                got: tag_raw,
-            });
-        }
-        if size != u32::try_from(TPM_HEADER_SIZE)? {
-            return Err(TpmErrorKind::Boundary);
-        }
-        return Ok(Err(rc));
-    }
 
     let dispatch = PARSE_RESPONSE_MAP
         .binary_search_by_key(&cc, |d| d.0)
@@ -323,7 +315,7 @@ pub fn tpm_parse_response(cc: TpmCc, buf: &[u8]) -> TpmResult<TpmResponse> {
         return Err(TpmErrorKind::TrailingData);
     }
 
-    Ok(Ok((body, auth_responses)))
+    Ok(Ok((rc, body, auth_responses)))
 }
 
 tpm_struct!(
@@ -539,6 +531,37 @@ tpm_struct!(
     {}
 );
 
+#[derive(Debug, Default, PartialEq, Eq, Clone)]
+pub struct TpmPolicyGetDigestResponse {
+    pub policy_digest: Tpm2bDigest,
+}
+impl TpmHeader<'_> for TpmPolicyGetDigestResponse {
+    const COMMAND: TpmCc = TpmCc::PolicyGetDigest;
+    const NO_SESSIONS: bool = false;
+    const WITH_SESSIONS: bool = true;
+    const HANDLES: usize = 0;
+}
+impl TpmSized for TpmPolicyGetDigestResponse {
+    const SIZE: usize = <Tpm2bDigest>::SIZE;
+    fn len(&self) -> usize {
+        self.policy_digest.len()
+    }
+}
+impl TpmBuild for TpmPolicyGetDigestResponse {
+    fn build(&self, writer: &mut TpmWriter) -> TpmResult<()> {
+        self.policy_digest.build(writer)
+    }
+}
+impl<'a> TpmParse<'a> for TpmPolicyGetDigestResponse {
+    fn parse(buf: &'a [u8]) -> TpmResult<(Self, &'a [u8])> {
+        if buf.is_empty() {
+            return Ok((Self::default(), buf));
+        }
+        let (policy_digest, buf) = Tpm2bDigest::parse(buf)?;
+        Ok((Self { policy_digest }, buf))
+    }
+}
+
 tpm_struct!(
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
     TpmPolicyOrCommand,
@@ -732,18 +755,6 @@ tpm_struct!(
 );
 
 tpm_struct!(
-    #[derive(Debug, Default, PartialEq, Eq, Clone)]
-    TpmPolicyGetDigestResponse,
-    TpmCc::PolicyGetDigest,
-    false,
-    true,
-    0,
-    {
-        pub policy_digest: Tpm2bDigest,
-    }
-);
-
-tpm_struct!(
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmPolicyOrResponse,
     TpmCc::PolicyOR,
@@ -764,16 +775,13 @@ tpm_struct!(
 );
 
 tpm_struct!(
-    #[derive(Debug, Default, PartialEq, Eq, Clone)]
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmPolicyPcrResponse,
     TpmCc::PolicyPcr,
     false,
     true,
     0,
-    {
-        pub pcr_digest: Tpm2bDigest,
-        pub pcrs: TpmlPcrSelection,
-    }
+    {}
 );
 
 tpm_struct!(
@@ -786,16 +794,14 @@ tpm_struct!(
     {}
 );
 
-tpm_response!(
-    #[derive(Debug, Default, PartialEq, Eq, Clone)]
+tpm_struct!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmPolicySecretResponse,
     TpmCc::PolicySecret,
     false,
     true,
-    {
-        pub timeout: Tpm2bTimeout,
-        pub policy_ticket: TpmtTkAuth,
-    }
+    0,
+    {}
 );
 
 tpm_response!(

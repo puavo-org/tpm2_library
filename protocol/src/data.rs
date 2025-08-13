@@ -442,6 +442,18 @@ impl TpmRc {
     pub fn value(self) -> u32 {
         self.0
     }
+
+    /// Returns `true` if the response code is a warning.
+    #[must_use]
+    pub fn is_warning(self) -> bool {
+        (self.0 & TPM_RC_WARN) == TPM_RC_WARN
+    }
+
+    /// Returns `true` if the response code is a fatal error.
+    #[must_use]
+    pub fn is_error(self) -> bool {
+        !self.is_warning() && self.0 != 0
+    }
 }
 
 impl TryFrom<u32> for TpmRc {

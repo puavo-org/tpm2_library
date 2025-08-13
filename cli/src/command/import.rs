@@ -31,11 +31,14 @@ impl Command for crate::cli::Import {
         let parent_name_alg = parent_public.name_alg;
 
         let private_key_obj = io.next_object()?;
-        let Object::Context(private_key_path) = private_key_obj else {
+        let Object::Context(private_key_path_val) = private_key_obj else {
             return Err(TpmError::Execution(
                 "expected an object context for the external key".to_string(),
             ));
         };
+        let private_key_path = private_key_path_val.as_str().ok_or_else(|| {
+            TpmError::Parse("context for private key must be a string path".to_string())
+        })?;
 
         let private_key = PrivateKey::from_pem_file(private_key_path.as_ref())?;
         let public = private_key.to_tpmt_public(parent_name_alg)?;
@@ -83,7 +86,7 @@ impl Command for crate::cli::Import {
             private: base64_engine.encode(priv_key_bytes),
         };
 
-        let new_object = Object::Context(serde_json::to_string(&Envelope {
+        let new_object = Object::Context(serde_json::to_value(Envelope {
             version: 1,
             object_type: "object".to_string(),
             data: serde_json::to_value(data)?,

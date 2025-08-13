@@ -15,7 +15,7 @@ use tpm2_protocol::{
     message::{TpmGetCapabilityCommand, TpmGetCapabilityResponse, TpmReadPublicCommand},
     TpmWriter, TPM_MAX_COMMAND_SIZE,
 };
-use tracing::{debug, trace};
+use tracing::{debug, trace, warn};
 
 pub const TPM_CAP_PROPERTY_MAX: u32 = 128;
 
@@ -99,8 +99,13 @@ impl TpmDevice {
         std::io::Read::read_to_end(&mut self.0, &mut resp_buf)?;
         trace!(response = %hex::encode(&resp_buf), "Response");
         match tpm2_protocol::message::tpm_parse_response(C::COMMAND, &resp_buf)? {
-            Ok((response, auth)) => Ok((response, auth)),
-            Err(rc) => Err(TpmError::TpmRc(rc)),
+            Ok((rc, response, auth)) => {
+                if rc.is_warning() {
+                    warn!(rc = %rc, "TPM command completed with a warning");
+                }
+                Ok((response, auth))
+            }
+            Err((rc, _)) => Err(TpmError::TpmRc(rc)),
         }
     }
 

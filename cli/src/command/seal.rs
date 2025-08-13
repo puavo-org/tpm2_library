@@ -33,7 +33,12 @@ impl Command for Seal {
 
         let data_to_seal_obj = io.next_object()?;
         let data_to_seal = match data_to_seal_obj {
-            Object::Context(s) => input_to_bytes(&s)?,
+            Object::Context(v) => {
+                let s = v.as_str().ok_or_else(|| {
+                    TpmError::Parse("context for sealed data must be a string".to_string())
+                })?;
+                input_to_bytes(s)?
+            }
             _ => {
                 return Err(TpmError::Execution(
                     "expected a context object with data to seal".to_string(),
@@ -96,7 +101,7 @@ impl Command for Seal {
             private: base64_engine.encode(priv_bytes),
         };
 
-        let new_object = Object::Context(serde_json::to_string(&Envelope {
+        let new_object = Object::Context(serde_json::to_value(Envelope {
             version: 1,
             object_type: "object".to_string(),
             data: serde_json::to_value(data)?,
