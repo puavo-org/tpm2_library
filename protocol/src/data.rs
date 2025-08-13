@@ -433,7 +433,7 @@ impl TpmRc {
         } else if n <= 7 {
             Some(TpmRcIndex::Handle(n))
         } else {
-            Some(TpmRcIndex::Session(n - 7))
+            Some(TpmRcIndex::Session(n - 8))
         }
     }
 

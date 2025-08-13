@@ -28,7 +28,7 @@ use std::{convert::TryFrom, string::ToString};
 #[case("TPM_RC_NV_UNAVAILABLE", 0x0923, TpmRcBase::NvUnavailable)]
 #[case("TPM_RC_HANDLE with handle index 1", 0x018B, TpmRcBase::Handle)]
 #[case("TPM_RC_ATTRIBUTES with handle index 4", 0x0482, TpmRcBase::Attributes)]
-#[case("TPM_RC_AUTH_FAIL with session index 1", 0x088E, TpmRcBase::AuthFail)]
+#[case("TPM_RC_AUTH_FAIL with session index 0", 0x088E, TpmRcBase::AuthFail)]
 #[case("TPM_RC_CURVE with parameter index 1", 0x01E6, TpmRcBase::Curve)]
 fn test_rc_base_from_raw_rc(
     #[case] description: &str,
@@ -48,8 +48,8 @@ fn test_rc_base_from_raw_rc(
 #[case("Parameter index 8", 0x08C4, Some(TpmRcIndex::Parameter(8)))]
 #[case("Handle index 1", 0x018B, Some(TpmRcIndex::Handle(1)))]
 #[case("Handle index 7", 0x078B, Some(TpmRcIndex::Handle(7)))]
-#[case("Session index 1", 0x088E, Some(TpmRcIndex::Session(1)))]
-#[case("Session index 8", 0x0F8E, Some(TpmRcIndex::Session(8)))]
+#[case("Session index 0", 0x088E, Some(TpmRcIndex::Session(0)))]
+#[case("Session index 7", 0x0F8E, Some(TpmRcIndex::Session(7)))]
 fn test_rc_index_from_value(
     #[case] description: &str,
     #[case] raw_rc: u32,
@@ -72,9 +72,9 @@ fn test_rc_index_from_value(
     "[TPM_RC_ATTRIBUTES, handle[4]]"
 )]
 #[case(
-    "TPM_RC_AUTH_FAIL with session index 1",
+    "TPM_RC_AUTH_FAIL with session index 0",
     0x088E,
-    "[TPM_RC_AUTH_FAIL, session[1]]"
+    "[TPM_RC_AUTH_FAIL, session[0]]"
 )]
 #[case(
     "TPM_RC_NV_UNAVAILABLE (warning) without index",
