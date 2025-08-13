@@ -1369,66 +1369,7 @@ impl<'a> TpmParse<'a> for TpmtSymDef {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Default)]
-pub struct TpmtSymDefObject {
-    pub algorithm: TpmAlgId,
-    pub key_bits: TpmuSymKeyBits,
-    pub mode: TpmuSymMode,
-}
-
-impl TpmTagged for TpmtSymDefObject {
-    type Tag = TpmAlgId;
-    type Value = ();
-}
-
-impl TpmSized for TpmtSymDefObject {
-    const SIZE: usize = size_of::<TpmAlgId>() + size_of::<u16>() + size_of::<TpmAlgId>();
-    fn len(&self) -> usize {
-        if self.algorithm == TpmAlgId::Null {
-            self.algorithm.len()
-        } else {
-            self.algorithm.len() + self.key_bits.len() + self.mode.len()
-        }
-    }
-}
-
-impl TpmBuild for TpmtSymDefObject {
-    fn build(&self, writer: &mut TpmWriter) -> TpmResult<()> {
-        self.algorithm.build(writer)?;
-        if self.algorithm != TpmAlgId::Null {
-            self.key_bits.build(writer)?;
-            self.mode.build(writer)?;
-        }
-        Ok(())
-    }
-}
-
-impl<'a> TpmParse<'a> for TpmtSymDefObject {
-    fn parse(buf: &'a [u8]) -> TpmResult<(Self, &'a [u8])> {
-        let (algorithm, buf) = TpmAlgId::parse(buf)?;
-        if algorithm == TpmAlgId::Null {
-            Ok((
-                Self {
-                    algorithm,
-                    key_bits: TpmuSymKeyBits::Null,
-                    mode: TpmuSymMode::Null,
-                },
-                buf,
-            ))
-        } else {
-            let (key_bits, buf) = TpmuSymKeyBits::parse_tagged(algorithm, buf)?;
-            let (mode, buf) = TpmuSymMode::parse_tagged(algorithm, buf)?;
-            Ok((
-                Self {
-                    algorithm,
-                    key_bits,
-                    mode,
-                },
-                buf,
-            ))
-        }
-    }
-}
+pub type TpmtSymDefObject = TpmtSymDef;
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone, Default)]
