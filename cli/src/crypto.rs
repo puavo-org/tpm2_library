@@ -2,7 +2,7 @@
 // Copyright (c) 2025 Opinsys Oy
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 
-use crate::{BuildToVec, TpmError, TpmErrorKind};
+use crate::{build_to_vec, TpmError, TpmErrorKind};
 use aes::Aes128;
 use cfb_mode::Encryptor;
 use cipher::{generic_array::GenericArray, BlockEncryptMut, KeyIvInit};
@@ -606,11 +606,10 @@ fn protect_seed_with_ecc(
     Ok((
         Tpm2bEncryptedSecret::try_from(encrypted_seed.as_slice())?,
         Tpm2b::try_from(
-            TpmsEccPoint {
+            build_to_vec(&TpmsEccPoint {
                 x: Tpm2bEccParameter::try_from(x)?,
                 y: Tpm2bEccParameter::try_from(y)?,
-            }
-            .build_to_vec()?
+            })?
             .as_slice(),
         )?,
     ))
@@ -673,7 +672,7 @@ pub fn create_import_blob(
         integrity_key_bits,
     )?;
 
-    let sensitive_data_vec = Tpm2b::try_from(private_bytes)?.build_to_vec()?;
+    let sensitive_data_vec = build_to_vec(&Tpm2b::try_from(private_bytes)?)?;
     let mut enc_data = sensitive_data_vec;
     let iv = [0u8; 16];
 

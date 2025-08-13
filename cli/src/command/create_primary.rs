@@ -3,7 +3,7 @@
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 
 use crate::{
-    get_auth_sessions, Alg, AlgInfo, AuthSession, BuildToVec, Command, ContextData, Envelope,
+    build_to_vec, get_auth_sessions, Alg, AlgInfo, AuthSession, Command, ContextData, Envelope,
     TpmDevice, TpmError,
 };
 use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
@@ -93,7 +93,7 @@ pub fn save_key_context(chip: &mut TpmDevice, handle: TpmTransient) -> Result<St
         .ContextSave()
         .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
 
-    let context_bytes = save_resp.context.build_to_vec()?;
+    let context_bytes = build_to_vec(&save_resp.context)?;
 
     let data = ContextData {
         context_blob: base64_engine.encode(context_bytes),

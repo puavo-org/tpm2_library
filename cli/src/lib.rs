@@ -640,7 +640,7 @@ where
     C: for<'b> TpmHeader<'b>,
 {
     if let Some(session) = session {
-        let params = command.build_to_vec()?;
+        let params = build_to_vec(command)?;
 
         let nonce_size = tpm2_protocol::tpm_hash_size(&session.auth_hash).ok_or_else(|| {
             TpmError::Execution(format!(
@@ -722,19 +722,16 @@ impl fmt::Display for TpmError {
     }
 }
 
-/// A local trait to provide `build_to_vec` on any `TpmBuild` type.
-pub(crate) trait BuildToVec: TpmBuild {
-    fn build_to_vec(&self) -> Result<Vec<u8>, TpmError> {
-        let mut buf = [0u8; TPM_MAX_COMMAND_SIZE];
-        let len = {
-            let mut writer = TpmWriter::new(&mut buf);
-            self.build(&mut writer)?;
-            writer.len()
-        };
-        Ok(buf[..len].to_vec())
-    }
+/// A helper to build a `TpmBuild` type into a `Vec<u8>`.
+pub(crate) fn build_to_vec<T: TpmBuild>(obj: &T) -> Result<Vec<u8>, TpmError> {
+    let mut buf = [0u8; TPM_MAX_COMMAND_SIZE];
+    let len = {
+        let mut writer = TpmWriter::new(&mut buf);
+        obj.build(&mut writer)?;
+        writer.len()
+    };
+    Ok(buf[..len].to_vec())
 }
-impl<T: TpmBuild> BuildToVec for T {}
 
 impl From<pkcs8::der::Error> for TpmError {
     fn from(err: pkcs8::der::Error) -> Self {

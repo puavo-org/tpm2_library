@@ -3,9 +3,9 @@
 // Copyright (c) 2025 Opinsys Oy
 
 use crate::{
-    cli::Object, create_import_blob, get_auth_sessions, object_to_handle, read_public, AuthSession,
-    BuildToVec, Command, CommandIo, Envelope, ObjectData, PrivateKey, TpmDevice, TpmError,
-    ID_IMPORTABLE_KEY,
+    build_to_vec, cli::Object, create_import_blob, get_auth_sessions, object_to_handle,
+    read_public, AuthSession, Command, CommandIo, Envelope, ObjectData, PrivateKey, TpmDevice,
+    TpmError, ID_IMPORTABLE_KEY,
 };
 use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
 use std::io;
@@ -72,8 +72,8 @@ impl Command for crate::cli::Import {
             TpmError::Execution(format!("unexpected response type for Import: {e:?}"))
         })?;
 
-        let pub_key_bytes = Tpm2bPublic { inner: public }.build_to_vec()?;
-        let priv_key_bytes = import_resp.out_private.build_to_vec()?;
+        let pub_key_bytes = build_to_vec(&Tpm2bPublic { inner: public })?;
+        let priv_key_bytes = build_to_vec(&import_resp.out_private)?;
 
         let data = ObjectData {
             oid: ID_IMPORTABLE_KEY.to_string(),

@@ -3,9 +3,10 @@
 // Copyright (c) 2025 Opinsys Oy
 
 use crate::{
+    build_to_vec,
     cli::{Object, Seal},
-    get_auth_sessions, input_to_bytes, object_to_handle, AuthSession, BuildToVec, Command,
-    CommandIo, Envelope, ObjectData, TpmDevice, TpmError, ID_SEALED_DATA,
+    get_auth_sessions, input_to_bytes, object_to_handle, AuthSession, Command, CommandIo, Envelope,
+    ObjectData, TpmDevice, TpmError, ID_SEALED_DATA,
 };
 use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
 use std::io;
@@ -84,8 +85,8 @@ impl Command for Seal {
             TpmError::Execution(format!("unexpected response type for Create: {e:?}"))
         })?;
 
-        let pub_bytes = create_resp.out_public.build_to_vec()?;
-        let priv_bytes = create_resp.out_private.build_to_vec()?;
+        let pub_bytes = build_to_vec(&create_resp.out_public)?;
+        let priv_bytes = build_to_vec(&create_resp.out_private)?;
 
         let data = ObjectData {
             oid: ID_SEALED_DATA.to_string(),
