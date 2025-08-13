@@ -268,7 +268,8 @@ pub struct Save {
 #[derive(Args, Debug)]
 pub struct Delete {
     /// Handle of the object to delete (transient or persistent)
-    pub handle: String,
+    #[arg(value_parser = parse_hex_u32)]
+    pub handle: u32,
     #[command(flatten)]
     pub auth: AuthArgs,
 }

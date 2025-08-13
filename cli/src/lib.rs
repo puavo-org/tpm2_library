@@ -53,16 +53,18 @@ pub trait Command {
 pub fn execute_cli() -> Result<(), TpmError> {
     let cli = crate::cli::Cli::parse();
 
-    let Some(command) = cli.command else {
-        println!("A command is required.");
-        println!("For a list of commands, run 'tpm2 --help'.");
+    if cli.command.is_none() {
+        println!("  -d, --device <DEVICE>   [default: /dev/tpmrm0]");
+        println!("      --session <SESSION> Authorization session context");
+        println!("  -h, --help              Print help");
+        println!("  -V, --version           Print version");
         return Ok(());
-    };
+    }
 
     let mut device = TpmDevice::open(&cli.device)?;
     let session = load_session(cli.session.as_deref())?;
 
-    command.run(&mut device, session.as_ref())
+    cli.command.unwrap().run(&mut device, session.as_ref())
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
