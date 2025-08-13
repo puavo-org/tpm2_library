@@ -3,8 +3,8 @@
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 
 use crate::{
-    cli::CreatePrimaryArgs, get_auth_sessions, Alg, AlgInfo, AuthSession, BuildToVec, ContextData,
-    Envelope, TpmDevice, TpmError,
+    get_auth_sessions, Alg, AlgInfo, AuthSession, BuildToVec, Command, ContextData, Envelope,
+    TpmDevice, TpmError,
 };
 use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
 use tpm2_protocol::{
@@ -106,56 +106,53 @@ pub fn save_key_context(chip: &mut TpmDevice, handle: TpmTransient) -> Result<St
     serde_json::to_string_pretty(&envelope).map_err(|e| TpmError::Json(e.to_string()))
 }
 
-/// Executes the `create-primary` command.
-///
-/// # Errors
-///
-/// Returns a `TpmError` if communication with the TPM fails, if the command
-/// arguments are invalid, or if file I/O fails when saving a context.
-pub fn run(
-    chip: &mut TpmDevice,
-    args: &CreatePrimaryArgs,
-    session: Option<&AuthSession>,
-) -> Result<(), TpmError> {
-    let primary_handle: TpmRh = args.hierarchy.into();
-    let handles = [primary_handle as u32];
-    let public_template = build_public_template(&args.alg);
-    let user_auth = args.auth.auth.as_deref().unwrap_or("").as_bytes();
+impl Command for crate::cli::CreatePrimary {
+    /// Runs `create-primary`.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `TpmError` if the execution fails
+    fn run(&self, chip: &mut TpmDevice, session: Option<&AuthSession>) -> Result<(), TpmError> {
+        let primary_handle: TpmRh = self.hierarchy.into();
+        let handles = [primary_handle as u32];
+        let public_template = build_public_template(&self.alg);
+        let user_auth = self.auth.auth.as_deref().unwrap_or("").as_bytes();
 
-    let cmd = TpmCreatePrimaryCommand {
-        in_sensitive: Tpm2bSensitiveCreate {
-            inner: TpmsSensitiveCreate {
-                user_auth: Tpm2bAuth::try_from(user_auth)?,
-                data: Tpm2bSensitiveData::default(),
+        let cmd = TpmCreatePrimaryCommand {
+            in_sensitive: Tpm2bSensitiveCreate {
+                inner: TpmsSensitiveCreate {
+                    user_auth: Tpm2bAuth::try_from(user_auth)?,
+                    data: Tpm2bSensitiveData::default(),
+                },
             },
-        },
-        in_public: Tpm2bPublic {
-            inner: public_template,
-        },
-        outside_info: Tpm2b::default(),
-        creation_pcr: TpmlPcrSelection::default(),
-    };
+            in_public: Tpm2bPublic {
+                inner: public_template,
+            },
+            outside_info: Tpm2b::default(),
+            creation_pcr: TpmlPcrSelection::default(),
+        };
 
-    let sessions = get_auth_sessions(&cmd, &handles, session, args.auth.auth.as_deref())?;
-    let (resp, _) = chip.execute(&cmd, Some(&handles), &sessions)?;
+        let sessions = get_auth_sessions(&cmd, &handles, session, self.auth.auth.as_deref())?;
+        let (resp, _) = chip.execute(&cmd, Some(&handles), &sessions)?;
 
-    let create_primary_resp = resp
-        .CreatePrimary()
-        .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
-    let object_handle = create_primary_resp.object_handle;
-
-    if let Some(persistent_handle) = args.persistent {
-        let evict_cmd = TpmEvictControlCommand { persistent_handle };
-        let evict_handles = [TpmRh::Owner as u32, object_handle.into()];
-        let evict_sessions = get_auth_sessions(&evict_cmd, &evict_handles, session, None)?;
-        let (resp, _) = chip.execute(&evict_cmd, Some(&evict_handles), &evict_sessions)?;
-        resp.EvictControl()
+        let create_primary_resp = resp
+            .CreatePrimary()
             .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
-        println!("{persistent_handle:#010x}");
-    } else {
-        let json_out = save_key_context(chip, object_handle)?;
-        println!("{json_out}");
-    }
+        let object_handle = create_primary_resp.object_handle;
 
-    Ok(())
+        if let Some(persistent_handle) = self.persistent {
+            let evict_cmd = TpmEvictControlCommand { persistent_handle };
+            let evict_handles = [TpmRh::Owner as u32, object_handle.into()];
+            let evict_sessions = get_auth_sessions(&evict_cmd, &evict_handles, session, None)?;
+            let (resp, _) = chip.execute(&evict_cmd, Some(&evict_handles), &evict_sessions)?;
+            resp.EvictControl()
+                .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
+            println!("{persistent_handle:#010x}");
+        } else {
+            let json_out = save_key_context(chip, object_handle)?;
+            println!("{json_out}");
+        }
+
+        Ok(())
+    }
 }

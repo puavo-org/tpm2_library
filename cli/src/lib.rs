@@ -35,6 +35,16 @@ pub mod device;
 pub use self::crypto::*;
 pub use self::device::*;
 
+/// The callback API for subcommands
+pub trait Command {
+    /// Runs a command.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `TpmError` if the execution fails
+    fn run(&self, device: &mut TpmDevice, session: Option<&AuthSession>) -> Result<(), TpmError>;
+}
+
 /// Parses command-line arguments and executes the corresponding command.
 ///
 /// # Errors
@@ -52,57 +62,7 @@ pub fn execute_cli() -> Result<(), TpmError> {
     let mut device = TpmDevice::open(&cli.device)?;
     let session = load_session(cli.session.as_deref())?;
 
-    match &command {
-        crate::cli::Commands::CreatePrimary(args) => {
-            crate::command::create_primary::run(&mut device, args, session.as_ref())
-        }
-        crate::cli::Commands::Save(args) => {
-            crate::command::save::run(&mut device, args, session.as_ref())
-        }
-        crate::cli::Commands::Delete(args) => {
-            crate::command::delete::run(&mut device, args, session.as_ref())
-        }
-        crate::cli::Commands::Import(args) => {
-            crate::command::import::run(&mut device, args, session.as_ref())
-        }
-        crate::cli::Commands::Algorithms(args) => {
-            crate::command::algorithms::run(&mut device, args)
-        }
-        crate::cli::Commands::Objects => crate::command::objects::run(&mut device),
-        crate::cli::Commands::Load(args) => {
-            crate::command::load::run(&mut device, args, session.as_ref())
-        }
-        crate::cli::Commands::PcrEvent(args) => {
-            crate::command::pcr_event::run(&mut device, args, session.as_ref())
-        }
-        crate::cli::Commands::PcrRead(args) => crate::command::pcr_read::run(&mut device, args),
-        crate::cli::Commands::PrintError(args) => {
-            crate::command::print_error::run(args.rc);
-            Ok(())
-        }
-        crate::cli::Commands::ResetLock(args) => {
-            crate::command::reset_lock::run(&mut device, args, session.as_ref())
-        }
-        crate::cli::Commands::Seal(args) => {
-            crate::command::seal::run(&mut device, args, session.as_ref())
-        }
-        crate::cli::Commands::StartAuthSession(args) => {
-            crate::command::start_session::run(&mut device, args)
-        }
-        crate::cli::Commands::Unseal(args) => {
-            crate::command::unseal::run(&mut device, args, session.as_ref())
-        }
-        crate::cli::Commands::Convert(args) => crate::command::convert::run(args),
-        crate::cli::Commands::PolicySecret(args) => {
-            crate::command::policy_secret::run(&mut device, args, session.as_ref())
-        }
-        crate::cli::Commands::PolicyPcr(args) => {
-            crate::command::policy_pcr::run(args, session.as_ref())
-        }
-        crate::cli::Commands::PolicyOr(args) => {
-            crate::command::policy_or::run(args, session.as_ref())
-        }
-    }
+    command.run(&mut device, session.as_ref())
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

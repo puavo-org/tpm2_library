@@ -255,7 +255,7 @@ fn test_parse_get_capability_command() {
                 panic!("sessions should be empty");
             }
         }
-        Err(e) => panic!("command parsing failed: {:?}", e),
+        Err(e) => panic!("command parsing failed: {e:?}"),
     }
 }
 
@@ -290,7 +290,7 @@ fn test_parse_hash_command() {
                 panic!("sessions should be empty");
             }
         }
-        Err(e) => panic!("command parsing failed: {:?}", e),
+        Err(e) => panic!("command parsing failed: {e:?}"),
     }
 }
 
@@ -322,7 +322,7 @@ fn test_parse_flush_context_command() {
                 panic!("sessions should be empty");
             }
         }
-        Err(e) => panic!("command parsing failed: {:?}", e),
+        Err(e) => panic!("command parsing failed: {e:?}"),
     }
 }
 
@@ -362,7 +362,7 @@ fn test_parse_pcr_read_command() {
                 panic!("sessions should be empty");
             }
         }
-        Err(e) => panic!("command parsing failed: {:?}", e),
+        Err(e) => panic!("command parsing failed: {e:?}"),
     }
 }
 
@@ -401,7 +401,7 @@ fn test_parse_context_save_command() {
                 panic!("sessions should be empty");
             }
         }
-        Err(e) => panic!("command parsing failed: {:?}", e),
+        Err(e) => panic!("command parsing failed: {e:?}"),
     }
 }
 

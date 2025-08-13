@@ -2,7 +2,9 @@
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 // Copyright (c) 2025 Opinsys Oy
 
-use crate::{cli::Algorithms, enumerate_all, TpmDevice, TpmError, TPM_CAP_PROPERTY_MAX};
+use crate::{
+    cli::Algorithms, enumerate_all, AuthSession, Command, TpmDevice, TpmError, TPM_CAP_PROPERTY_MAX,
+};
 use regex::Regex;
 use std::collections::HashSet;
 use tpm2_protocol::data::{TpmAlgId, TpmCap, TpmuCapabilities};
@@ -22,39 +24,40 @@ fn get_chip_algorithms(device: &mut TpmDevice) -> Result<HashSet<TpmAlgId>, TpmE
     Ok(algs)
 }
 
-/// Executes the `algorithms` command.
-///
-/// # Errors
-///
-/// Returns a `TpmError` if communication with the TPM fails or if the
-/// user-provided filter is an invalid regular expression.
-pub fn run(device: &mut TpmDevice, args: &Algorithms) -> Result<(), TpmError> {
-    let chip_algorithms = get_chip_algorithms(device)?;
-    let cli_algorithms = enumerate_all();
+impl Command for Algorithms {
+    /// Runs `algorithms`.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `TpmError` if the execution fails
+    fn run(&self, device: &mut TpmDevice, _session: Option<&AuthSession>) -> Result<(), TpmError> {
+        let chip_algorithms = get_chip_algorithms(device)?;
+        let cli_algorithms = enumerate_all();
 
-    let supported_algorithms: Vec<_> = cli_algorithms
-        .into_iter()
-        .filter(|alg| chip_algorithms.contains(&alg.object_type))
-        .collect();
-
-    let filtered_algorithms: Vec<_> = if let Some(pattern) = &args.filter {
-        let re =
-            Regex::new(pattern).map_err(|e| TpmError::Execution(format!("invalid regex: {e}")))?;
-        supported_algorithms
+        let supported_algorithms: Vec<_> = cli_algorithms
             .into_iter()
-            .filter(|alg| re.is_match(&alg.name))
-            .collect()
-    } else {
-        supported_algorithms
-    };
+            .filter(|alg| chip_algorithms.contains(&alg.object_type))
+            .collect();
 
-    let mut sorted_names: Vec<_> = filtered_algorithms
-        .into_iter()
-        .map(|alg| alg.name)
-        .collect();
-    sorted_names.sort();
-    for name in sorted_names {
-        println!("{name}");
+        let filtered_algorithms: Vec<_> = if let Some(pattern) = &self.filter {
+            let re = Regex::new(pattern)
+                .map_err(|e| TpmError::Execution(format!("invalid regex: {e}")))?;
+            supported_algorithms
+                .into_iter()
+                .filter(|alg| re.is_match(&alg.name))
+                .collect()
+        } else {
+            supported_algorithms
+        };
+
+        let mut sorted_names: Vec<_> = filtered_algorithms
+            .into_iter()
+            .map(|alg| alg.name)
+            .collect();
+        sorted_names.sort();
+        for name in sorted_names {
+            println!("{name}");
+        }
+        Ok(())
     }
-    Ok(())
 }

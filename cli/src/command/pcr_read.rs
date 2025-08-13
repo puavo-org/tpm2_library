@@ -2,7 +2,10 @@
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 // Copyright (c) 2025 Opinsys Oy
 
-use crate::{cli::PcrReadArgs, tpm_alg_id_from_str, TpmDevice, TpmError, TPM_CAP_PROPERTY_MAX};
+use crate::{
+    cli::PcrRead, tpm_alg_id_from_str, AuthSession, Command, TpmDevice, TpmError,
+    TPM_CAP_PROPERTY_MAX,
+};
 use std::collections::BTreeMap;
 use tpm2_protocol::{
     data::{
@@ -80,48 +83,49 @@ fn parse_pcr_selection(
     Ok(list)
 }
 
-/// Executes the `pcr-read` command.
-///
-/// # Errors
-///
-/// Returns a `TpmError` if the PCR selection string is invalid or if
-/// communication with the TPM fails.
-pub fn run(chip: &mut TpmDevice, args: &PcrReadArgs) -> Result<(), TpmError> {
-    let pcr_count = get_pcr_count(chip)?;
-    let pcr_selection_in = parse_pcr_selection(&args.selection, pcr_count)?;
+impl Command for PcrRead {
+    /// Runs `pcr-read`.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `TpmError` if the execution fails
+    fn run(&self, chip: &mut TpmDevice, _session: Option<&AuthSession>) -> Result<(), TpmError> {
+        let pcr_count = get_pcr_count(chip)?;
+        let pcr_selection_in = parse_pcr_selection(&self.selection, pcr_count)?;
 
-    let cmd = TpmPcrReadCommand { pcr_selection_in };
-    let (resp, _) = chip.execute(&cmd, None, &[])?;
+        let cmd = TpmPcrReadCommand { pcr_selection_in };
+        let (resp, _) = chip.execute(&cmd, None, &[])?;
 
-    let pcr_read_resp = resp
-        .PcrRead()
-        .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
+        let pcr_read_resp = resp
+            .PcrRead()
+            .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
 
-    let mut pcr_map: BTreeMap<TpmAlgId, BTreeMap<usize, Vec<u8>>> = BTreeMap::new();
-    let mut pcr_iter = pcr_read_resp.pcr_values.iter();
+        let mut pcr_map: BTreeMap<TpmAlgId, BTreeMap<usize, Vec<u8>>> = BTreeMap::new();
+        let mut pcr_iter = pcr_read_resp.pcr_values.iter();
 
-    for selection in pcr_read_resp.pcr_selection_out.iter() {
-        let bank = pcr_map.entry(selection.hash).or_default();
-        for (byte_index, &byte) in selection.pcr_select.iter().enumerate() {
-            for bit_index in 0..8 {
-                if (byte >> bit_index) & 1 == 1 {
-                    let pcr_index = byte_index * 8 + bit_index;
-                    if let Some(digest) = pcr_iter.next() {
-                        bank.insert(pcr_index, digest.to_vec());
+        for selection in pcr_read_resp.pcr_selection_out.iter() {
+            let bank = pcr_map.entry(selection.hash).or_default();
+            for (byte_index, &byte) in selection.pcr_select.iter().enumerate() {
+                for bit_index in 0..8 {
+                    if (byte >> bit_index) & 1 == 1 {
+                        let pcr_index = byte_index * 8 + bit_index;
+                        if let Some(digest) = pcr_iter.next() {
+                            bank.insert(pcr_index, digest.to_vec());
+                        }
                     }
                 }
             }
         }
-    }
 
-    println!("pcr-update-counter: {}", pcr_read_resp.pcr_update_counter);
+        println!("pcr-update-counter: {}", pcr_read_resp.pcr_update_counter);
 
-    for (alg, pcrs) in &pcr_map {
-        println!("{alg}:");
-        for (pcr_index, digest) in pcrs {
-            println!("  {:02}: {}", pcr_index, hex::encode_upper(digest));
+        for (alg, pcrs) in &pcr_map {
+            println!("{alg}:");
+            for (pcr_index, digest) in pcrs {
+                println!("  {:02}: {}", pcr_index, hex::encode_upper(digest));
+            }
         }
-    }
 
-    Ok(())
+        Ok(())
+    }
 }

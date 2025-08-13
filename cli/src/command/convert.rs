@@ -3,8 +3,8 @@
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 
 use crate::{
-    cli::{ConvertArgs, KeyFormat},
-    from_json_str, read_input, Envelope, ObjectData, TpmError, TpmKey,
+    cli::KeyFormat, from_json_str, read_input, AuthSession, Command, Envelope, ObjectData,
+    TpmDevice, TpmError, TpmKey,
 };
 use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
 use std::io::{self, Write};
@@ -53,40 +53,44 @@ fn tpm_key_to_json_string(key: TpmKey) -> Result<String, TpmError> {
     serde_json::to_string_pretty(&envelope).map_err(Into::into)
 }
 
-/// Executes the `convert` command.
-///
-/// # Errors
-///
-/// Returns a `TpmError` if I/O or parsing fails.
-pub fn run(args: &ConvertArgs) -> Result<(), TpmError> {
-    let input = read_input(None)?;
-    match (args.from, args.to) {
-        (KeyFormat::Json, KeyFormat::Pem) => {
-            let json_str = String::from_utf8(input).map_err(|e| TpmError::Parse(e.to_string()))?;
-            let key = json_to_tpm_key(&json_str)?;
-            println!("{}", key.to_pem()?);
+impl Command for crate::cli::Convert {
+    /// Runs `convert`.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `TpmError` if the execution fails
+    fn run(&self, _device: &mut TpmDevice, _session: Option<&AuthSession>) -> Result<(), TpmError> {
+        let input = read_input(None)?;
+        match (self.from, self.to) {
+            (KeyFormat::Json, KeyFormat::Pem) => {
+                let json_str =
+                    String::from_utf8(input).map_err(|e| TpmError::Parse(e.to_string()))?;
+                let key = json_to_tpm_key(&json_str)?;
+                println!("{}", key.to_pem()?);
+            }
+            (KeyFormat::Json, KeyFormat::Der) => {
+                let json_str =
+                    String::from_utf8(input).map_err(|e| TpmError::Parse(e.to_string()))?;
+                let key = json_to_tpm_key(&json_str)?;
+                io::stdout().write_all(&key.to_der()?)?;
+            }
+            (KeyFormat::Pem, KeyFormat::Json) => {
+                let key = TpmKey::from_pem(&input)?;
+                println!("{}", tpm_key_to_json_string(key)?);
+            }
+            (KeyFormat::Der, KeyFormat::Json) => {
+                let key = TpmKey::from_der(&input)?;
+                println!("{}", tpm_key_to_json_string(key)?);
+            }
+            (from, to) if from == to => {
+                io::stdout().write_all(&input)?;
+            }
+            _ => {
+                return Err(TpmError::Execution(
+                    "unsupported conversion direction".to_string(),
+                ));
+            }
         }
-        (KeyFormat::Json, KeyFormat::Der) => {
-            let json_str = String::from_utf8(input).map_err(|e| TpmError::Parse(e.to_string()))?;
-            let key = json_to_tpm_key(&json_str)?;
-            io::stdout().write_all(&key.to_der()?)?;
-        }
-        (KeyFormat::Pem, KeyFormat::Json) => {
-            let key = TpmKey::from_pem(&input)?;
-            println!("{}", tpm_key_to_json_string(key)?);
-        }
-        (KeyFormat::Der, KeyFormat::Json) => {
-            let key = TpmKey::from_der(&input)?;
-            println!("{}", tpm_key_to_json_string(key)?);
-        }
-        (from, to) if from == to => {
-            io::stdout().write_all(&input)?;
-        }
-        _ => {
-            return Err(TpmError::Execution(
-                "unsupported conversion direction".to_string(),
-            ));
-        }
+        Ok(())
     }
-    Ok(())
 }

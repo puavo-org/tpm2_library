@@ -2,8 +2,11 @@
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 // Copyright (c) 2025 Opinsys Oy
 
-use tpm2_protocol::data::TpmRc;
+use crate::{cli::PrintError, AuthSession, Command, TpmDevice, TpmError};
 
-pub fn run(rc: TpmRc) {
-    println!("{rc}");
+impl Command for PrintError {
+    fn run(&self, _device: &mut TpmDevice, _session: Option<&AuthSession>) -> Result<(), TpmError> {
+        println!("{}", self.rc);
+        Ok(())
+    }
 }

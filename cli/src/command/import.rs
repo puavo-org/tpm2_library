@@ -3,10 +3,9 @@
 // Copyright (c) 2025 Opinsys Oy
 
 use crate::{
-    cli::{ImportArgs, Object},
-    create_import_blob, get_auth_sessions, read_public, resolve_object_handle, AuthSession,
-    BuildToVec, CommandIo, Envelope, ObjectData, PrivateKey, TpmDevice, TpmError,
-    ID_IMPORTABLE_KEY,
+    cli::Object, create_import_blob, get_auth_sessions, read_public, resolve_object_handle,
+    AuthSession, BuildToVec, Command, CommandIo, Envelope, ObjectData, PrivateKey, TpmDevice,
+    TpmError, ID_IMPORTABLE_KEY,
 };
 use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
 use std::io;
@@ -15,84 +14,82 @@ use tpm2_protocol::{
     message::TpmImportCommand,
 };
 
-/// Executes the `import` command.
-///
-/// # Errors
-///
-/// Returns a `TpmError`.
-#[allow(clippy::too_many_lines)]
-pub fn run(
-    chip: &mut TpmDevice,
-    args: &ImportArgs,
-    session: Option<&AuthSession>,
-) -> Result<(), TpmError> {
-    let mut io = CommandIo::new(io::stdin(), io::stdout(), session);
+impl Command for crate::cli::Import {
+    /// Runs `import`.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `TpmError`.
+    #[allow(clippy::too_many_lines)]
+    fn run(&self, chip: &mut TpmDevice, session: Option<&AuthSession>) -> Result<(), TpmError> {
+        let mut io = CommandIo::new(io::stdin(), io::stdout(), session);
 
-    let parent_obj = io.next_object()?;
-    let parent_handle = resolve_object_handle(chip, &parent_obj)?;
+        let parent_obj = io.next_object()?;
+        let parent_handle = resolve_object_handle(chip, &parent_obj)?;
 
-    let (parent_public, parent_name) = read_public(chip, parent_handle)?;
-    let parent_name_alg = parent_public.name_alg;
+        let (parent_public, parent_name) = read_public(chip, parent_handle)?;
+        let parent_name_alg = parent_public.name_alg;
 
-    let private_key_obj = io.next_object()?;
-    let Object::Context(private_key_path) = private_key_obj else {
-        return Err(TpmError::Execution(
-            "expected an object context for the external key".to_string(),
-        ));
-    };
+        let private_key_obj = io.next_object()?;
+        let Object::Context(private_key_path) = private_key_obj else {
+            return Err(TpmError::Execution(
+                "expected an object context for the external key".to_string(),
+            ));
+        };
 
-    let private_key = PrivateKey::from_pem_file(private_key_path.as_ref())?;
-    let public = private_key.to_tpmt_public(parent_name_alg)?;
-    let public_bytes = Tpm2bPublic {
-        inner: public.clone(),
-    };
-    let private_bytes = private_key.get_private_blob()?;
+        let private_key = PrivateKey::from_pem_file(private_key_path.as_ref())?;
+        let public = private_key.to_tpmt_public(parent_name_alg)?;
+        let public_bytes = Tpm2bPublic {
+            inner: public.clone(),
+        };
+        let private_bytes = private_key.get_private_blob()?;
 
-    let (duplicate, in_sym_seed, encryption_key) =
-        create_import_blob(&parent_public, private_bytes, &parent_name)?;
+        let (duplicate, in_sym_seed, encryption_key) =
+            create_import_blob(&parent_public, private_bytes, &parent_name)?;
 
-    let import_cmd = TpmImportCommand {
-        encryption_key,
-        object_public: public_bytes,
-        duplicate,
-        in_sym_seed,
-        symmetric_alg: TpmtSymDef {
-            algorithm: TpmAlgId::Aes,
-            key_bits: TpmuSymKeyBits::Aes(128),
-            mode: TpmuSymMode::Aes(TpmAlgId::Cfb),
-        },
-    };
+        let import_cmd = TpmImportCommand {
+            encryption_key,
+            object_public: public_bytes,
+            duplicate,
+            in_sym_seed,
+            symmetric_alg: TpmtSymDef {
+                algorithm: TpmAlgId::Aes,
+                key_bits: TpmuSymKeyBits::Aes(128),
+                mode: TpmuSymMode::Aes(TpmAlgId::Cfb),
+            },
+        };
 
-    let handles = [parent_handle.into()];
-    let sessions = get_auth_sessions(
-        &import_cmd,
-        &handles,
-        io.session,
-        args.parent_auth.auth.as_deref(),
-    )?;
+        let handles = [parent_handle.into()];
+        let sessions = get_auth_sessions(
+            &import_cmd,
+            &handles,
+            io.session,
+            self.parent_auth.auth.as_deref(),
+        )?;
 
-    let (resp, _) = chip.execute(&import_cmd, Some(&handles), &sessions)?;
-    let import_resp = resp
-        .Import()
-        .map_err(|e| TpmError::Execution(format!("unexpected response type for Import: {e:?}")))?;
+        let (resp, _) = chip.execute(&import_cmd, Some(&handles), &sessions)?;
+        let import_resp = resp.Import().map_err(|e| {
+            TpmError::Execution(format!("unexpected response type for Import: {e:?}"))
+        })?;
 
-    let pub_key_bytes = Tpm2bPublic { inner: public }.build_to_vec()?;
-    let priv_key_bytes = import_resp.out_private.build_to_vec()?;
+        let pub_key_bytes = Tpm2bPublic { inner: public }.build_to_vec()?;
+        let priv_key_bytes = import_resp.out_private.build_to_vec()?;
 
-    let data = ObjectData {
-        oid: ID_IMPORTABLE_KEY.to_string(),
-        empty_auth: false,
-        parent: format!("{parent_handle:#010x}"),
-        public: base64_engine.encode(pub_key_bytes),
-        private: base64_engine.encode(priv_key_bytes),
-    };
+        let data = ObjectData {
+            oid: ID_IMPORTABLE_KEY.to_string(),
+            empty_auth: false,
+            parent: format!("{parent_handle:#010x}"),
+            public: base64_engine.encode(pub_key_bytes),
+            private: base64_engine.encode(priv_key_bytes),
+        };
 
-    let new_object = Object::Context(serde_json::to_string(&Envelope {
-        version: 1,
-        object_type: "object".to_string(),
-        data: serde_json::to_value(data)?,
-    })?);
+        let new_object = Object::Context(serde_json::to_string(&Envelope {
+            version: 1,
+            object_type: "object".to_string(),
+            data: serde_json::to_value(data)?,
+        })?);
 
-    io.push_object(new_object);
-    io.finalize()
+        io.push_object(new_object);
+        io.finalize()
+    }
 }

@@ -2,13 +2,10 @@
 // Copyright (c) 2025 Opinsys Oy
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 
-use crate::{Alg, TpmError};
+use crate::{Alg, Command, TpmError};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use clap_num::maybe_hex;
-use serde::{
-    de::{self, Deserializer, Visitor},
-    Serialize, Serializer,
-};
+use serde::{de::Visitor, Deserializer, Serialize, Serializer};
 use tpm2_protocol::{
     data::{TpmCap, TpmRc, TpmRh, TpmuCapabilities},
     TpmPersistent, TpmTransient,
@@ -48,7 +45,7 @@ impl Serialize for Object {
     }
 }
 
-impl<'de> de::Deserialize<'de> for Object {
+impl<'de> serde::Deserialize<'de> for Object {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
@@ -64,7 +61,7 @@ impl<'de> de::Deserialize<'de> for Object {
 
             fn visit_str<E>(self, value: &str) -> Result<Object, E>
             where
-                E: de::Error,
+                E: serde::de::Error,
             {
                 let parts: Vec<&str> = value.splitn(2, ':').collect();
                 if parts.len() != 2 {
@@ -169,39 +166,68 @@ pub enum Commands {
     /// Lists avaible algorithms
     Algorithms(Algorithms),
     /// Converts keys between ASN.1 and JSON format
-    Convert(ConvertArgs),
+    Convert(Convert),
     /// Creates a primary key
-    CreatePrimary(CreatePrimaryArgs),
+    CreatePrimary(CreatePrimary),
     /// Deletes a transient or persistent object
-    Delete(DeleteArgs),
+    Delete(Delete),
     /// Imports an external key
-    Import(ImportArgs),
+    Import(Import),
     /// Loads a TPM key
-    Load(LoadArgs),
+    Load(Load),
     /// Lists objects in volatile and non-volatile memory
-    Objects,
+    Objects(Objects),
     /// Extends a PCR with an event
-    PcrEvent(PcrEventArgs),
+    PcrEvent(PcrEvent),
     /// Reads PCRs
-    PcrRead(PcrReadArgs),
+    PcrRead(PcrRead),
     /// Constrain a policy with an authorization value
-    PolicySecret(PolicySecretArgs),
+    PolicySecret(PolicySecret),
     /// Constrain a policy to a specific PCR state
-    PolicyPcr(PolicyPcrArgs),
-    /// Combine policies to  a union policy
-    PolicyOr(PolicyOrArgs),
+    PolicyPcr(PolicyPcr),
+    /// Combine policies to a union policy
+    PolicyOr(PolicyOr),
     /// Encodes and print a TPM error code
-    PrintError(PrintErrorArgs),
+    PrintError(PrintError),
     /// Resets the dictionary attack lockout timer
-    ResetLock(ResetLockArgs),
+    ResetLock(ResetLock),
     /// Saves to non-volatile memory
-    Save(SaveArgs),
+    Save(Save),
     /// Seals a keyedhash object
-    Seal(SealArgs),
+    Seal(Seal),
     /// Starts an authorization session
-    StartAuthSession(StartAuthSessionArgs),
+    StartSession(StartSession),
     /// Unseals a keyedhash object
-    Unseal(UnsealArgs),
+    Unseal(Unseal),
+}
+
+impl Command for Commands {
+    fn run(
+        &self,
+        device: &mut crate::TpmDevice,
+        session: Option<&crate::AuthSession>,
+    ) -> Result<(), crate::TpmError> {
+        match self {
+            Self::Algorithms(args) => args.run(device, session),
+            Self::Convert(args) => args.run(device, session),
+            Self::CreatePrimary(args) => args.run(device, session),
+            Self::Delete(args) => args.run(device, session),
+            Self::Import(args) => args.run(device, session),
+            Self::Load(args) => args.run(device, session),
+            Self::Objects(args) => args.run(device, session),
+            Self::PcrEvent(args) => args.run(device, session),
+            Self::PcrRead(args) => args.run(device, session),
+            Self::PolicyOr(args) => args.run(device, session),
+            Self::PolicyPcr(args) => args.run(device, session),
+            Self::PolicySecret(args) => args.run(device, session),
+            Self::PrintError(args) => args.run(device, session),
+            Self::ResetLock(args) => args.run(device, session),
+            Self::Save(args) => args.run(device, session),
+            Self::Seal(args) => args.run(device, session),
+            Self::StartSession(args) => args.run(device, session),
+            Self::Unseal(args) => args.run(device, session),
+        }
+    }
 }
 
 /// Arguments for authorization
@@ -213,7 +239,7 @@ pub struct AuthArgs {
 }
 
 #[derive(Args, Debug)]
-pub struct CreatePrimaryArgs {
+pub struct CreatePrimary {
     /// Hierarchy
     #[arg(short = 'H', long, value_enum)]
     pub hierarchy: Hierarchy,
@@ -228,7 +254,7 @@ pub struct CreatePrimaryArgs {
 }
 
 #[derive(Args, Debug)]
-pub struct SaveArgs {
+pub struct Save {
     /// Handle of the transient object
     #[arg(long, value_parser = parse_hex_u32)]
     pub object_handle: u32,
@@ -240,7 +266,7 @@ pub struct SaveArgs {
 }
 
 #[derive(Args, Debug)]
-pub struct DeleteArgs {
+pub struct Delete {
     /// Handle of the object to delete (transient or persistent)
     pub handle: String,
     #[command(flatten)]
@@ -248,7 +274,7 @@ pub struct DeleteArgs {
 }
 
 #[derive(Args, Debug)]
-pub struct ImportArgs {
+pub struct Import {
     #[command(flatten)]
     pub parent_auth: AuthArgs,
 }
@@ -261,19 +287,22 @@ pub struct Algorithms {
 }
 
 #[derive(Args, Debug)]
-pub struct LoadArgs {
+pub struct Load {
     #[command(flatten)]
     pub parent_auth: AuthArgs,
 }
 
 #[derive(Args, Debug)]
-pub struct PcrReadArgs {
+pub struct Objects {}
+
+#[derive(Args, Debug)]
+pub struct PcrRead {
     /// A PCR selection string (e.g., "sha1:0,1,2+sha256:0,1,2").
     pub selection: String,
 }
 
 #[derive(Args, Debug)]
-pub struct PcrEventArgs {
+pub struct PcrEvent {
     /// The handle of the PCR to extend.
     #[arg(long, value_parser = parse_hex_u32)]
     pub pcr_handle: u32,
@@ -284,20 +313,20 @@ pub struct PcrEventArgs {
 }
 
 #[derive(Args, Debug)]
-pub struct PrintErrorArgs {
+pub struct PrintError {
     /// TPM error code
     #[arg(value_parser = parse_tpm_rc)]
     pub rc: TpmRc,
 }
 
 #[derive(Args, Debug)]
-pub struct ResetLockArgs {
+pub struct ResetLock {
     #[command(flatten)]
     pub auth: AuthArgs,
 }
 
 #[derive(Args, Debug)]
-pub struct StartAuthSessionArgs {
+pub struct StartSession {
     /// Session type
     #[arg(long, value_enum, default_value_t = SessionType::Hmac)]
     pub session_type: SessionType,
@@ -307,7 +336,7 @@ pub struct StartAuthSessionArgs {
 }
 
 #[derive(Args, Debug)]
-pub struct SealArgs {
+pub struct Seal {
     #[command(flatten)]
     pub parent_auth: AuthArgs,
     #[command(flatten)]
@@ -315,13 +344,13 @@ pub struct SealArgs {
 }
 
 #[derive(Args, Debug)]
-pub struct UnsealArgs {
+pub struct Unseal {
     #[command(flatten)]
     pub auth: AuthArgs,
 }
 
 #[derive(Args, Debug)]
-pub struct ConvertArgs {
+pub struct Convert {
     /// Input format
     #[arg(long, value_enum, default_value_t = KeyFormat::Json)]
     pub from: KeyFormat,
@@ -331,7 +360,7 @@ pub struct ConvertArgs {
 }
 
 #[derive(Args, Debug)]
-pub struct PolicySecretArgs {
+pub struct PolicySecret {
     /// Authorization handle
     #[arg(long, value_parser = parse_hex_u32)]
     pub auth_handle: u32,
@@ -343,7 +372,7 @@ pub struct PolicySecretArgs {
 }
 
 #[derive(Args, Debug)]
-pub struct PolicyPcrArgs {
+pub struct PolicyPcr {
     /// The PCR index to include in the policy
     #[arg(long)]
     pub pcr_index: u32,
@@ -353,7 +382,7 @@ pub struct PolicyPcrArgs {
 }
 
 #[derive(Args, Debug)]
-pub struct PolicyOrArgs {
+pub struct PolicyOr {
     /// Path to a JSON session file for an OR branch
     #[arg(long = "branch", required = true)]
     pub branches: Vec<String>,
