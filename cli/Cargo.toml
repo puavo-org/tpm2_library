@@ -1,21 +1,39 @@
 [package]
-name = "tpm2_cli"
-description = "TPM 2.0 command-line interface"
-version = "0.4.1"
-license = "MIT"
-homepage = "https://codeberg.org/jarkko/tpm2_library.git"
-repository = "https://codeberg.org/jarkko/tpm2_library.git.git"
+name = "tpm2-cli"
+version = "0.5.0"
 edition = "2021"
-rust-version = "1.78"
-readme = "../README.md"
 
-[dependencies]
-tpm2_call = { path = "../call", version = "0.4.1" }
-clap = { version = "4.0", features = ["derive"] }
-clap-num = "1.1.1"
-log = "0.4.21"
-env_logger = "0.11.3"
+[lib]
+name = "cli"
+path = "src/lib.rs"
 
 [[bin]]
-name = "tpm2-cli"
+name = "tpm2"
 path = "src/main.rs"
+
+[dependencies]
+clap-num = "1.2"
+clap = { version = "4.5", features = ["derive"] }
+const-oid = { version = "0.9.6", features = ["db"] }
+hex = "0.4"
+p256 = { version = "0.13", features = ["ecdh"] }
+p384 = { version = "0.13", features = ["ecdh"] }
+p521 = { version = "0.13", features = ["ecdh"] }
+pem = "3.0"
+pkcs8 = { version = "0.10", features = ["pem", "alloc"] }
+rand = "0.8"
+regex = "1.11"
+rsa = { version = "0.9", features = ["sha1", "sha2"] }
+sha1 = "0.10"
+sha2 = "0.10"
+tpm2-protocol = { path = "../protocol" }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+cfb-mode = "0.8"
+hmac = "0.12"
+aes = "0.8"
+cipher = "0.4"
+base64 = "0.22"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+num-traits = "0.2"

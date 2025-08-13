@@ -1,0 +1,16 @@
+[package]
+name = "tpm2-protocol"
+description = "TPM 2.0 protocol definitions"
+version = { workspace = true }
+license = "MIT OR Apache-2.0"
+homepage = { workspace = true }
+repository = { workspace = true }
+edition = { workspace = true }
+rust-version = { workspace = true }
+readme = { workspace = true }
+
+[dev-dependencies]
+rstest = "0.21"
+hex = "0.4"
+
+[dependencies]

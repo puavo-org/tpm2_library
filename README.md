@@ -1,37 +1,11 @@
-Subcrates:
+## Development
 
-* `tpm2_call` has the goal of providing rustified constants covering TPM2 2.0
-  Structures Specification. All the content in this crate operating system
-  agnostic.
-* `tpm2_cli` is a command-line interface to a TPM 2.0 chip. It is Linux-only
-  application using by default /dev/tpmrm0, which is available to users within
-  `tss` group in a systemd-based environment.
+* Commits: [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
+* New commits should include a `Signed-off-by` trailer.
+* Versioning: [Semantic Versioning](https://semver.org/).
 
-## Commits
+## Licensing
 
-Commit messaged follow
-[Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)
-specification.
-
-## Versioning
-
-Versioning follows
-[Semantic Versioning](https://semver.org/)
-specification.
-
-A new version is created as follows:
-
-```
-git tag -s $MAJOR.$MINOR.$PATCH -m $MAJOR.$MINOR.$PATCH
-git push origin $MAJOR.$MINOR.$PATCH
-```
-
-## Tags
-
-Add a Signed-off-by trailer to the new commits.
-
-## Backwards compatibility
-
-* Patch versions are backwards compatible.
-* Minor versions are keptmostly backwards compatible, but we're not going to
-  hung up on it.
+The `tpm2-protocol` library is licensed under the permissive `MIT OR Apache-2.0`
+license to allow for wide adoption. The `tpm2-cli` binary and associated tooling
+are licensed under the copyleft `GPL-3.0-or-later` license.

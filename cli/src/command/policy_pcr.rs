@@ -1,0 +1,57 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (c) 2025 Opinsys Oy
+
+use crate::{
+    cli::{Object, PolicyPcrArgs},
+    AuthSession, CommandIo, SessionData, TpmError,
+};
+use sha2::{Digest, Sha256, Sha384, Sha512};
+use std::io;
+use tpm2_protocol::data::TpmAlgId;
+
+/// Executes the `policy pcr` command in training mode.
+///
+/// # Errors
+///
+/// Returns a `TpmError` on failure.
+pub fn run(args: &PolicyPcrArgs, session: Option<&AuthSession>) -> Result<(), TpmError> {
+    let mut io = CommandIo::new(io::stdin(), io::stdout(), session);
+    let session_obj = io.next_object()?;
+    let mut session_data: SessionData = match session_obj {
+        Object::Context(s) => serde_json::from_str(&s)?,
+        _ => {
+            return Err(TpmError::Execution(
+                "input pipeline must contain a session object".to_string(),
+            ))
+        }
+    };
+
+    let old_digest = hex::decode(&session_data.policy_digest)
+        .map_err(|e| TpmError::Parse(format!("invalid policy digest hex: {e}")))?;
+
+    let pcr_digest = hex::decode(&args.pcr_digest)
+        .map_err(|e| TpmError::Parse(format!("invalid pcr digest: {e}")))?;
+
+    let mut data_to_hash = old_digest;
+    data_to_hash.extend_from_slice(&pcr_digest);
+
+    let auth_hash = TpmAlgId::try_from(session_data.auth_hash)
+        .map_err(|()| TpmError::Parse("invalid hash algorithm in session".to_string()))?;
+
+    let new_digest = match auth_hash {
+        TpmAlgId::Sha256 => Sha256::digest(&data_to_hash).to_vec(),
+        TpmAlgId::Sha384 => Sha384::digest(&data_to_hash).to_vec(),
+        TpmAlgId::Sha512 => Sha512::digest(&data_to_hash).to_vec(),
+        _ => {
+            return Err(TpmError::Execution(
+                "unsupported hash algorithm".to_string(),
+            ))
+        }
+    };
+
+    session_data.policy_digest = hex::encode(new_digest);
+    let new_session_obj = Object::Context(serde_json::to_string(&session_data)?);
+
+    io.push_object(new_session_obj);
+    io.finalize()
+}
