@@ -337,6 +337,12 @@ impl<const CAPACITY: usize> TpmBuffer<CAPACITY> {
             len: 0,
         }
     }
+
+    /// Returns true if the buffer has a length of zero.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
 }
 
 impl<const CAPACITY: usize> Deref for TpmBuffer<CAPACITY> {
@@ -416,6 +422,12 @@ impl<T: Copy + Default, const CAPACITY: usize> TpmList<T, CAPACITY> {
             items: [T::default(); CAPACITY],
             len: 0,
         }
+    }
+
+    /// Returns `true` if the list contains no elements.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
     }
 
     /// Appends an element to the back of the list.

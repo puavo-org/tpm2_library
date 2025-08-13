@@ -425,21 +425,22 @@ macro_rules! tpm_response {
 
         impl<'a> $crate::TpmParse<'a> for $name {
             fn parse(buf: &'a [u8]) -> $crate::TpmResult<(Self, &'a [u8])> {
-                $( let ($handle_field, buf) = <$handle_type>::parse(buf)?; )*
-
-                let (mut params, remainder_after_params) = $crate::TpmParameters::new(buf)?;
-                $( let $param_field = params.parse::<$param_type>()?; )*
-
-                if !params.is_empty() {
-                    return Err($crate::TpmErrorKind::TrailingData);
-                }
+                let mut buf = buf;
+                $(
+                    let ($handle_field, rest) = <$handle_type>::parse(buf)?;
+                    buf = rest;
+                )*
+                $(
+                    let ($param_field, rest) = <$param_type>::parse(buf)?;
+                    buf = rest;
+                )*
 
                 Ok((
                     Self {
                         $( $handle_field, )*
                         $( $param_field, )*
                     },
-                    remainder_after_params,
+                    buf,
                 ))
             }
         }
