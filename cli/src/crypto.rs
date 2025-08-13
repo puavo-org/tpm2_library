@@ -522,10 +522,10 @@ macro_rules! ecdh_protect_seed {
         let ephemeral_sk = <$sk_ty>::random(&mut thread_rng());
         let shared_secret = $dh_fn(ephemeral_sk.to_nonzero_scalar(), parent_pk.as_affine());
         let z = shared_secret.raw_secret_bytes();
-        let aes_key = kdfa($name_alg, z, "STORAGE", &[], &[], 128)?;
-        let iv = [0u8; 16];
+        let sym_material = kdfa($name_alg, z, "STORAGE", &[], &[], 256)?;
+        let (aes_key, iv) = sym_material.split_at(16);
         let mut encrypted_seed_buf = *$seed;
-        let mut cipher = Encryptor::<Aes128>::new(aes_key.as_slice().into(), &iv.into());
+        let mut cipher = Encryptor::<Aes128>::new(aes_key.into(), iv.into());
         let (block1, block2) = encrypted_seed_buf.split_at_mut(16);
         cipher.encrypt_block_mut(GenericArray::from_mut_slice(block1));
         cipher.encrypt_block_mut(GenericArray::from_mut_slice(block2));
