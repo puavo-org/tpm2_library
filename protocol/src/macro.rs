@@ -425,22 +425,27 @@ macro_rules! tpm_response {
 
         impl<'a> $crate::TpmParse<'a> for $name {
             fn parse(buf: &'a [u8]) -> $crate::TpmResult<(Self, &'a [u8])> {
-                let mut buf = buf;
+                #[allow(unused_mut)]
+                let mut cursor = buf;
                 $(
-                    let ($handle_field, rest) = <$handle_type>::parse(buf)?;
-                    buf = rest;
+                    let ($handle_field, tail) = <$handle_type>::parse(cursor)?;
+                    cursor = tail;
                 )*
+
+                let (mut params, tail) = $crate::TpmParameters::new(cursor)?;
                 $(
-                    let ($param_field, rest) = <$param_type>::parse(buf)?;
-                    buf = rest;
+                    let $param_field = params.parse::<$param_type>()?;
                 )*
+                if !params.is_empty() {
+                    return Err($crate::TpmErrorKind::TrailingData);
+                }
 
                 Ok((
                     Self {
                         $( $handle_field, )*
                         $( $param_field, )*
                     },
-                    buf,
+                    tail,
                 ))
             }
         }
@@ -554,9 +559,9 @@ macro_rules! tpm2b_struct {
         impl<'a> $crate::TpmParse<'a> for $wrapper_ty {
             fn parse(buf: &'a [u8]) -> $crate::TpmResult<(Self, &'a [u8])> {
                 let (inner_bytes, rest) = $crate::parse_tpm2b(buf)?;
-                let (inner_val, remainder) = <$inner_ty>::parse(inner_bytes)?;
+                let (inner_val, tail) = <$inner_ty>::parse(inner_bytes)?;
 
-                if !remainder.is_empty() {
+                if !tail.is_empty() {
                     return Err($crate::TpmErrorKind::TrailingData);
                 }
 

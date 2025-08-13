@@ -306,25 +306,7 @@ pub fn tpm_parse_response(cc: TpmCc, buf: &[u8]) -> TpmResult<TpmResponse> {
             value: u64::from(cc as u32),
         })?;
 
-    let (body, mut session_area) = if tag == TpmSt::Sessions {
-        let (param_size, buf_after_size) = u32::parse(body_buf)?;
-        let param_size = param_size as usize;
-        if buf_after_size.len() < param_size {
-            return Err(TpmErrorKind::Boundary);
-        }
-        let (param_data, session_data) = buf_after_size.split_at(param_size);
-        let (body, remainder) = (dispatch.2)(param_data)?;
-        if !remainder.is_empty() {
-            return Err(TpmErrorKind::TrailingData);
-        }
-        (body, session_data)
-    } else {
-        let (body, remainder) = (dispatch.2)(body_buf)?;
-        if !remainder.is_empty() {
-            return Err(TpmErrorKind::TrailingData);
-        }
-        (body, remainder)
-    };
+    let (body, mut session_area) = (dispatch.2)(body_buf)?;
 
     let mut auth_responses = TpmAuthResponses::new();
     if tag == TpmSt::Sessions {

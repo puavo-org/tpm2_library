@@ -13,7 +13,7 @@ use crate::{
         TpmFlushContextCommand, TpmFlushContextResponse, TpmGetCapabilityCommand, TpmHashCommand,
         TpmPcrEventResponse, TpmPcrReadCommand, TpmPcrReadResponse,
     },
-    TpmPersistent, TpmSession, TpmWriter, TPM_MAX_COMMAND_SIZE,
+    TpmBuild, TpmParse, TpmPersistent, TpmSession, TpmWriter, TPM_MAX_COMMAND_SIZE,
 };
 use rstest::rstest;
 use std::{convert::TryFrom, string::ToString};
@@ -30,7 +30,7 @@ use std::{convert::TryFrom, string::ToString};
 #[case("TPM_RC_ATTRIBUTES with handle index 4", 0x0482, TpmRcBase::Attributes)]
 #[case("TPM_RC_AUTH_FAIL with session index 1", 0x088E, TpmRcBase::AuthFail)]
 #[case("TPM_RC_CURVE with parameter index 1", 0x01E6, TpmRcBase::Curve)]
-fn test_tpm_rc_base_from_raw_rc(
+fn test_rc_base_from_raw_rc(
     #[case] description: &str,
     #[case] raw_rc: u32,
     #[case] expected_base: TpmRcBase,
@@ -50,7 +50,7 @@ fn test_tpm_rc_base_from_raw_rc(
 #[case("Handle index 7", 0x078B, Some(TpmRcIndex::Handle(7)))]
 #[case("Session index 1", 0x088E, Some(TpmRcIndex::Session(1)))]
 #[case("Session index 8", 0x0F8E, Some(TpmRcIndex::Session(8)))]
-fn test_tpm_rc_index_from_value(
+fn test_rc_index_from_value(
     #[case] description: &str,
     #[case] raw_rc: u32,
     #[case] expected: Option<TpmRcIndex>,
@@ -81,17 +81,13 @@ fn test_tpm_rc_index_from_value(
     0x0923,
     "TPM_RC_NV_UNAVAILABLE"
 )]
-fn test_tpm_rc_display(
-    #[case] description: &str,
-    #[case] raw_rc: u32,
-    #[case] expected_display: &str,
-) {
+fn test_rc_display(#[case] description: &str, #[case] raw_rc: u32, #[case] expected_display: &str) {
     let rc = TpmRc::try_from(raw_rc).unwrap();
     assert_eq!(rc.to_string(), expected_display, "{description}");
 }
 
 #[test]
-fn test_tpm_build_get_capability_command() {
+fn test_build_get_capability_command() {
     let cmd = TpmGetCapabilityCommand {
         cap: TpmCap::Algs,
         property: 1,
@@ -110,7 +106,7 @@ fn test_tpm_build_get_capability_command() {
 }
 
 #[test]
-fn test_tpm_build_hash_command() {
+fn test_build_hash_command() {
     let cmd = TpmHashCommand {
         data: Tpm2bMaxBuffer::try_from(&b"hello"[..]).unwrap(),
         hash_alg: TpmAlgId::Sha256,
@@ -129,7 +125,7 @@ fn test_tpm_build_hash_command() {
 }
 
 #[rstest]
-fn test_tpm_build_pcr_read_response() {
+fn test_build_pcr_read_response() {
     let mut pcr_values = crate::data::TpmlDigest::new();
     pcr_values
         .try_push(Tpm2bDigest::try_from(&[0xDE; 32][..]).unwrap())
@@ -161,7 +157,7 @@ fn test_tpm_build_pcr_read_response() {
 }
 
 #[rstest]
-fn test_tpm_build_error_response() {
+fn test_build_error_response() {
     let resp = TpmFlushContextResponse::default();
     let rc = TpmRc::try_from(TpmRcBase::Failure as u32).unwrap();
 
@@ -185,7 +181,7 @@ fn test_tpm_build_error_response() {
 }
 
 #[rstest]
-fn test_tpm_parse_tpm_pcr_event_response() {
+fn test_parse_tpm_pcr_event_response() {
     let mut digests = crate::data::TpmlDigestValues::new();
     digests
         .try_push(crate::data::TpmtHa {
@@ -443,4 +439,34 @@ fn test_parse_evict_control_command() {
     assert_eq!(res_handles.as_ref(), handles);
     assert_eq!(res_sessions, sessions);
     assert_eq!(res_cmd_data, TpmCommandBody::EvictControl(cmd));
+}
+
+#[test]
+fn test_response_macro_parse_correctness() {
+    let mut digests = crate::data::TpmlDigestValues::new();
+    digests
+        .try_push(crate::data::TpmtHa {
+            hash_alg: TpmAlgId::Sha256,
+            digest: crate::data::TpmuHa::Sha256([0xA1; 32]),
+        })
+        .unwrap();
+    let original_resp = TpmPcrEventResponse { digests };
+
+    let mut body_buf = [0u8; 1024];
+    let body_len = {
+        let mut writer = TpmWriter::new(&mut body_buf);
+        original_resp.build(&mut writer).unwrap();
+        writer.len()
+    };
+    let response_body_bytes = &body_buf[..body_len];
+
+    assert_eq!(body_len, 42);
+    assert_eq!(&response_body_bytes[0..4], &38u32.to_be_bytes());
+
+    let result = TpmPcrEventResponse::parse(response_body_bytes);
+
+    assert!(result.is_ok(), "command parsing failed: {:?}", result.err());
+    let (parsed_resp, tail) = result.unwrap();
+    assert_eq!(parsed_resp, original_resp, "response mismatch");
+    assert!(tail.is_empty(), "tail data");
 }
