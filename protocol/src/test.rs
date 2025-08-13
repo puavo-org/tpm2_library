@@ -99,7 +99,7 @@ fn test_tpm_build_get_capability_command() {
     let mut buf = [0u8; 1024];
     let len = {
         let mut writer = TpmWriter::new(&mut buf);
-        tpm_build_command(&cmd, None, &[], &mut writer).unwrap();
+        tpm_build_command(&cmd, crate::data::TpmSt::NoSessions, None, &[], &mut writer).unwrap();
         writer.len()
     };
     let generated_bytes = &buf[..len];
@@ -118,7 +118,7 @@ fn test_tpm_build_hash_command() {
     let mut buf = [0u8; 1024];
     let len = {
         let mut writer = TpmWriter::new(&mut buf);
-        tpm_build_command(&cmd, None, &[], &mut writer).unwrap();
+        tpm_build_command(&cmd, crate::data::TpmSt::NoSessions, None, &[], &mut writer).unwrap();
         writer.len()
     };
     let generated_bytes = &buf[..len];
@@ -236,7 +236,8 @@ fn test_parse_get_capability_command() {
         let mut buf = [0u8; TPM_MAX_COMMAND_SIZE];
         let len = {
             let mut writer = TpmWriter::new(&mut buf);
-            tpm_build_command(&cmd, None, &[], &mut writer).unwrap();
+            tpm_build_command(&cmd, crate::data::TpmSt::NoSessions, None, &[], &mut writer)
+                .unwrap();
             writer.len()
         };
         buf[..len].to_vec()
@@ -260,7 +261,8 @@ fn test_parse_hash_command() {
         let mut buf = [0u8; TPM_MAX_COMMAND_SIZE];
         let len = {
             let mut writer = TpmWriter::new(&mut buf);
-            tpm_build_command(&cmd, None, &[], &mut writer).unwrap();
+            tpm_build_command(&cmd, crate::data::TpmSt::NoSessions, None, &[], &mut writer)
+                .unwrap();
             writer.len()
         };
         buf[..len].to_vec()
@@ -291,7 +293,14 @@ fn test_parse_evict_control_command() {
         let mut buf = [0u8; TPM_MAX_COMMAND_SIZE];
         let len = {
             let mut writer = TpmWriter::new(&mut buf);
-            tpm_build_command(&cmd, Some(&handles), &sessions, &mut writer).unwrap();
+            tpm_build_command(
+                &cmd,
+                crate::data::TpmSt::Sessions,
+                Some(&handles),
+                &sessions,
+                &mut writer,
+            )
+            .unwrap();
             writer.len()
         };
         buf[..len].to_vec()

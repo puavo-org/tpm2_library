@@ -234,7 +234,7 @@ pub(crate) fn tpm_ecc_curve_to_str(curve: TpmEccCurve) -> &'static str {
         TpmEccCurve::NistP256 => "nist-p256",
         TpmEccCurve::NistP384 => "nist-p384",
         TpmEccCurve::NistP521 => "nist-p521",
-        TpmEccCurve::None => unreachable!("TpmEccCurve::None should not be converted to a string"),
+        TpmEccCurve::None => "none",
     }
 }
 
@@ -376,7 +376,7 @@ pub(crate) fn read_session_data_from_file(path: &str) -> Result<SessionData, Tpm
 
 /// Reads all bytes from an input path or stdin.
 ///
-/// If path is \"-\", reads from stdin. Otherwise, reads from the specified file.
+/// If path is "-", reads from stdin. Otherwise, reads from the specified file.
 ///
 /// # Errors
 ///
@@ -706,12 +706,11 @@ where
         let auth = create_auth(session, &nonce_caller, C::COMMAND, handles, &params)?;
         Ok(vec![auth])
     } else {
-        let effective_password =
-            if C::TAG == tpm2_protocol::data::TpmSt::Sessions && password.is_none() {
-                Some("")
-            } else {
-                password
-            };
+        let effective_password = if C::WITH_SESSIONS && password.is_none() {
+            Some("")
+        } else {
+            password
+        };
         build_password_session(effective_password)
     }
 }
