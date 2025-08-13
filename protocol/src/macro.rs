@@ -588,61 +588,6 @@ macro_rules! tpm2b_struct {
 #[macro_export]
 macro_rules! tpml {
     ($name:ident, $inner_ty:ty, $capacity:expr) => {
-        #[derive(Debug, Clone, PartialEq, Eq)]
-        pub struct $name {
-            list: $crate::TpmList<$inner_ty, $capacity>,
-        }
-
-        impl $name {
-            #[must_use]
-            pub fn new() -> Self {
-                Self {
-                    list: $crate::TpmList::new(),
-                }
-            }
-
-            /// Appends an element to the back of the list.
-            ///
-            /// # Errors
-            ///
-            /// Returns a `TpmErrorKind::ValueTooLarge` error if the list is
-            /// already at full capacity.
-            pub fn try_push(&mut self, item: $inner_ty) -> $crate::TpmResult<()> {
-                self.list.try_push(item)
-            }
-        }
-
-        impl Default for $name {
-            fn default() -> Self {
-                Self::new()
-            }
-        }
-
-        impl core::ops::Deref for $name {
-            type Target = [$inner_ty];
-            fn deref(&self) -> &Self::Target {
-                &*self.list
-            }
-        }
-
-        impl $crate::TpmSized for $name {
-            const SIZE: usize = $crate::TpmList::<$inner_ty, $capacity>::SIZE;
-            fn len(&self) -> usize {
-                self.list.len()
-            }
-        }
-
-        impl $crate::TpmBuild for $name {
-            fn build(&self, writer: &mut $crate::TpmWriter) -> $crate::TpmResult<()> {
-                self.list.build(writer)
-            }
-        }
-
-        impl<'a> $crate::TpmParse<'a> for $name {
-            fn parse(buf: &'a [u8]) -> $crate::TpmResult<(Self, &'a [u8])> {
-                let (list, remainder) = $crate::TpmList::<$inner_ty, $capacity>::parse(buf)?;
-                Ok((Self { list }, remainder))
-            }
-        }
+        pub type $name = $crate::TpmList<$inner_ty, $capacity>;
     };
 }
