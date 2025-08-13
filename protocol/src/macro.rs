@@ -36,6 +36,11 @@ macro_rules! tpm_bitflags {
             pub const fn empty() -> Self {
                 Self(0)
             }
+
+            #[must_use]
+            pub const fn contains(&self, other: Self) -> bool {
+                (self.0 & other.0) == other.0
+            }
         }
 
         impl core::ops::BitOr for $name {
@@ -130,7 +135,8 @@ macro_rules! tpm_dispatch {
             ($value:ty, $name:ident) => {
                 (
                     <$value as $crate::message::TpmHeader>::COMMAND,
-                    <$value as $crate::message::TpmHeader>::TAG,
+                    <$value as $crate::message::TpmHeader>::NO_SESSIONS,
+                    <$value as $crate::message::TpmHeader>::WITH_SESSIONS,
                     <$value as $crate::message::TpmHeader>::HANDLES,
                     |buf| <$value>::parse(buf).map(|(c, r)| (TpmCommandBody::$name(c), r)),
                 )
@@ -141,7 +147,7 @@ macro_rules! tpm_dispatch {
             ($rsp_ty:ty, $enum_variant:ident) => {
                 (
                     <$rsp_ty as $crate::message::TpmHeader>::COMMAND,
-                    <$rsp_ty as $crate::message::TpmHeader>::TAG,
+                    <$rsp_ty as $crate::message::TpmHeader>::WITH_SESSIONS,
                     |buf| {
                         <$rsp_ty>::parse(buf)
                             .map(|(r, rest)| (TpmResponseBody::$enum_variant(r), rest))
@@ -186,7 +192,8 @@ macro_rules! tpm_dispatch {
 
         pub(crate) static PARSE_COMMAND_MAP: &[(
             $crate::data::TpmCc,
-            $crate::data::TpmSt,
+            bool,
+            bool,
             usize,
             TpmCommandParser,
         )] = &[
@@ -195,7 +202,7 @@ macro_rules! tpm_dispatch {
 
         pub(crate) static PARSE_RESPONSE_MAP: &[(
             $crate::data::TpmCc,
-            $crate::data::TpmSt,
+            bool,
             TpmResponseParser,
         )] = &[
             $( tpm_response_parser!($resp, $variant), )*
@@ -371,7 +378,8 @@ macro_rules! tpm_response {
         $(#[$meta:meta])*
         $name:ident,
         $cc:expr,
-        $st:expr,
+        $no_sessions:expr,
+        $with_sessions:expr,
         $(pub $handle_field:ident: $handle_type:ty,)*
         {
             $(pub $param_field:ident: $param_type:ty),*
@@ -386,7 +394,8 @@ macro_rules! tpm_response {
 
         impl $crate::message::TpmHeader<'_> for $name {
             const COMMAND: $crate::data::TpmCc = $cc;
-            const TAG: $crate::data::TpmSt = $st;
+            const NO_SESSIONS: bool = $no_sessions;
+            const WITH_SESSIONS: bool = $with_sessions;
             const HANDLES: usize = 0 $(+ {let _ = stringify!($handle_field); 1})*;
         }
 
@@ -443,7 +452,8 @@ macro_rules! tpm_struct {
         $(#[$meta:meta])*
         $name:ident,
         $cc:expr,
-        $st:expr,
+        $no_sessions:expr,
+        $with_sessions:expr,
         $handles:expr,
         {
             $(pub $field_name:ident: $field_type:ty),*
@@ -459,7 +469,8 @@ macro_rules! tpm_struct {
 
         impl $crate::message::TpmHeader<'_> for $name {
             const COMMAND: $crate::data::TpmCc = $cc;
-            const TAG: $crate::data::TpmSt = $st;
+            const NO_SESSIONS: bool = $no_sessions;
+            const WITH_SESSIONS: bool = $with_sessions;
             const HANDLES: usize = $handles;
         }
     };

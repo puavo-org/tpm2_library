@@ -30,7 +30,8 @@ pub type TpmAuthResponses = TpmList<TpmsAuthResponse, MAX_SESSIONS>;
 /// A trait for TPM commands and responses that provides header information.
 pub trait TpmHeader<'a>: TpmBuild + TpmParse<'a> + Debug + TpmSized {
     const COMMAND: TpmCc;
-    const TAG: TpmSt;
+    const NO_SESSIONS: bool;
+    const WITH_SESSIONS: bool;
     const HANDLES: usize;
 }
 
@@ -45,6 +46,7 @@ pub const TPM_HEADER_SIZE: usize = 10;
 /// * `TpmErrorKind::ValueTooLarge` if the command has unknown state
 pub fn tpm_build_command<'a, C>(
     command: &C,
+    tag: TpmSt,
     handles: Option<&[u32]>,
     sessions: &[TpmsAuthCommand],
     writer: &mut crate::TpmWriter,
@@ -52,6 +54,30 @@ pub fn tpm_build_command<'a, C>(
 where
     C: TpmHeader<'a>,
 {
+    match tag {
+        TpmSt::NoSessions => {
+            if !C::NO_SESSIONS {
+                return Err(TpmErrorKind::InvalidTag {
+                    type_name: "TpmSt",
+                    expected: TpmSt::Sessions as u16,
+                    got: tag as u16,
+                });
+            }
+        }
+        TpmSt::Sessions => {
+            if !C::WITH_SESSIONS {
+                return Err(TpmErrorKind::InvalidTag {
+                    type_name: "TpmSt",
+                    expected: TpmSt::NoSessions as u16,
+                    got: tag as u16,
+                });
+            }
+        }
+        _ => {
+            return Err(TpmErrorKind::InvalidValue);
+        }
+    }
+
     let handles = handles.unwrap_or(&[]);
     if handles.len() != C::HANDLES {
         return Err(TpmErrorKind::InternalError);
@@ -60,7 +86,7 @@ where
     let handle_area_len = core::mem::size_of_val(handles);
     let parameters_len = command.len();
 
-    let auth_area_len = if C::TAG == TpmSt::Sessions {
+    let auth_area_len = if tag == TpmSt::Sessions {
         let sessions_len: usize = sessions.iter().map(TpmSized::len).sum();
         size_of::<u32>() + sessions_len
     } else {
@@ -71,7 +97,7 @@ where
     let command_size =
         u32::try_from(TPM_HEADER_SIZE + total_body_len).map_err(|_| TpmErrorKind::ValueTooLarge)?;
 
-    (C::TAG as u16).build(writer)?;
+    (tag as u16).build(writer)?;
     command_size.build(writer)?;
     (C::COMMAND as u32).build(writer)?;
 
@@ -79,7 +105,7 @@ where
         handle.build(writer)?;
     }
 
-    if C::TAG == TpmSt::Sessions {
+    if tag == TpmSt::Sessions {
         let sessions_len_u32 = u32::try_from(auth_area_len - size_of::<u32>())
             .map_err(|_| TpmErrorKind::ValueTooLarge)?;
         sessions_len_u32.build(writer)?;
@@ -105,6 +131,16 @@ pub fn tpm_build_response<R>(
 where
     R: for<'a> TpmHeader<'a>,
 {
+    let tag = if rc.value() == 0 {
+        if R::WITH_SESSIONS {
+            TpmSt::Sessions
+        } else {
+            TpmSt::NoSessions
+        }
+    } else {
+        TpmSt::NoSessions
+    };
+
     if rc.value() != 0 {
         (TpmSt::NoSessions as u16).build(writer)?;
         u32::try_from(TPM_HEADER_SIZE)?.build(writer)?;
@@ -112,7 +148,6 @@ where
         return Ok(());
     }
 
-    let tag = R::TAG;
     let body_len = response.len();
     let sessions_len: usize = sessions.iter().map(TpmSized::len).sum();
     let total_body_len = body_len + sessions_len;
@@ -170,16 +205,23 @@ pub fn tpm_parse_command(buf: &[u8]) -> TpmResult<(TpmHandles, TpmCommandBody, T
             value: u64::from(cc_raw),
         })?;
 
-    if tag != dispatch.1 {
+    if tag == TpmSt::Sessions && !dispatch.2 {
         return Err(TpmErrorKind::InvalidTag {
             type_name: "TpmSt",
-            expected: dispatch.1 as u16,
-            got: tag as u16,
+            expected: TpmSt::NoSessions as u16,
+            got: tag_raw,
+        });
+    }
+    if tag == TpmSt::NoSessions && !dispatch.1 {
+        return Err(TpmErrorKind::InvalidTag {
+            type_name: "TpmSt",
+            expected: TpmSt::Sessions as u16,
+            got: tag_raw,
         });
     }
 
     let mut handles = TpmHandles::new();
-    for _ in 0..dispatch.2 {
+    for _ in 0..dispatch.3 {
         let (handle, rest) = u32::parse(buf)?;
         handles
             .try_push(handle)
@@ -207,7 +249,7 @@ pub fn tpm_parse_command(buf: &[u8]) -> TpmResult<(TpmHandles, TpmCommandBody, T
         buf
     };
 
-    let (command_data, remainder) = (dispatch.3)(param_buf)?;
+    let (command_data, remainder) = (dispatch.4)(param_buf)?;
 
     if !remainder.is_empty() {
         return Err(TpmErrorKind::TrailingData);
@@ -265,10 +307,15 @@ pub fn tpm_parse_response(cc: TpmCc, buf: &[u8]) -> TpmResult<TpmResponse> {
             value: u64::from(cc as u32),
         })?;
 
-    if tag != dispatch.1 {
+    let expected_tag = if dispatch.1 {
+        TpmSt::Sessions
+    } else {
+        TpmSt::NoSessions
+    };
+    if tag != expected_tag {
         return Err(TpmErrorKind::InvalidTag {
             type_name: "TpmSt",
-            expected: dispatch.1 as u16,
+            expected: expected_tag as u16,
             got: tag as u16,
         });
     }
@@ -300,7 +347,8 @@ tpm_struct!(
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmContextLoadCommand,
     TpmCc::ContextLoad,
-    TpmSt::NoSessions,
+    true,
+    false,
     0,
     {
         pub context: TpmsContext,
@@ -311,7 +359,8 @@ tpm_struct!(
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmContextSaveCommand,
     TpmCc::ContextSave,
-    TpmSt::NoSessions,
+    true,
+    false,
     1,
     {}
 );
@@ -320,7 +369,8 @@ tpm_struct!(
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmDictionaryAttackLockResetCommand,
     TpmCc::DictionaryAttackLockReset,
-    TpmSt::Sessions,
+    false,
+    true,
     1,
     {}
 );
@@ -329,7 +379,8 @@ tpm_struct!(
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmFlushContextCommand,
     TpmCc::FlushContext,
-    TpmSt::NoSessions,
+    true,
+    false,
     0,
     {
         pub flush_handle: u32,
@@ -340,7 +391,8 @@ tpm_struct!(
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmUnsealCommand,
     TpmCc::Unseal,
-    TpmSt::Sessions,
+    false,
+    true,
     1,
     {}
 );
@@ -351,7 +403,8 @@ macro_rules! tpm_create {
             #[derive(Debug, Default, PartialEq, Eq, Clone)]
             $name,
             $cc,
-            TpmSt::Sessions,
+            false,
+            true,
             1,
             {
                 pub in_sensitive: Tpm2bSensitiveCreate,
@@ -370,7 +423,8 @@ tpm_struct!(
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmEvictControlCommand,
     TpmCc::EvictControl,
-    TpmSt::Sessions,
+    false,
+    true,
     2,
     {
         pub persistent_handle: TpmPersistent,
@@ -381,7 +435,8 @@ tpm_struct!(
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmGetCapabilityCommand,
     TpmCc::GetCapability,
-    TpmSt::NoSessions,
+    true,
+    true,
     0,
     {
         pub cap: TpmCap,
@@ -394,7 +449,8 @@ tpm_struct!(
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmHashCommand,
     TpmCc::Hash,
-    TpmSt::NoSessions,
+    true,
+    false,
     0,
     {
         pub data: Tpm2bMaxBuffer,
@@ -407,7 +463,8 @@ tpm_struct!(
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmImportCommand,
     TpmCc::Import,
-    TpmSt::Sessions,
+    false,
+    true,
     1,
     {
         pub encryption_key: Tpm2b,
@@ -422,7 +479,8 @@ tpm_struct!(
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
     TpmLoadCommand,
     TpmCc::Load,
-    TpmSt::Sessions,
+    false,
+    true,
     1,
     {
         pub in_private: Tpm2bPrivate,
@@ -434,7 +492,8 @@ tpm_struct!(
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
     TpmObjectChangeAuthCommand,
     TpmCc::ObjectChangeAuth,
-    TpmSt::Sessions,
+    false,
+    true,
     2,
     {
         pub new_auth: Tpm2bAuth,
@@ -445,7 +504,8 @@ tpm_struct!(
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmPcrEventCommand,
     TpmCc::PcrEvent,
-    TpmSt::Sessions,
+    false,
+    true,
     1,
     {
         pub event_data: Tpm2b,
@@ -456,7 +516,8 @@ tpm_struct!(
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
     TpmPcrReadCommand,
     TpmCc::PcrRead,
-    TpmSt::NoSessions,
+    true,
+    false,
     0,
     {
         pub pcr_selection_in: TpmlPcrSelection,
@@ -467,7 +528,8 @@ tpm_struct!(
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmPolicyAuthValueCommand,
     TpmCc::PolicyAuthValue,
-    TpmSt::NoSessions,
+    false,
+    true,
     1,
     {}
 );
@@ -476,7 +538,8 @@ tpm_struct!(
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmPolicyCommandCodeCommand,
     TpmCc::PolicyCommandCode,
-    TpmSt::NoSessions,
+    false,
+    true,
     1,
     {
         pub code: TpmCc,
@@ -487,7 +550,8 @@ tpm_struct!(
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmPolicyGetDigestCommand,
     TpmCc::PolicyGetDigest,
-    TpmSt::NoSessions,
+    false,
+    true,
     1,
     {}
 );
@@ -496,7 +560,8 @@ tpm_struct!(
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
     TpmPolicyOrCommand,
     TpmCc::PolicyOR,
-    TpmSt::NoSessions,
+    false,
+    true,
     1,
     {
         pub p_hash_list: TpmlDigest,
@@ -507,7 +572,8 @@ tpm_struct!(
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmPolicyPasswordCommand,
     TpmCc::PolicyPassword,
-    TpmSt::NoSessions,
+    false,
+    true,
     1,
     {}
 );
@@ -516,7 +582,8 @@ tpm_struct!(
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
     TpmPolicyPcrCommand,
     TpmCc::PolicyPcr,
-    TpmSt::NoSessions,
+    false,
+    true,
     1,
     {
         pub pcr_digest: Tpm2bDigest,
@@ -528,7 +595,8 @@ tpm_struct!(
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmPolicyRestartCommand,
     TpmCc::PolicyRestart,
-    TpmSt::Sessions,
+    false,
+    true,
     1,
     {}
 );
@@ -537,7 +605,8 @@ tpm_struct!(
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
     TpmPolicySecretCommand,
     TpmCc::PolicySecret,
-    TpmSt::Sessions,
+    false,
+    true,
     2,
     {
         pub nonce_tpm: Tpm2b,
@@ -551,7 +620,8 @@ tpm_struct!(
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmReadPublicCommand,
     TpmCc::ReadPublic,
-    TpmSt::NoSessions,
+    true,
+    true,
     1,
     {}
 );
@@ -560,7 +630,8 @@ tpm_struct!(
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
     TpmStartAuthSessionCommand,
     TpmCc::StartAuthSession,
-    TpmSt::NoSessions,
+    true,
+    true,
     2,
     {
         pub nonce_caller: Tpm2b,
@@ -575,7 +646,8 @@ tpm_struct!(
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmVendorTcgTestCommand,
     TpmCc::VendorTcgTest,
-    TpmSt::NoSessions,
+    true,
+    false,
     0,
     {
         pub input_data: Tpm2bData,
@@ -586,7 +658,8 @@ tpm_struct!(
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmContextLoadResponse,
     TpmCc::ContextLoad,
-    TpmSt::NoSessions,
+    true,
+    false,
     0,
     {
         pub loaded_handle: TpmTransient,
@@ -597,7 +670,8 @@ tpm_struct!(
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmContextSaveResponse,
     TpmCc::ContextSave,
-    TpmSt::NoSessions,
+    true,
+    false,
     0,
     {
         pub context: TpmsContext,
@@ -608,7 +682,8 @@ tpm_struct!(
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmHashResponse,
     TpmCc::Hash,
-    TpmSt::NoSessions,
+    true,
+    false,
     0,
     {
         pub out_hash: Tpm2bDigest,
@@ -620,7 +695,8 @@ tpm_struct!(
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
     TpmImportResponse,
     TpmCc::Import,
-    TpmSt::Sessions,
+    false,
+    true,
     0,
     {
         pub out_private: Tpm2bPrivate,
@@ -631,7 +707,8 @@ tpm_response!(
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
     TpmObjectChangeAuthResponse,
     TpmCc::ObjectChangeAuth,
-    TpmSt::Sessions,
+    false,
+    true,
     {
         pub out_private: Tpm2bPrivate,
     }
@@ -641,7 +718,8 @@ tpm_struct!(
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
     TpmPcrReadResponse,
     TpmCc::PcrRead,
-    TpmSt::NoSessions,
+    true,
+    false,
     0,
     {
         pub pcr_update_counter: u32,
@@ -654,7 +732,8 @@ tpm_struct!(
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmPolicyAuthValueResponse,
     TpmCc::PolicyAuthValue,
-    TpmSt::NoSessions,
+    false,
+    true,
     0,
     {}
 );
@@ -663,7 +742,8 @@ tpm_struct!(
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmPolicyCommandCodeResponse,
     TpmCc::PolicyCommandCode,
-    TpmSt::NoSessions,
+    false,
+    true,
     0,
     {}
 );
@@ -672,7 +752,8 @@ tpm_struct!(
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
     TpmPolicyGetDigestResponse,
     TpmCc::PolicyGetDigest,
-    TpmSt::NoSessions,
+    false,
+    true,
     0,
     {
         pub policy_digest: Tpm2bDigest,
@@ -683,7 +764,8 @@ tpm_struct!(
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmPolicyOrResponse,
     TpmCc::PolicyOR,
-    TpmSt::NoSessions,
+    false,
+    true,
     0,
     {}
 );
@@ -692,7 +774,8 @@ tpm_struct!(
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmPolicyPasswordResponse,
     TpmCc::PolicyPassword,
-    TpmSt::NoSessions,
+    false,
+    true,
     0,
     {}
 );
@@ -701,7 +784,8 @@ tpm_struct!(
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
     TpmPolicyPcrResponse,
     TpmCc::PolicyPcr,
-    TpmSt::NoSessions,
+    false,
+    true,
     0,
     {
         pub pcr_digest: Tpm2bDigest,
@@ -713,8 +797,9 @@ tpm_struct!(
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmPolicyRestartResponse,
     TpmCc::PolicyRestart,
-    TpmSt::Sessions,
-    1,
+    false,
+    true,
+    0,
     {}
 );
 
@@ -722,7 +807,8 @@ tpm_response!(
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
     TpmPolicySecretResponse,
     TpmCc::PolicySecret,
-    TpmSt::Sessions,
+    false,
+    true,
     {
         pub timeout: Tpm2bTimeout,
         pub policy_ticket: TpmtTkAuth,
@@ -733,7 +819,8 @@ tpm_response!(
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
     TpmReadPublicResponse,
     TpmCc::ReadPublic,
-    TpmSt::NoSessions,
+    true,
+    false,
     {
         pub out_public: Tpm2bPublic,
         pub name: Tpm2bName,
@@ -745,7 +832,8 @@ tpm_struct!(
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
     TpmStartAuthSessionResponse,
     TpmCc::StartAuthSession,
-    TpmSt::NoSessions,
+    true,
+    false,
     0,
     {
         pub session_handle: TpmSession,
@@ -757,7 +845,8 @@ tpm_struct!(
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmVendorTcgTestResponse,
     TpmCc::VendorTcgTest,
-    TpmSt::NoSessions,
+    true,
+    false,
     0,
     {
         pub output_data: Tpm2bData,
@@ -768,7 +857,8 @@ tpm_response!(
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmCreatePrimaryResponse,
     TpmCc::CreatePrimary,
-    TpmSt::Sessions,
+    false,
+    true,
     pub object_handle: TpmTransient,
     {
         pub out_public: Tpm2bPublic,
@@ -783,7 +873,8 @@ tpm_response!(
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmCreateResponse,
     TpmCc::Create,
-    TpmSt::Sessions,
+    false,
+    true,
     {
         pub out_private: Tpm2bPrivate,
         pub out_public: Tpm2bPublic,
@@ -797,7 +888,8 @@ tpm_struct!(
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmDictionaryAttackLockResetResponse,
     TpmCc::DictionaryAttackLockReset,
-    TpmSt::Sessions,
+    false,
+    true,
     0,
     {}
 );
@@ -806,7 +898,8 @@ tpm_struct!(
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmEvictControlResponse,
     TpmCc::EvictControl,
-    TpmSt::Sessions,
+    false,
+    true,
     0,
     {}
 );
@@ -815,7 +908,8 @@ tpm_struct!(
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmFlushContextResponse,
     TpmCc::FlushContext,
-    TpmSt::NoSessions,
+    true,
+    false,
     0,
     {}
 );
@@ -824,7 +918,8 @@ tpm_struct!(
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmGetCapabilityResponse,
     TpmCc::GetCapability,
-    TpmSt::NoSessions,
+    true,
+    false,
     0,
     {
         pub more_data: TpmiYesNo,
@@ -836,7 +931,8 @@ tpm_response!(
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmLoadResponse,
     TpmCc::Load,
-    TpmSt::Sessions,
+    false,
+    true,
     pub object_handle: TpmTransient,
     {
         pub name: Tpm2bName,
@@ -847,7 +943,8 @@ tpm_response!(
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
     TpmPcrEventResponse,
     TpmCc::PcrEvent,
-    TpmSt::Sessions,
+    false,
+    true,
     {
         pub digests: TpmlDigestValues,
     }
@@ -857,7 +954,8 @@ tpm_response!(
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
     TpmUnsealResponse,
     TpmCc::Unseal,
-    TpmSt::Sessions,
+    false,
+    true,
     {
         pub out_data: Tpm2b,
     }
