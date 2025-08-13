@@ -3,11 +3,14 @@
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 
 use crate::{
-    cli::KeyFormat, from_json_str, read_input, AuthSession, Command, Envelope, ObjectData,
-    TpmDevice, TpmError, TpmKey,
+    cli::KeyFormat, from_json_str, AuthSession, Command, Envelope, ObjectData, TpmDevice, TpmError,
+    TpmKey,
 };
 use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
-use std::io::{self, Write};
+use std::{
+    fs::File,
+    io::{self, Read, Write},
+};
 
 /// Parses a JSON string into an intermediate `TpmKey` representation.
 fn json_to_tpm_key(json_str: &str) -> Result<TpmKey, TpmError> {
@@ -53,6 +56,23 @@ fn tpm_key_to_json_string(key: TpmKey) -> Result<String, TpmError> {
     serde_json::to_string_pretty(&envelope).map_err(Into::into)
 }
 
+fn read_all(path: Option<&str>) -> Result<Vec<u8>, TpmError> {
+    let mut buf = Vec::new();
+    match path {
+        Some("-") | None => {
+            io::stdin()
+                .read_to_end(&mut buf)
+                .map_err(|e| TpmError::File("stdin".to_string(), e))?;
+        }
+        Some(file_path) => {
+            File::open(file_path)
+                .and_then(|mut f| f.read_to_end(&mut buf))
+                .map_err(|e| TpmError::File(file_path.to_string(), e))?;
+        }
+    }
+    Ok(buf)
+}
+
 impl Command for crate::cli::Convert {
     /// Runs `convert`.
     ///
@@ -60,7 +80,7 @@ impl Command for crate::cli::Convert {
     ///
     /// Returns a `TpmError` if the execution fails
     fn run(&self, _device: &mut TpmDevice, _session: Option<&AuthSession>) -> Result<(), TpmError> {
-        let input = read_input(None)?;
+        let input = read_all(None)?;
         match (self.from, self.to) {
             (KeyFormat::Json, KeyFormat::Pem) => {
                 let json_str =

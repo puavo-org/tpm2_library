@@ -13,7 +13,7 @@ use std::{
     cmp::Ordering,
     error::Error,
     fmt, fs,
-    io::{self, BufRead, BufReader, Error as IoError, ErrorKind, Read, Write},
+    io::{BufRead, BufReader, Error as IoError, ErrorKind, Read, Write},
     vec::Vec,
 };
 use tpm2_protocol::{
@@ -53,18 +53,18 @@ pub trait Command {
 pub fn execute_cli() -> Result<(), TpmError> {
     let cli = crate::cli::Cli::parse();
 
-    if cli.command.is_none() {
+    if let Some(command) = cli.command {
+        let mut device = TpmDevice::open(&cli.device)?;
+        let session = load_session(cli.session.as_deref())?;
+        command.run(&mut device, session.as_ref())
+    } else {
+        println!("Options:");
         println!("  -d, --device <DEVICE>   [default: /dev/tpmrm0]");
         println!("      --session <SESSION> Authorization session context");
         println!("  -h, --help              Print help");
         println!("  -V, --version           Print version");
-        return Ok(());
+        Ok(())
     }
-
-    let mut device = TpmDevice::open(&cli.device)?;
-    let session = load_session(cli.session.as_deref())?;
-
-    cli.command.unwrap().run(&mut device, session.as_ref())
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -336,30 +336,6 @@ pub(crate) fn read_session_data_from_file(path: &str) -> Result<SessionData, Tpm
     from_json_str(&json_str, "session")
 }
 
-/// Reads all bytes from an input path or stdin.
-///
-/// If path is "-", reads from stdin. Otherwise, reads from the specified file.
-///
-/// # Errors
-///
-/// Returns `TpmError::File` on I/O errors.
-pub fn read_input(path: Option<&str>) -> Result<Vec<u8>, TpmError> {
-    let mut buf = Vec::new();
-    match path {
-        Some("-") | None => {
-            io::stdin()
-                .read_to_end(&mut buf)
-                .map_err(|e| TpmError::File("stdin".to_string(), e))?;
-        }
-        Some(file_path) => {
-            fs::File::open(file_path)
-                .and_then(|mut f| f.read_to_end(&mut buf))
-                .map_err(|e| TpmError::File(file_path.to_string(), e))?;
-        }
-    }
-    Ok(buf)
-}
-
 /// Manages the streaming I/O for a command in the JSON Lines pipeline.
 pub struct CommandIo<'a, R: Read, W: Write> {
     reader: BufReader<R>,
@@ -423,8 +399,7 @@ impl<'a, R: Read, W: Write> CommandIo<'a, R, W> {
 pub fn pop_object_data(io: &mut CommandIo<impl Read, impl Write>) -> Result<ObjectData, TpmError> {
     let obj = io.next_object()?;
     let data_string = match obj {
-        crate::cli::Object::Context(s) => resolve_string_input(&s)
-            .and_then(|bytes| String::from_utf8(bytes).map_err(|e| TpmError::Parse(e.to_string()))),
+        crate::cli::Object::Context(s) => input_to_utf8(&s),
         _ => Err(TpmError::Execution(
             "expected a context object on the stack".to_string(),
         )),
@@ -507,13 +482,29 @@ where
 /// # Errors
 ///
 /// Returns a `TpmError` if the prefix is invalid or I/O fails.
-pub fn resolve_string_input(s: &str) -> Result<Vec<u8>, TpmError> {
+pub fn input_to_bytes(s: &str) -> Result<Vec<u8>, TpmError> {
     if let Some(data_str) = s.strip_prefix("data:") {
         hex::decode(data_str).map_err(|e| TpmError::Parse(e.to_string()))
     } else if let Some(path_str) = s.strip_prefix("path:") {
         fs::read(path_str).map_err(|e| TpmError::File(path_str.to_string(), e))
     } else {
         fs::read(s).map_err(|e| TpmError::File(s.to_string(), e))
+    }
+}
+
+/// Resolves an input string with "data:" or "path:" prefixes into a UTF-8 string.
+///
+/// # Errors
+///
+/// Returns a `TpmError` if the prefix is invalid, I/O fails, or the data is not valid UTF-8.
+pub fn input_to_utf8(s: &str) -> Result<String, TpmError> {
+    if let Some(data_str) = s.strip_prefix("data:") {
+        let bytes = hex::decode(data_str).map_err(|e| TpmError::Parse(e.to_string()))?;
+        String::from_utf8(bytes).map_err(|e| TpmError::Parse(e.to_string()))
+    } else if let Some(path_str) = s.strip_prefix("path:") {
+        fs::read_to_string(path_str).map_err(|e| TpmError::File(path_str.to_string(), e))
+    } else {
+        fs::read_to_string(s).map_err(|e| TpmError::File(s.to_string(), e))
     }
 }
 
@@ -525,15 +516,12 @@ pub fn resolve_string_input(s: &str) -> Result<Vec<u8>, TpmError> {
 /// # Errors
 ///
 /// Returns a `TpmError` if the object is of an invalid type or cannot be loaded.
-pub fn resolve_object_handle(
-    chip: &mut TpmDevice,
-    obj: &cli::Object,
-) -> Result<TpmTransient, TpmError> {
+pub fn object_to_handle(chip: &mut TpmDevice, obj: &cli::Object) -> Result<TpmTransient, TpmError> {
     match obj {
         cli::Object::Handle(handle) => Ok(*handle),
         cli::Object::Persistent(handle) => Ok(TpmTransient(handle.0)),
         cli::Object::Context(s) => {
-            let context_blob = resolve_string_input(s)?;
+            let context_blob = input_to_bytes(s)?;
             let (context, _) = data::TpmsContext::parse(&context_blob)?;
             let load_cmd = TpmContextLoadCommand { context };
             let (resp, _) = chip.execute(&load_cmd, None, &[])?;

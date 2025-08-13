@@ -3,9 +3,9 @@
 // Copyright (c) 2025 Opinsys Oy
 
 use crate::{
-    cli::Object, create_import_blob, get_auth_sessions, read_public, resolve_object_handle,
-    AuthSession, BuildToVec, Command, CommandIo, Envelope, ObjectData, PrivateKey, TpmDevice,
-    TpmError, ID_IMPORTABLE_KEY,
+    cli::Object, create_import_blob, get_auth_sessions, object_to_handle, read_public, AuthSession,
+    BuildToVec, Command, CommandIo, Envelope, ObjectData, PrivateKey, TpmDevice, TpmError,
+    ID_IMPORTABLE_KEY,
 };
 use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
 use std::io;
@@ -25,7 +25,7 @@ impl Command for crate::cli::Import {
         let mut io = CommandIo::new(io::stdin(), io::stdout(), session);
 
         let parent_obj = io.next_object()?;
-        let parent_handle = resolve_object_handle(chip, &parent_obj)?;
+        let parent_handle = object_to_handle(chip, &parent_obj)?;
 
         let (parent_public, parent_name) = read_public(chip, parent_handle)?;
         let parent_name_alg = parent_public.name_alg;

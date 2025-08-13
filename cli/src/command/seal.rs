@@ -4,8 +4,8 @@
 
 use crate::{
     cli::{Object, Seal},
-    get_auth_sessions, resolve_object_handle, resolve_string_input, AuthSession, BuildToVec,
-    Command, CommandIo, Envelope, ObjectData, TpmDevice, TpmError, ID_SEALED_DATA,
+    get_auth_sessions, input_to_bytes, object_to_handle, AuthSession, BuildToVec, Command,
+    CommandIo, Envelope, ObjectData, TpmDevice, TpmError, ID_SEALED_DATA,
 };
 use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
 use std::io;
@@ -28,11 +28,11 @@ impl Command for Seal {
         let mut io = CommandIo::new(io::stdin(), io::stdout(), session);
 
         let parent_obj = io.next_object()?;
-        let parent_handle = resolve_object_handle(chip, &parent_obj)?;
+        let parent_handle = object_to_handle(chip, &parent_obj)?;
 
         let data_to_seal_obj = io.next_object()?;
         let data_to_seal = match data_to_seal_obj {
-            Object::Context(s) => resolve_string_input(&s)?,
+            Object::Context(s) => input_to_bytes(&s)?,
             _ => {
                 return Err(TpmError::Execution(
                     "expected a context object with data to seal".to_string(),

@@ -3,7 +3,7 @@
 // Copyright (c) 2025 Opinsys Oy
 
 use crate::{
-    cli::Load, get_auth_sessions, pop_object_data, resolve_object_handle, AuthSession, Command,
+    cli::Load, get_auth_sessions, object_to_handle, pop_object_data, AuthSession, Command,
     CommandIo, TpmDevice, TpmError,
 };
 use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
@@ -24,7 +24,7 @@ impl Command for Load {
         let mut io = CommandIo::new(io::stdin(), io::stdout(), session);
 
         let parent_obj = io.next_object()?;
-        let parent_handle = resolve_object_handle(chip, &parent_obj)?;
+        let parent_handle = object_to_handle(chip, &parent_obj)?;
 
         let object_data = pop_object_data(&mut io)?;
 

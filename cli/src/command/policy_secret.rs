@@ -2,7 +2,7 @@
 // Copyright (c) 2025 Opinsys Oy
 
 use crate::{
-    cli::PolicySecret, get_auth_sessions, resolve_object_handle, AuthSession, Command, CommandIo,
+    cli::PolicySecret, get_auth_sessions, object_to_handle, AuthSession, Command, CommandIo,
     TpmDevice, TpmError,
 };
 use std::io;
@@ -22,8 +22,8 @@ impl Command for PolicySecret {
         let auth_object = io.next_object()?;
         let policy_session_object = io.next_object()?;
 
-        let auth_handle = resolve_object_handle(chip, &auth_object)?;
-        let policy_session_handle = resolve_object_handle(chip, &policy_session_object)?;
+        let auth_handle = object_to_handle(chip, &auth_object)?;
+        let policy_session_handle = object_to_handle(chip, &policy_session_object)?;
 
         let handles = [auth_handle.into(), policy_session_handle.into()];
         let cmd = TpmPolicySecretCommand {
