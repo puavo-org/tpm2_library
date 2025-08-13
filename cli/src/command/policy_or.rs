@@ -30,7 +30,9 @@ impl Command for PolicyOr {
         let auth_hash = TpmAlgId::try_from(session_data.auth_hash)
             .map_err(|()| TpmError::Parse("invalid hash algorithm in session".to_string()))?;
 
-        let mut data_to_hash = Vec::new();
+        let mut data_to_hash = hex::decode(&session_data.policy_digest)
+            .map_err(|e| TpmError::Parse(format!("invalid policy digest hex: {e}")))?;
+
         for branch_path in &self.branches {
             let branch_session: SessionData = read_session_data_from_file(branch_path)?;
             let branch_digest = hex::decode(branch_session.policy_digest).map_err(|e| {
