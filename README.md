@@ -1,3 +1,9 @@
+TPM 2.0 library crate contains:
+
+1. `tpm2_protocol`: a unipolar TPM 2.0 implementation that does not require
+   kheap allocator and has zero dependencies.
+2. `tpm2_cli`: a command-linne interface for TPM 2.0 chips.
+
 ## Development
 
 * Commits: [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
