@@ -7,6 +7,7 @@
 
 use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
 use clap::Parser;
+use clap_num::maybe_hex;
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -23,7 +24,8 @@ use tpm2_protocol::{
         TpmContextLoadCommand, TpmFlushContextCommand, TpmHeader, TpmLoadCommand,
         TpmReadPublicCommand,
     },
-    TpmBuild, TpmErrorKind, TpmParse, TpmSession, TpmTransient, TpmWriter, TPM_MAX_COMMAND_SIZE,
+    TpmBuild, TpmErrorKind, TpmParse, TpmPersistent, TpmSession, TpmTransient, TpmWriter,
+    TPM_MAX_COMMAND_SIZE,
 };
 use tracing::debug;
 
@@ -31,10 +33,24 @@ pub mod cli;
 pub mod command;
 pub mod crypto;
 pub mod device;
+pub mod formats;
 pub mod policy;
 
 pub use self::crypto::*;
 pub use self::device::*;
+
+pub(crate) fn parse_hex_u32(s: &str) -> Result<u32, TpmError> {
+    maybe_hex(s).map_err(|e| TpmError::InvalidHandle(e.to_string()))
+}
+
+pub(crate) fn parse_persistent_handle(s: &str) -> Result<TpmPersistent, TpmError> {
+    parse_hex_u32(s).map(TpmPersistent)
+}
+
+pub(crate) fn parse_tpm_rc(s: &str) -> Result<TpmRc, TpmError> {
+    let raw_rc: u32 = maybe_hex(s).map_err(|e| TpmError::Execution(e.to_string()))?;
+    Ok(TpmRc::try_from(raw_rc)?)
+}
 
 /// The callback API for subcommands
 pub trait Command {
@@ -60,10 +76,10 @@ pub fn execute_cli() -> Result<(), TpmError> {
         command.run(&mut device, session.as_ref())
     } else {
         println!("Options:");
-        println!("  -d, --device <DEVICE>    [default: /dev/tpmrm0]");
+        println!("  -d, --device <DEVICE>   [default: /dev/tpmrm0]");
         println!("      --session <SESSION> Authorization session context");
-        println!("  -h, --help               Print help");
-        println!("  -V, --version            Print version");
+        println!("  -h, --help              Print help");
+        println!("  -V, --version           Print version");
         Ok(())
     }
 }
@@ -536,6 +552,9 @@ pub fn object_to_handle(chip: &mut TpmDevice, obj: &cli::Object) -> Result<TpmTr
                 .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
             Ok(load_resp.loaded_handle)
         }
+        cli::Object::Pcrs(_) => Err(TpmError::Execution(
+            "cannot convert a PCR object to a handle".to_string(),
+        )),
     }
 }
 
@@ -749,4 +768,70 @@ impl From<serde_json::Error> for TpmError {
     fn from(err: serde_json::Error) -> Self {
         TpmError::Json(err.to_string())
     }
+}
+
+/// Gets the number of PCRs from the TPM.
+pub(crate) fn get_pcr_count(chip: &mut TpmDevice) -> Result<usize, TpmError> {
+    let cap_data = chip.get_capability(data::TpmCap::Pcrs, 0, device::TPM_CAP_PROPERTY_MAX)?;
+    let Some(first_cap) = cap_data.into_iter().next() else {
+        return Err(TpmError::Execution(
+            "TPM reported no capabilities for PCRs.".to_string(),
+        ));
+    };
+
+    if let data::TpmuCapabilities::Pcrs(pcrs) = first_cap.data {
+        if let Some(first_bank) = pcrs.iter().next() {
+            Ok(first_bank.pcr_select.len() * 8)
+        } else {
+            Err(TpmError::Execution(
+                "TPM reported no active PCR banks.".to_string(),
+            ))
+        }
+    } else {
+        Err(TpmError::Execution(
+            "Unexpected capability data type when querying for PCRs.".to_string(),
+        ))
+    }
+}
+
+/// Parses a PCR selection string (e.g., "sha256:0,7+sha1:1") into a TPM list.
+pub(crate) fn parse_pcr_selection(
+    selection_str: &str,
+    pcr_count: usize,
+) -> Result<data::TpmlPcrSelection, TpmError> {
+    let pcr_select_size = (pcr_count + 7) / 8;
+    if pcr_select_size > data::TPM_PCR_SELECT_MAX {
+        return Err(TpmError::PcrSelection(format!(
+            "required pcr select size {pcr_select_size} exceeds maximum {}",
+            data::TPM_PCR_SELECT_MAX
+        )));
+    }
+
+    let mut list = data::TpmlPcrSelection::new();
+    for bank_str in selection_str.split('+') {
+        let (alg_str, pcrs_str) = bank_str
+            .split_once(':')
+            .ok_or_else(|| TpmError::PcrSelection(format!("invalid bank format: {bank_str}")))?;
+
+        let alg = crate::tpm_alg_id_from_str(alg_str).map_err(TpmError::PcrSelection)?;
+
+        let mut pcr_select_bytes = vec![0u8; pcr_select_size];
+        for pcr_str in pcrs_str.split(',') {
+            let pcr_index: usize = pcr_str
+                .parse()
+                .map_err(|_| TpmError::PcrSelection(format!("invalid pcr index: {pcr_str}")))?;
+            if pcr_index >= pcr_count {
+                return Err(TpmError::PcrSelection(format!(
+                    "pcr index {pcr_index} is out of range for a TPM with {pcr_count} PCRs"
+                )));
+            }
+            pcr_select_bytes[pcr_index / 8] |= 1 << (pcr_index % 8);
+        }
+
+        list.try_push(data::TpmsPcrSelection {
+            hash: alg,
+            pcr_select: tpm2_protocol::TpmBuffer::try_from(pcr_select_bytes.as_slice())?,
+        })?;
+    }
+    Ok(list)
 }

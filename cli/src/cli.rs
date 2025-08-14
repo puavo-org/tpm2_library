@@ -2,9 +2,8 @@
 // Copyright (c) 2025 Opinsys Oy
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 
-use crate::{Alg, Command, TpmError};
+use crate::{formats::PcrOutput, Alg, Command, TpmError};
 use clap::{Args, Parser, Subcommand, ValueEnum};
-use clap_num::maybe_hex;
 use serde::{
     de::{self, Deserializer, MapAccess, Visitor},
     ser::{SerializeMap, Serializer},
@@ -16,24 +15,12 @@ use tpm2_protocol::{
     TpmPersistent, TpmTransient,
 };
 
-pub(crate) fn parse_hex_u32(s: &str) -> Result<u32, TpmError> {
-    maybe_hex(s).map_err(|e| TpmError::InvalidHandle(e.to_string()))
-}
-
-fn parse_persistent_handle(s: &str) -> Result<TpmPersistent, TpmError> {
-    parse_hex_u32(s).map(TpmPersistent)
-}
-
-fn parse_tpm_rc(s: &str) -> Result<TpmRc, TpmError> {
-    let raw_rc: u32 = maybe_hex(s).map_err(|e| TpmError::Execution(e.to_string()))?;
-    Ok(TpmRc::try_from(raw_rc)?)
-}
-
 #[derive(Debug, Clone)]
 pub enum Object {
     Handle(TpmTransient),
     Persistent(TpmPersistent),
     Context(serde_json::Value),
+    Pcrs(PcrOutput),
 }
 
 impl Serialize for Object {
@@ -52,6 +39,9 @@ impl Serialize for Object {
             Object::Context(c) => {
                 map.serialize_entry("context", c)?;
             }
+            Object::Pcrs(p) => {
+                map.serialize_entry("pcrs", p)?;
+            }
         }
         map.end()
     }
@@ -63,7 +53,8 @@ impl<'de> Visitor<'de> for ObjectVisitor {
     type Value = Object;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        formatter.write_str("an object with a single key: 'handle', 'persistent', or 'context'")
+        formatter
+            .write_str("an object with a single key: 'handle', 'persistent', 'context', or 'pcrs'")
     }
 
     fn visit_map<V>(self, mut map: V) -> Result<Object, V::Error>
@@ -77,20 +68,24 @@ impl<'de> Visitor<'de> for ObjectVisitor {
         match key.as_str() {
             "handle" => {
                 let s: String = serde_json::from_value(value).map_err(de::Error::custom)?;
-                let handle = parse_hex_u32(&s)
+                let handle = crate::parse_hex_u32(&s)
                     .map(TpmTransient)
                     .map_err(de::Error::custom)?;
                 Ok(Object::Handle(handle))
             }
             "persistent" => {
                 let s: String = serde_json::from_value(value).map_err(de::Error::custom)?;
-                let handle = parse_persistent_handle(&s).map_err(de::Error::custom)?;
+                let handle = crate::parse_persistent_handle(&s).map_err(de::Error::custom)?;
                 Ok(Object::Persistent(handle))
             }
             "context" => Ok(Object::Context(value)),
+            "pcrs" => {
+                let pcrs = serde_json::from_value(value).map_err(de::Error::custom)?;
+                Ok(Object::Pcrs(pcrs))
+            }
             _ => Err(de::Error::unknown_field(
                 &key,
-                &["handle", "persistent", "context"],
+                &["handle", "persistent", "context", "pcrs"],
             )),
         }
     }
@@ -261,7 +256,7 @@ pub struct CreatePrimary {
     #[arg(long, value_parser = |s: &str| Alg::try_from(s).map_err(|e| e.to_string()))]
     pub alg: Alg,
     /// Store object to non-volatile memory
-    #[arg(long, value_parser = parse_persistent_handle)]
+    #[arg(long, value_parser = crate::parse_persistent_handle)]
     pub persistent: Option<TpmPersistent>,
     #[command(flatten)]
     pub auth: AuthArgs,
@@ -270,10 +265,10 @@ pub struct CreatePrimary {
 #[derive(Args, Debug)]
 pub struct Save {
     /// Handle of the transient object
-    #[arg(long, value_parser = parse_hex_u32)]
+    #[arg(long, value_parser = crate::parse_hex_u32)]
     pub object_handle: u32,
     /// Handle for the persistent object to be created
-    #[arg(long, value_parser = parse_persistent_handle)]
+    #[arg(long, value_parser = crate::parse_persistent_handle)]
     pub persistent_handle: TpmPersistent,
     #[command(flatten)]
     pub auth: AuthArgs,
@@ -282,7 +277,7 @@ pub struct Save {
 #[derive(Args, Debug)]
 pub struct Delete {
     /// Handle of the object to delete (transient or persistent)
-    #[arg(value_parser = parse_hex_u32)]
+    #[arg(value_parser = crate::parse_hex_u32)]
     pub handle: u32,
     #[command(flatten)]
     pub auth: AuthArgs,
@@ -319,7 +314,7 @@ pub struct PcrRead {
 #[derive(Args, Debug)]
 pub struct PcrEvent {
     /// The handle of the PCR to extend.
-    #[arg(long, value_parser = parse_hex_u32)]
+    #[arg(long, value_parser = crate::parse_hex_u32)]
     pub pcr_handle: u32,
     /// The data to be hashed and extended into the PCR.
     pub data: String,
@@ -330,7 +325,7 @@ pub struct PcrEvent {
 #[derive(Args, Debug)]
 pub struct PrintError {
     /// TPM error code
-    #[arg(value_parser = parse_tpm_rc)]
+    #[arg(value_parser = crate::parse_tpm_rc)]
     pub rc: TpmRc,
 }
 

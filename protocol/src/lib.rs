@@ -399,6 +399,12 @@ impl<const CAPACITY: usize> TryFrom<&[u8]> for TpmBuffer<CAPACITY> {
     }
 }
 
+impl<const CAPACITY: usize> AsRef<[u8]> for TpmBuffer<CAPACITY> {
+    fn as_ref(&self) -> &[u8] {
+        &self.bytes[..self.len as usize]
+    }
+}
+
 impl<const CAPACITY: usize> core::fmt::Debug for TpmBuffer<CAPACITY> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "TpmBuffer(")?;

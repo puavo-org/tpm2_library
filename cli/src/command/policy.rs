@@ -3,63 +3,19 @@
 
 use crate::{
     cli::{self, Object, Policy, SessionType},
-    from_json_str,
+    from_json_str, get_pcr_count, parse_pcr_selection,
     policy::{parse_policy_expression, Policy as PolicyAst},
     AuthSession, Command, CommandIo, Envelope, SessionData, TpmDevice, TpmError,
-    TPM_CAP_PROPERTY_MAX,
 };
 use std::io;
 use tpm2_protocol::{
-    data::{
-        Tpm2b, Tpm2bDigest, TpmAlgId, TpmCap, TpmRh, TpmlDigest, TpmlPcrSelection,
-        TpmsPcrSelection, TpmtSymDefObject, TpmuCapabilities, TPM_PCR_SELECT_MAX,
-    },
+    data::{Tpm2b, Tpm2bDigest, TpmAlgId, TpmRh, TpmlDigest, TpmtSymDefObject},
     message::{
         TpmFlushContextCommand, TpmPolicyGetDigestCommand, TpmPolicyOrCommand, TpmPolicyPcrCommand,
         TpmPolicySecretCommand, TpmStartAuthSessionCommand,
     },
-    TpmBuffer, TpmSession,
+    TpmSession,
 };
-
-fn parse_pcr_selection(
-    selection_str: &str,
-    pcr_count: usize,
-) -> Result<TpmlPcrSelection, TpmError> {
-    let pcr_select_size = pcr_count.div_ceil(8);
-    if pcr_select_size > TPM_PCR_SELECT_MAX {
-        return Err(TpmError::PcrSelection(format!(
-            "required pcr select size {pcr_select_size} exceeds maximum {TPM_PCR_SELECT_MAX}"
-        )));
-    }
-
-    let mut list = TpmlPcrSelection::new();
-    for bank_str in selection_str.split('+') {
-        let (alg_str, pcrs_str) = bank_str
-            .split_once(':')
-            .ok_or_else(|| TpmError::PcrSelection(format!("invalid bank format: {bank_str}")))?;
-
-        let alg = crate::tpm_alg_id_from_str(alg_str).map_err(TpmError::PcrSelection)?;
-
-        let mut pcr_select_bytes = vec![0u8; pcr_select_size];
-        for pcr_str in pcrs_str.split(',') {
-            let pcr_index: usize = pcr_str
-                .parse()
-                .map_err(|_| TpmError::PcrSelection(format!("invalid pcr index: {pcr_str}")))?;
-            if pcr_index >= pcr_count {
-                return Err(TpmError::PcrSelection(format!(
-                    "pcr index {pcr_index} is out of range for a TPM with {pcr_count} PCRs"
-                )));
-            }
-            pcr_select_bytes[pcr_index / 8] |= 1 << (pcr_index % 8);
-        }
-
-        list.try_push(TpmsPcrSelection {
-            hash: alg,
-            pcr_select: TpmBuffer::try_from(pcr_select_bytes.as_slice())?,
-        })?;
-    }
-    Ok(list)
-}
 
 fn execute_policy_ast(
     chip: &mut TpmDevice,
@@ -88,7 +44,7 @@ fn execute_policy_ast(
             chip.execute(&cmd, Some(&handles), &sessions)?;
         }
         PolicyAst::Secret { auth_handle_str } => {
-            let auth_handle = crate::cli::parse_hex_u32(auth_handle_str)?;
+            let auth_handle = crate::parse_hex_u32(auth_handle_str)?;
             let cmd = TpmPolicySecretCommand {
                 nonce_tpm: Tpm2b::default(),
                 cp_hash_a: Tpm2bDigest::default(),
@@ -175,31 +131,8 @@ fn get_policy_digest(
     Ok(digest_resp.policy_digest)
 }
 
-fn get_pcr_count(chip: &mut TpmDevice) -> Result<usize, TpmError> {
-    let cap_data = chip.get_capability(TpmCap::Pcrs, 0, TPM_CAP_PROPERTY_MAX)?;
-    let Some(first_cap) = cap_data.into_iter().next() else {
-        return Err(TpmError::Execution(
-            "TPM reported no capabilities for PCRs.".to_string(),
-        ));
-    };
-
-    if let TpmuCapabilities::Pcrs(pcrs) = first_cap.data {
-        if let Some(first_bank) = pcrs.iter().next() {
-            Ok(first_bank.pcr_select.len() * 8)
-        } else {
-            Err(TpmError::Execution(
-                "TPM reported no active PCR banks.".to_string(),
-            ))
-        }
-    } else {
-        Err(TpmError::Execution(
-            "Unexpected capability data type when querying for PCRs.".to_string(),
-        ))
-    }
-}
-
 impl Command for Policy {
-    /// Run `policy`.
+    /// Executes the `policy` command.
     ///
     /// # Errors
     ///
