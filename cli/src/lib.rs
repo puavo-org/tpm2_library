@@ -348,37 +348,57 @@ where
 }
 
 /// Manages the streaming I/O for a command in the JSON Lines pipeline.
-pub struct CommandIo<'a, R: Read, W: Write> {
-    reader: BufReader<R>,
+pub struct CommandIo<'a, W: Write> {
     writer: W,
+    input_objects: Vec<cli::Object>,
     output_objects: Vec<cli::Object>,
     pub session: Option<&'a AuthSession>,
 }
 
-impl<'a, R: Read, W: Write> CommandIo<'a, R, W> {
+impl<'a, W: Write> CommandIo<'a, W> {
     /// Creates a new command context for the pipeline.
-    pub fn new(reader: R, writer: W, session: Option<&'a AuthSession>) -> Self {
-        Self {
-            reader: BufReader::new(reader),
-            writer,
-            output_objects: Vec::new(),
-            session,
-        }
-    }
-
-    /// Reads and parses the next JSON object from the input stream.
     ///
     /// # Errors
     ///
-    /// Returns a `TpmError` if the stream is empty, or if I/O or JSON parsing fails.
-    pub fn next_object(&mut self) -> Result<cli::Object, TpmError> {
-        let mut line = String::new();
-        if self.reader.read_line(&mut line)? == 0 {
-            return Err(TpmError::Execution(
-                "command requires an object from the input pipeline, but received none".to_string(),
-            ));
+    /// Returns a `TpmError` if reading from the input stream fails.
+    pub fn new<R: Read>(
+        reader: R,
+        writer: W,
+        session: Option<&'a AuthSession>,
+    ) -> Result<Self, TpmError> {
+        let mut input_objects = Vec::new();
+        let buf_reader = BufReader::new(reader);
+        for line in buf_reader.lines() {
+            let line = line?;
+            if !line.trim().is_empty() {
+                input_objects.push(serde_json::from_str(&line)?);
+            }
         }
-        serde_json::from_str(&line).map_err(|e| TpmError::Json(e.to_string()))
+        Ok(Self {
+            writer,
+            input_objects,
+            output_objects: Vec::new(),
+            session,
+        })
+    }
+
+    /// Finds and removes the first object from the input pipeline that matches a predicate.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `TpmError` if no matching object is found.
+    pub fn consume_object<F>(&mut self, predicate: F) -> Result<cli::Object, TpmError>
+    where
+        F: FnMut(&cli::Object) -> bool,
+    {
+        let pos = self
+            .input_objects
+            .iter()
+            .position(predicate)
+            .ok_or_else(|| {
+                TpmError::Execution("required object not found in input pipeline".to_string())
+            })?;
+        Ok(self.input_objects.remove(pos))
     }
 
     /// Adds an object to be written to the output stream upon finalization.
@@ -386,15 +406,17 @@ impl<'a, R: Read, W: Write> CommandIo<'a, R, W> {
         self.output_objects.push(obj);
     }
 
-    /// Finalizes the command by writing all pushed objects to the output stream.
+    /// Finalizes the command, writing all new and unconsumed objects to the output stream.
     ///
     /// # Errors
     ///
     /// Returns a `TpmError` if JSON serialization or I/O fails.
     pub fn finalize(mut self) -> Result<(), TpmError> {
-        for obj in self.output_objects {
-            let json_str =
-                serde_json::to_string(&obj).map_err(|e| TpmError::Json(e.to_string()))?;
+        let mut final_objects = self.input_objects;
+        final_objects.append(&mut self.output_objects);
+
+        for obj in final_objects {
+            let json_str = serde_json::to_string(&obj)?;
             writeln!(self.writer, "{json_str}")?;
         }
         Ok(())
@@ -407,22 +429,20 @@ impl<'a, R: Read, W: Write> CommandIo<'a, R, W> {
 ///
 /// Returns a `TpmError` if the stack is empty, the object is not a context,
 /// or the data cannot be parsed.
-pub fn pop_object_data(io: &mut CommandIo<impl Read, impl Write>) -> Result<ObjectData, TpmError> {
-    let obj = io.next_object()?;
-    let envelope_value = match obj {
-        crate::cli::Object::Context(v) => Ok(v),
-        _ => Err(TpmError::Execution(
-            "expected a context object on the stack".to_string(),
-        )),
-    }?;
+pub fn pop_object_data<W: Write>(io: &mut CommandIo<W>) -> Result<ObjectData, TpmError> {
+    let obj = io.consume_object(|obj| {
+        if let cli::Object::Context(v) = obj {
+            if let Ok(env) = serde_json::from_value::<Envelope>(v.clone()) {
+                return env.object_type == "object";
+            }
+        }
+        false
+    })?;
 
+    let crate::cli::Object::Context(envelope_value) = obj else {
+        unreachable!()
+    };
     let envelope: Envelope = serde_json::from_value(envelope_value)?;
-    if envelope.object_type != "object" {
-        return Err(TpmError::Json(format!(
-            "invalid object type: expected 'object', got '{}'",
-            envelope.object_type
-        )));
-    }
     serde_json::from_value(envelope.data).map_err(|e| TpmError::Json(e.to_string()))
 }
 

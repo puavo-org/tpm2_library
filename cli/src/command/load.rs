@@ -1,10 +1,11 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3-0-or-later
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 // Copyright (c) 2025 Opinsys Oy
 
 use crate::{
-    cli::Load, get_auth_sessions, object_to_handle, pop_object_data, AuthSession, Command,
-    CommandIo, TpmDevice, TpmError,
+    cli::{Load, Object},
+    get_auth_sessions, object_to_handle, pop_object_data, AuthSession, Command, CommandIo,
+    TpmDevice, TpmError,
 };
 use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
 use std::io;
@@ -21,9 +22,9 @@ impl Command for Load {
     ///
     /// Returns a `TpmError` if the execution fails
     fn run(&self, chip: &mut TpmDevice, session: Option<&AuthSession>) -> Result<(), TpmError> {
-        let mut io = CommandIo::new(io::stdin(), io::stdout(), session);
+        let mut io = CommandIo::new(io::stdin(), io::stdout(), session)?;
 
-        let parent_obj = io.next_object()?;
+        let parent_obj = io.consume_object(|obj| !matches!(obj, Object::Pcrs(_)))?;
         let parent_handle = object_to_handle(chip, &parent_obj)?;
 
         let object_data = pop_object_data(&mut io)?;

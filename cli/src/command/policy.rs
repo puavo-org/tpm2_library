@@ -7,7 +7,7 @@ use crate::{
     policy::{parse_policy_expression, Policy as PolicyAst},
     AuthSession, Command, CommandIo, Envelope, SessionData, TpmDevice, TpmError,
 };
-use std::io;
+use std::io::{self, Write};
 use tpm2_protocol::{
     data::{Tpm2b, Tpm2bDigest, TpmAlgId, TpmRh, TpmlDigest, TpmtSymDefObject},
     message::{
@@ -19,6 +19,7 @@ use tpm2_protocol::{
 
 fn execute_policy_ast(
     chip: &mut TpmDevice,
+    io: &mut CommandIo<impl Write>,
     cmd_auth: &cli::AuthArgs,
     session: Option<&AuthSession>,
     policy_session_handle: TpmSession,
@@ -30,9 +31,38 @@ fn execute_policy_ast(
             selection_str,
             digest_str,
         } => {
+            let pcr_digest_bytes = if let Some(digest) = digest_str {
+                hex::decode(digest).map_err(|e| TpmError::Parse(e.to_string()))?
+            } else {
+                let pcr_obj = io.consume_object(|obj| matches!(obj, Object::Pcrs(_)))?;
+                let pcr_output = match pcr_obj {
+                    Object::Pcrs(p) => p,
+                    _ => unreachable!(),
+                };
+
+                let (bank_name, pcr_index_str) =
+                    selection_str.split_once(':').ok_or_else(|| {
+                        TpmError::Parse(format!(
+                            "pcr selection '{selection_str}' must be in 'alg:pcr' format when sourcing digest from pipeline"
+                        ))
+                    })?;
+
+                let bank = pcr_output.banks.get(bank_name).ok_or_else(|| {
+                    TpmError::Execution(format!(
+                        "pcr bank '{bank_name}' not found in pipeline object"
+                    ))
+                })?;
+
+                let digest_hex = bank.get(pcr_index_str).ok_or_else(|| {
+                    TpmError::Execution(format!(
+                        "pcr index '{pcr_index_str}' not found in bank '{bank_name}' in pipeline object"
+                    ))
+                })?;
+
+                hex::decode(digest_hex).map_err(|e| TpmError::Parse(e.to_string()))?
+            };
+
             let pcr_selection = parse_pcr_selection(selection_str, pcr_count)?;
-            let pcr_digest_bytes =
-                hex::decode(digest_str).map_err(|e| TpmError::Parse(e.to_string()))?;
             let pcr_digest = Tpm2bDigest::try_from(pcr_digest_bytes.as_slice())?;
 
             let cmd = TpmPolicyPcrCommand {
@@ -63,6 +93,7 @@ fn execute_policy_ast(
 
                 execute_policy_ast(
                     chip,
+                    io,
                     cmd_auth,
                     session,
                     branch_handle,
@@ -138,17 +169,23 @@ impl Command for Policy {
     ///
     /// Returns a `TpmError` on failure.
     fn run(&self, chip: &mut TpmDevice, session: Option<&AuthSession>) -> Result<(), TpmError> {
-        let mut io = CommandIo::new(io::stdin(), io::stdout(), session);
+        let mut io = CommandIo::new(io::stdin(), io::stdout(), session)?;
 
-        let session_obj = io.next_object()?;
-        let mut session_data: SessionData = match session_obj {
-            Object::Context(v) => from_json_str(&v.to_string(), "session")?,
-            _ => {
-                return Err(TpmError::Execution(
-                    "input pipeline must contain a session object".to_string(),
-                ))
+        let session_obj = io.consume_object(|obj| {
+            if let Object::Context(v) = obj {
+                if let Ok(env) = serde_json::from_value::<Envelope>(v.clone()) {
+                    return env.object_type == "session";
+                }
             }
+            false
+        })?;
+
+        let envelope_value = match session_obj {
+            Object::Context(v) => v,
+            _ => unreachable!(),
         };
+
+        let mut session_data: SessionData = from_json_str(&envelope_value.to_string(), "session")?;
 
         let ast = parse_policy_expression(&self.expression)
             .map_err(|e| TpmError::Parse(format!("failed to parse policy expression: {e}")))?;
@@ -158,6 +195,7 @@ impl Command for Policy {
 
         execute_policy_ast(
             chip,
+            &mut io,
             &self.auth,
             session,
             policy_session_handle,

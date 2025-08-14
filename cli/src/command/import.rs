@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3-0-or-later
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 // Copyright (c) 2025 Opinsys Oy
 
@@ -22,19 +22,17 @@ impl Command for crate::cli::Import {
     /// Returns a `TpmError`.
     #[allow(clippy::too_many_lines)]
     fn run(&self, chip: &mut TpmDevice, session: Option<&AuthSession>) -> Result<(), TpmError> {
-        let mut io = CommandIo::new(io::stdin(), io::stdout(), session);
+        let mut io = CommandIo::new(io::stdin(), io::stdout(), session)?;
 
-        let parent_obj = io.next_object()?;
+        let parent_obj = io.consume_object(|obj| !matches!(obj, Object::Pcrs(_)))?;
         let parent_handle = object_to_handle(chip, &parent_obj)?;
 
         let (parent_public, parent_name) = read_public(chip, parent_handle)?;
         let parent_name_alg = parent_public.name_alg;
 
-        let private_key_obj = io.next_object()?;
+        let private_key_obj = io.consume_object(|obj| matches!(obj, Object::Context(_)))?;
         let Object::Context(private_key_path_val) = private_key_obj else {
-            return Err(TpmError::Execution(
-                "expected an object context for the external key".to_string(),
-            ));
+            unreachable!();
         };
         let private_key_path = private_key_path_val.as_str().ok_or_else(|| {
             TpmError::Parse("context for private key must be a string path".to_string())

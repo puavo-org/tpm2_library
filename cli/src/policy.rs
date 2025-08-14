@@ -17,7 +17,7 @@ use nom::{
 pub enum Policy<'a> {
     Pcr {
         selection_str: &'a str,
-        digest_str: &'a str,
+        digest_str: Option<&'a str>,
     },
     Secret {
         auth_handle_str: &'a str,
@@ -39,19 +39,25 @@ fn parse_pcr(input: &str) -> IResult<&str, Policy, VerboseError<&str>> {
             tag("pcr"),
             cut(delimited(
                 preceded(multispace0, char('(')),
-                map_res(is_not(")"), |inner: &str| {
-                    if let Some((selection, digest_part)) = inner.rsplit_once(',') {
-                        match all_consuming(preceded(multispace0, parse_string))(digest_part) {
-                            Ok((_, digest_str)) => Ok(Policy::Pcr {
-                                selection_str: selection.trim(),
-                                digest_str,
-                            }),
-                            Err(_) => Err("digest part is not a valid quoted string"),
+                alt((
+                    map_res(is_not(")"), |inner: &str| {
+                        if let Some((selection, digest_part)) = inner.rsplit_once(',') {
+                            match all_consuming(preceded(multispace0, parse_string))(digest_part) {
+                                Ok((_, digest_str)) => Ok(Policy::Pcr {
+                                    selection_str: selection.trim(),
+                                    digest_str: Some(digest_str),
+                                }),
+                                Err(_) => Err("digest part is not a valid quoted string"),
+                            }
+                        } else {
+                            Err("not a two-argument pcr() expression")
                         }
-                    } else {
-                        Err("missing comma separator in pcr()")
-                    }
-                }),
+                    }),
+                    map(is_not(")"), |selection: &str| Policy::Pcr {
+                        selection_str: selection.trim(),
+                        digest_str: None,
+                    }),
+                )),
                 preceded(multispace0, char(')')),
             )),
         ),

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3-0-or-later
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 // Copyright (c) 2025 Opinsys Oy
 
@@ -21,7 +21,7 @@ impl Command for Unseal {
     ///
     /// Returns a `TpmError` if the execution fails
     fn run(&self, chip: &mut TpmDevice, session: Option<&AuthSession>) -> Result<(), TpmError> {
-        let mut io = CommandIo::new(io::stdin(), io::stdout(), session);
+        let mut io = CommandIo::new(io::stdin(), io::stdout(), session)?;
         let object_data = pop_object_data(&mut io)?;
 
         let parent_handle = parse_parent_handle_from_json(&object_data)?;
