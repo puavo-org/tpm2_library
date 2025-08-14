@@ -23,6 +23,9 @@ use tracing::{debug, trace, warn};
 
 pub const TPM_CAP_PROPERTY_MAX: u32 = 128;
 
+const SPINNER_FRAMES: &[char] = &['-', '\\', '|', '/'];
+const SPINNER_DELAY: Duration = Duration::from_millis(100);
+
 type TpmExecuteResult =
     Result<(TpmResponseBody, tpm2_protocol::message::TpmAuthResponses), TpmError>;
 type TpmResponseSender = Sender<TpmExecuteResult>;
@@ -113,6 +116,11 @@ impl TpmDevice {
     /// Sends a command to the worker thread and waits for the response.
     ///
     /// Displays a spinner on stderr if the operation takes more than one second.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if building the command fails, the TPM
+    /// worker thread has disconnected, or the TPM device itself returns an error.
     pub fn execute<C>(
         &mut self,
         command: &C,
@@ -154,8 +162,6 @@ impl TpmDevice {
         let start_time = Instant::now();
         let mut spinner_active = false;
         let mut spinner_frame = 0;
-        const SPINNER_FRAMES: &[char] = &['-', '\\', '|', '/'];
-        const SPINNER_DELAY: Duration = Duration::from_millis(100);
 
         loop {
             match response_rx.try_recv() {
@@ -206,6 +212,11 @@ impl TpmDevice {
     }
 
     /// Fetches and returns all capabilities of a certain type from the TPM.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if the underlying `execute` call fails
+    /// or if the TPM returns a response of an unexpected type.
     pub fn get_capability(
         &mut self,
         cap: data::TpmCap,
