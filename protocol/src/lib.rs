@@ -554,6 +554,3 @@ impl<'a> TpmParameters<'a> {
         self.buf.is_empty()
     }
 }
-
-#[cfg(test)]
-mod test;

@@ -1,4 +1,6 @@
-name: Lint and Style Check
+# Copyright (c) 2025 Opinsys Oy
+
+name: Lint
 
 on:
   pull_request:

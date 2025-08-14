@@ -10,7 +10,10 @@ rust-version = { workspace = true }
 readme = { workspace = true }
 
 [dev-dependencies]
-rstest = "0.21"
-hex = "0.4"
 
 [dependencies]
+
+[[test]]
+name = "runner"
+path = "tests/runner.rs"
+harness = false

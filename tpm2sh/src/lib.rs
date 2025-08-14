@@ -83,10 +83,10 @@ pub fn execute_cli() -> Result<(), TpmError> {
         command.run(&mut device, session.as_ref())
     } else {
         println!("Options:");
-        println!("  -d, --device <DEVICE>   [default: /dev/tpmrm0]");
+        println!("  -d, --device <DEVICE>    [default: /dev/tpmrm0]");
         println!("      --session <SESSION> Authorization session context");
-        println!("  -h, --help              Print help");
-        println!("  -V, --version           Print version");
+        println!("  -h, --help               Print help");
+        println!("  -V, --version            Print version");
         Ok(())
     }
 }
