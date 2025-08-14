@@ -47,8 +47,12 @@ impl Command for crate::cli::Import {
         };
         let private_bytes = private_key.get_private_blob()?;
 
-        let (duplicate, in_sym_seed, encryption_key) =
-            create_import_blob(&parent_public, private_bytes, &parent_name)?;
+        let (duplicate, in_sym_seed, encryption_key) = create_import_blob(
+            &parent_public,
+            public.object_type,
+            private_bytes,
+            &parent_name,
+        )?;
 
         let import_cmd = TpmImportCommand {
             encryption_key,

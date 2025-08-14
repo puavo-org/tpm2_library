@@ -626,6 +626,7 @@ fn protect_seed_with_ecc(
 /// Returns a `TpmError` for cryptographic failures or invalid input.
 pub fn create_import_blob(
     parent_public: &TpmtPublic,
+    object_alg: TpmAlgId,
     private_bytes: &[u8],
     parent_name: &[u8],
 ) -> Result<(Tpm2bPrivate, Tpm2bEncryptedSecret, Tpm2b), TpmError> {
@@ -672,7 +673,10 @@ pub fn create_import_blob(
         integrity_key_bits,
     )?;
 
-    let sensitive_data_vec = build_to_vec(&Tpm2b::try_from(private_bytes)?)?;
+    let sensitive =
+        tpm2_protocol::data::TpmtSensitive::from_private_bytes(object_alg, private_bytes)?;
+    let sensitive_data_vec = build_to_vec(&sensitive)?;
+
     let mut enc_data = sensitive_data_vec;
     let iv = [0u8; 16];
 
