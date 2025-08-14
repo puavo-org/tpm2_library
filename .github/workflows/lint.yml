@@ -1,0 +1,27 @@
+name: Lint and Style Check
+
+on:
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  check-inline-comments:
+    name: Check for Inline Comments
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install Python dependencies
+        run: pip install GitPython
+
+      - name: Remove disallowed comments
+        run: ./scripts/rm-disallowed-comments
+
+      - name: Complain for disallowed comments
+        run: git diff --exit-code

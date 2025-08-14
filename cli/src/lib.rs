@@ -71,7 +71,7 @@ pub fn execute_cli() -> Result<(), TpmError> {
     let cli = crate::cli::Cli::parse();
 
     if let Some(command) = cli.command {
-        let mut device = TpmDevice::open(&cli.device)?;
+        let mut device = TpmDevice::new(&cli.device)?;
         let session = load_session(cli.session.as_deref())?;
         command.run(&mut device, session.as_ref())
     } else {
@@ -442,6 +442,7 @@ pub fn pop_object_data<W: Write>(io: &mut CommandIo<W>) -> Result<ObjectData, Tp
     let crate::cli::Object::Context(envelope_value) = obj else {
         unreachable!()
     };
+
     let envelope: Envelope = serde_json::from_value(envelope_value)?;
     serde_json::from_value(envelope.data).map_err(|e| TpmError::Json(e.to_string()))
 }

@@ -1,0 +1,50 @@
+#!/usr/bin/env python3
+# Copyright (c) 2025 Opinsys Oy
+
+import os
+import re
+from git import Repo
+
+def execute(repo_path='.'):
+    try:
+        repo = Repo(repo_path)
+    except Exception as e:
+        print(f"git: {e}")
+        return
+
+    line_re = re.compile(r'^\s*//(?!/|!)(?! Copyright)(?! SPDX).*$')
+    eol_re = re.compile(r'(.*[^\s])\s+//.*$')
+
+    git_files = repo.git.ls_files().splitlines()
+
+    for file_path in git_files:
+        if file_path.endswith('.rs'):
+            path = os.path.join(repo_path, file_path)
+            try:
+                with open(path, 'r') as f:
+                    original_lines = f.readlines()
+                
+                processed_lines = []
+                modified = False
+                for line in original_lines:
+                    if line_re.match(line):
+                        modified = True
+                        continue
+                    
+                    match = eol_re.match(line)
+                    if match:
+                        new_line = match.group(1).rstrip() + '\n'
+                        processed_lines.append(new_line)
+                        modified = True
+                    else:
+                        processed_lines.append(line)
+                
+                if modified:
+                    with open(path, 'w') as f:
+                        f.writelines(processed_lines)
+            
+            except Exception as e:
+                print(f"{path}: {e}")
+
+if __name__ == "__main__":
+    execute('.')

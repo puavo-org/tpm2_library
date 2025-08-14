@@ -4,72 +4,121 @@
 
 use crate::TpmError;
 use std::{
-    fs::{self, File, OpenOptions},
-    io::{Error as IoError, ErrorKind, Read, Write as IoWrite},
-    os::unix::fs::FileTypeExt,
+    fs::{File, OpenOptions},
+    io::{self, Read, Write as IoWrite},
     path::Path,
+    sync::mpsc::{self, Receiver, Sender, TryRecvError},
+    thread::{self, JoinHandle},
+    time::{Duration, Instant},
 };
 use tpm2_protocol::{
     self,
-    data::{self, TpmSt, TpmuCapabilities},
-    message::{TpmGetCapabilityCommand, TpmGetCapabilityResponse, TpmReadPublicCommand},
+    data::{self, TpmCc, TpmSt, TpmuCapabilities},
+    message::{
+        TpmGetCapabilityCommand, TpmGetCapabilityResponse, TpmReadPublicCommand, TpmResponseBody,
+    },
     TpmWriter, TPM_MAX_COMMAND_SIZE,
 };
 use tracing::{debug, trace, warn};
 
 pub const TPM_CAP_PROPERTY_MAX: u32 = 128;
 
-pub struct TpmDevice(File);
+type TpmExecuteResult =
+    Result<(TpmResponseBody, tpm2_protocol::message::TpmAuthResponses), TpmError>;
+type TpmResponseSender = Sender<TpmExecuteResult>;
 
-impl TpmDevice {
-    /// Opens a TPM device node.
-    ///
-    /// # Errors
-    ///
-    /// Returns a `TpmError::File` if the path does not exist, is not a character
-    /// device, or cannot be opened for reading and writing.
-    pub fn open(path: &str) -> Result<TpmDevice, TpmError> {
-        let path_obj = Path::new(path);
-        let metadata = fs::metadata(path_obj).map_err(|e| TpmError::File(path.to_string(), e))?;
-        if !metadata.file_type().is_char_device() {
-            return Err(TpmError::File(
-                path.to_string(),
-                IoError::new(ErrorKind::InvalidInput, "not a device node"),
-            ));
-        }
-        let canonical_path =
-            std::fs::canonicalize(path_obj).map_err(|e| TpmError::File(path.to_string(), e))?;
-        debug!(device_path = %canonical_path.display(), "opening");
-        Ok(TpmDevice(
-            OpenOptions::new()
-                .read(true)
-                .write(true)
-                .open(canonical_path)
-                .map_err(|e| TpmError::File(path.to_string(), e))?,
-        ))
+struct TpmCommandMsg {
+    command_bytes: Vec<u8>,
+    command_code: TpmCc,
+    response_tx: TpmResponseSender,
+}
+
+pub struct TpmDevice {
+    command_tx: Option<Sender<TpmCommandMsg>>,
+    worker_handle: Option<JoinHandle<()>>,
+}
+
+/// Executes a command by performing a blocking, protocol-aware sized read/write.
+fn execute_blocking(
+    file: &mut File,
+    command_code: TpmCc,
+    command_bytes: &[u8],
+) -> TpmExecuteResult {
+    trace!(command = %hex::encode(command_bytes), "Command");
+    file.write_all(command_bytes)?;
+    file.flush()?;
+
+    let mut header = [0u8; 10];
+    file.read_exact(&mut header)?;
+
+    let size = u32::from_be_bytes(header[2..6].try_into().unwrap());
+    if (size as usize) < header.len() {
+        return Err(TpmError::Parse(
+            "Invalid response size in header".to_string(),
+        ));
     }
 
-    /// Executes a TPM command.
-    ///
-    /// Builds a command, sends it to the TPM, and parses the response.
+    let mut resp_buf = header.to_vec();
+    resp_buf.resize(size as usize, 0);
+    file.read_exact(&mut resp_buf[header.len()..])?;
+
+    trace!(response = %hex::encode(&resp_buf), "Response");
+
+    match tpm2_protocol::message::tpm_parse_response(command_code, &resp_buf)? {
+        Ok((rc, response, auth)) => {
+            if rc.is_warning() {
+                warn!(rc = %rc, "TPM command completed with a warning");
+            }
+            Ok((response, auth))
+        }
+        Err((rc, _)) => Err(TpmError::TpmRc(rc)),
+    }
+}
+
+impl TpmDevice {
+    /// Opens a TPM device and spawns a worker thread to handle communication.
     ///
     /// # Errors
     ///
-    /// Returns a `TpmError` if building the command, communicating with the device,
-    /// or parsing the response fails. A `TpmError::TpmRc` variant is returned
-    /// for TPM-specific operational errors.
+    /// Returns a `TpmError::File` if the path cannot be opened.
+    pub fn new(path: &str) -> Result<TpmDevice, TpmError> {
+        let mut file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(Path::new(path))
+            .map_err(|e| {
+                TpmError::File(
+                    path.to_string(),
+                    io::Error::new(e.kind(), "could not open device node"),
+                )
+            })?;
+        debug!(device_path = %path, "opening");
+
+        let (command_tx, command_rx): (Sender<TpmCommandMsg>, Receiver<TpmCommandMsg>) =
+            mpsc::channel();
+
+        let worker_handle = Some(thread::spawn(move || {
+            for msg in command_rx {
+                let result = execute_blocking(&mut file, msg.command_code, &msg.command_bytes);
+                let _ = msg.response_tx.send(result);
+            }
+        }));
+
+        Ok(TpmDevice {
+            command_tx: Some(command_tx),
+            worker_handle,
+        })
+    }
+
+    /// Sends a command to the worker thread and waits for the response.
+    ///
+    /// Displays a spinner on stderr if the operation takes more than one second.
     pub fn execute<C>(
         &mut self,
         command: &C,
         handles: Option<&[u32]>,
         sessions: &[tpm2_protocol::data::TpmsAuthCommand],
-    ) -> Result<
-        (
-            tpm2_protocol::message::TpmResponseBody,
-            tpm2_protocol::message::TpmAuthResponses,
-        ),
-        TpmError,
-    >
+    ) -> TpmExecuteResult
     where
         C: for<'a> tpm2_protocol::message::TpmHeader<'a>,
     {
@@ -90,22 +139,50 @@ impl TpmDevice {
             )?;
             writer.len()
         };
-        let final_command = &command_buf[..len];
 
-        trace!(command = %hex::encode(final_command), "Command");
-        std::io::Write::write_all(&mut self.0, final_command)?;
-        self.0.flush()?;
-        let mut resp_buf = Vec::new();
-        std::io::Read::read_to_end(&mut self.0, &mut resp_buf)?;
-        trace!(response = %hex::encode(&resp_buf), "Response");
-        match tpm2_protocol::message::tpm_parse_response(C::COMMAND, &resp_buf)? {
-            Ok((rc, response, auth)) => {
-                if rc.is_warning() {
-                    warn!(rc = %rc, "TPM command completed with a warning");
+        let (response_tx, response_rx) = mpsc::channel();
+        self.command_tx
+            .as_ref()
+            .ok_or_else(|| TpmError::Execution("TPM worker disconnected".to_string()))?
+            .send(TpmCommandMsg {
+                command_bytes: command_buf[..len].to_vec(),
+                command_code: C::COMMAND,
+                response_tx,
+            })
+            .map_err(|_| TpmError::Execution("TPM work send failure".to_string()))?;
+
+        let start_time = Instant::now();
+        let mut spinner_active = false;
+        let mut spinner_frame = 0;
+        const SPINNER_FRAMES: &[char] = &['-', '\\', '|', '/'];
+        const SPINNER_DELAY: Duration = Duration::from_millis(100);
+
+        loop {
+            match response_rx.try_recv() {
+                Ok(result) => {
+                    if spinner_active {
+                        let _ = io::stderr().write_all(b"\r \r");
+                        let _ = io::stderr().flush();
+                    }
+                    return result;
                 }
-                Ok((response, auth))
+                Err(TryRecvError::Empty) => {}
+                Err(TryRecvError::Disconnected) => {
+                    return Err(TpmError::Execution(
+                        "TPM disconnected unexpectedly".to_string(),
+                    ));
+                }
             }
-            Err((rc, _)) => Err(TpmError::TpmRc(rc)),
+
+            if start_time.elapsed() > Duration::from_secs(1) {
+                spinner_active = true;
+                let frame = SPINNER_FRAMES[spinner_frame];
+                eprint!("\rTPM processing ... {frame} ");
+                let _ = io::stderr().flush();
+                spinner_frame = (spinner_frame + 1) % SPINNER_FRAMES.len();
+            }
+
+            thread::sleep(SPINNER_DELAY);
         }
     }
 
@@ -129,14 +206,6 @@ impl TpmDevice {
     }
 
     /// Fetches and returns all capabilities of a certain type from the TPM.
-    ///
-    /// Handles the paging mechanism for capabilities that return more than one
-    /// batch of data.
-    ///
-    /// # Errors
-    ///
-    /// Returns a `TpmError` if the underlying `execute` call fails or if the
-    /// TPM returns an unexpected response type.
     pub fn get_capability(
         &mut self,
         cap: data::TpmCap,
@@ -181,18 +250,14 @@ impl TpmDevice {
     }
 }
 
-impl Read for TpmDevice {
-    fn read(&mut self, buf: &mut [u8]) -> Result<usize, IoError> {
-        self.0.read(buf)
-    }
-}
+impl Drop for TpmDevice {
+    fn drop(&mut self) {
+        if let Some(tx) = self.command_tx.take() {
+            drop(tx);
+        }
 
-impl IoWrite for TpmDevice {
-    fn write(&mut self, buf: &[u8]) -> Result<usize, IoError> {
-        std::io::Write::write(&mut self.0, buf)
-    }
-
-    fn flush(&mut self) -> Result<(), IoError> {
-        self.0.flush()
+        if let Some(handle) = self.worker_handle.take() {
+            handle.join().expect("TPM worker thread panicked");
+        }
     }
 }

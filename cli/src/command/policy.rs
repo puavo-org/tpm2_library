@@ -35,9 +35,8 @@ fn execute_policy_ast(
                 hex::decode(digest).map_err(|e| TpmError::Parse(e.to_string()))?
             } else {
                 let pcr_obj = io.consume_object(|obj| matches!(obj, Object::Pcrs(_)))?;
-                let pcr_output = match pcr_obj {
-                    Object::Pcrs(p) => p,
-                    _ => unreachable!(),
+                let Object::Pcrs(pcr_output) = pcr_obj else {
+                    unreachable!();
                 };
 
                 let (bank_name, pcr_index_str) =
@@ -180,9 +179,8 @@ impl Command for Policy {
             false
         })?;
 
-        let envelope_value = match session_obj {
-            Object::Context(v) => v,
-            _ => unreachable!(),
+        let Object::Context(envelope_value) = session_obj else {
+            unreachable!();
         };
 
         let mut session_data: SessionData = from_json_str(&envelope_value.to_string(), "session")?;
