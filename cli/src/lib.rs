@@ -799,7 +799,7 @@ pub(crate) fn parse_pcr_selection(
     selection_str: &str,
     pcr_count: usize,
 ) -> Result<data::TpmlPcrSelection, TpmError> {
-    let pcr_select_size = (pcr_count + 7) / 8;
+    let pcr_select_size = pcr_count.div_ceil(8);
     if pcr_select_size > data::TPM_PCR_SELECT_MAX {
         return Err(TpmError::PcrSelection(format!(
             "required pcr select size {pcr_select_size} exceeds maximum {}",

@@ -5,10 +5,10 @@ use nom::{
     branch::alt,
     bytes::complete::{is_not, tag},
     character::complete::{char, multispace0},
-    combinator::{cut, map},
+    combinator::{all_consuming, cut, map, map_res},
     error::{context, VerboseError},
     multi::separated_list0,
-    sequence::{delimited, preceded, terminated, tuple},
+    sequence::{delimited, preceded, terminated},
     IResult,
 };
 
@@ -39,16 +39,19 @@ fn parse_pcr(input: &str) -> IResult<&str, Policy, VerboseError<&str>> {
             tag("pcr"),
             cut(delimited(
                 preceded(multispace0, char('(')),
-                map(
-                    tuple((
-                        preceded(multispace0, is_not(",)")),
-                        preceded(char(','), preceded(multispace0, parse_string)),
-                    )),
-                    |(selection_str, digest_str)| Policy::Pcr {
-                        selection_str: selection_str.trim(),
-                        digest_str,
-                    },
-                ),
+                map_res(is_not(")"), |inner: &str| {
+                    if let Some((selection, digest_part)) = inner.rsplit_once(',') {
+                        match all_consuming(preceded(multispace0, parse_string))(digest_part) {
+                            Ok((_, digest_str)) => Ok(Policy::Pcr {
+                                selection_str: selection.trim(),
+                                digest_str,
+                            }),
+                            Err(_) => Err("digest part is not a valid quoted string"),
+                        }
+                    } else {
+                        Err("missing comma separator in pcr()")
+                    }
+                }),
                 preceded(multispace0, char(')')),
             )),
         ),
