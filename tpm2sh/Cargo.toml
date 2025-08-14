@@ -18,31 +18,36 @@ name = "tpm2sh"
 path = "src/main.rs"
 
 [dependencies]
+aes = "0.8"
+base64 = "0.22"
+cfb-mode = "0.8"
+cipher = "0.4"
 clap-num = "1.2"
 clap = { version = "4.5", features = ["derive"] }
 const-oid = { version = "0.9.6", features = ["db"] }
 hex = "0.4"
+hmac = "0.12"
+indicatif = "0.17"
+num-traits = "0.2"
 p256 = { version = "0.13", features = ["ecdh"] }
 p384 = { version = "0.13", features = ["ecdh"] }
 p521 = { version = "0.13", features = ["ecdh"] }
 pem = "3.0"
+pest = "2.8.1"
+pest_derive = "2.8.1"
 pkcs8 = { version = "0.10", features = ["pem", "alloc"] }
 rand = "0.8"
 regex = "1.11"
 rsa = { version = "0.9", features = ["sha1", "sha2"] }
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
 sha1 = "0.10"
 sha2 = "0.10"
 tpm2-protocol = { path = "../protocol", version = "0.5.4" }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-cfb-mode = "0.8"
-hmac = "0.12"
-aes = "0.8"
-cipher = "0.4"
-base64 = "0.22"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-num-traits = "0.2"
+
+[dev-dependencies]
+parametrized = "0.1"
 pest = "2.8.1"
 pest_derive = "2.8.1"
-indicatif = "0.17"
