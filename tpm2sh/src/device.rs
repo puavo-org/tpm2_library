@@ -3,89 +3,37 @@
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 
 use crate::TpmError;
+use indicatif::{ProgressBar, ProgressStyle};
 use std::{
     fs::{File, OpenOptions},
-    io::{self, Read, Write as IoWrite},
+    io::{self, Read, Write},
     path::Path,
-    sync::mpsc::{self, Receiver, Sender, TryRecvError},
-    thread::{self, JoinHandle},
-    time::{Duration, Instant},
+    time::Duration,
 };
 use tpm2_protocol::{
     self,
-    data::{self, TpmCc, TpmSt, TpmuCapabilities},
+    data::{self, TpmSt, TpmuCapabilities},
     message::{
         TpmGetCapabilityCommand, TpmGetCapabilityResponse, TpmReadPublicCommand, TpmResponseBody,
     },
     TpmWriter, TPM_MAX_COMMAND_SIZE,
 };
-use tracing::{debug, trace, warn};
+use tracing::{trace, warn};
 
 pub const TPM_CAP_PROPERTY_MAX: u32 = 128;
 
-const SPINNER_FRAMES: &[char] = &['-', '\\', '|', '/'];
-const SPINNER_DELAY: Duration = Duration::from_millis(100);
-
-type TpmExecuteResult =
-    Result<(TpmResponseBody, tpm2_protocol::message::TpmAuthResponses), TpmError>;
-type TpmResponseSender = Sender<TpmExecuteResult>;
-
-struct TpmCommandMsg {
-    command_bytes: Vec<u8>,
-    command_code: TpmCc,
-    response_tx: TpmResponseSender,
-}
-
 pub struct TpmDevice {
-    command_tx: Option<Sender<TpmCommandMsg>>,
-    worker_handle: Option<JoinHandle<()>>,
-}
-
-/// Executes a command by performing a blocking, protocol-aware sized read/write.
-fn execute_blocking(
-    file: &mut File,
-    command_code: TpmCc,
-    command_bytes: &[u8],
-) -> TpmExecuteResult {
-    trace!(command = %hex::encode(command_bytes), "Command");
-    file.write_all(command_bytes)?;
-    file.flush()?;
-
-    let mut header = [0u8; 10];
-    file.read_exact(&mut header)?;
-
-    let size = u32::from_be_bytes(header[2..6].try_into().unwrap());
-    if (size as usize) < header.len() {
-        return Err(TpmError::Parse(
-            "Invalid response size in header".to_string(),
-        ));
-    }
-
-    let mut resp_buf = header.to_vec();
-    resp_buf.resize(size as usize, 0);
-    file.read_exact(&mut resp_buf[header.len()..])?;
-
-    trace!(response = %hex::encode(&resp_buf), "Response");
-
-    match tpm2_protocol::message::tpm_parse_response(command_code, &resp_buf)? {
-        Ok((rc, response, auth)) => {
-            if rc.is_warning() {
-                warn!(rc = %rc, "TPM command completed with a warning");
-            }
-            Ok((response, auth))
-        }
-        Err((rc, _)) => Err(TpmError::TpmRc(rc)),
-    }
+    file: File,
 }
 
 impl TpmDevice {
-    /// Opens a TPM device and spawns a worker thread to handle communication.
+    /// Opens a TPM device for communication.
     ///
     /// # Errors
     ///
     /// Returns a `TpmError::File` if the path cannot be opened.
     pub fn new(path: &str) -> Result<TpmDevice, TpmError> {
-        let mut file = OpenOptions::new()
+        let file = OpenOptions::new()
             .read(true)
             .write(true)
             .open(Path::new(path))
@@ -95,38 +43,24 @@ impl TpmDevice {
                     io::Error::new(e.kind(), "could not open device node"),
                 )
             })?;
-        debug!(device_path = %path, "opening");
-
-        let (command_tx, command_rx): (Sender<TpmCommandMsg>, Receiver<TpmCommandMsg>) =
-            mpsc::channel();
-
-        let worker_handle = Some(thread::spawn(move || {
-            for msg in command_rx {
-                let result = execute_blocking(&mut file, msg.command_code, &msg.command_bytes);
-                let _ = msg.response_tx.send(result);
-            }
-        }));
-
-        Ok(TpmDevice {
-            command_tx: Some(command_tx),
-            worker_handle,
-        })
+        tracing::debug!(device_path = %path, "opening");
+        Ok(TpmDevice { file })
     }
 
-    /// Sends a command to the worker thread and waits for the response.
+    /// Sends a command to the TPM and waits for the response.
     ///
-    /// Displays a spinner on stderr if the operation takes more than one second.
+    /// Displays a spinner on stderr if the operation is long-running.
     ///
     /// # Errors
     ///
-    /// This function will return an error if building the command fails, the TPM
-    /// worker thread has disconnected, or the TPM device itself returns an error.
+    /// This function will return an error if building the command fails, I/O
+    /// with the device fails, or the TPM itself returns an error.
     pub fn execute<C>(
         &mut self,
         command: &C,
         handles: Option<&[u32]>,
         sessions: &[tpm2_protocol::data::TpmsAuthCommand],
-    ) -> TpmExecuteResult
+    ) -> Result<(TpmResponseBody, tpm2_protocol::message::TpmAuthResponses), TpmError>
     where
         C: for<'a> tpm2_protocol::message::TpmHeader<'a>,
     {
@@ -147,48 +81,50 @@ impl TpmDevice {
             )?;
             writer.len()
         };
+        let command_bytes = &command_buf[..len];
 
-        let (response_tx, response_rx) = mpsc::channel();
-        self.command_tx
-            .as_ref()
-            .ok_or_else(|| TpmError::Execution("TPM worker disconnected".to_string()))?
-            .send(TpmCommandMsg {
-                command_bytes: command_buf[..len].to_vec(),
-                command_code: C::COMMAND,
-                response_tx,
-            })
-            .map_err(|_| TpmError::Execution("TPM work send failure".to_string()))?;
+        let pb = ProgressBar::new_spinner();
+        pb.enable_steady_tick(Duration::from_millis(100));
+        pb.set_style(
+            ProgressStyle::with_template("{spinner:.cyan.bold} {msg}")?
+                .tick_strings(&["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]),
+        );
+        pb.set_message("Communicating with TPM...");
 
-        let start_time = Instant::now();
-        let mut spinner_active = false;
-        let mut spinner_frame = 0;
+        trace!(command = %hex::encode(command_bytes), "Command");
+        self.file.write_all(command_bytes)?;
+        self.file.flush()?;
 
-        loop {
-            match response_rx.try_recv() {
-                Ok(result) => {
-                    if spinner_active {
-                        let _ = io::stderr().write_all(b"\r \r");
-                        let _ = io::stderr().flush();
-                    }
-                    return result;
+        let mut header = [0u8; 10];
+        self.file.read_exact(&mut header)?;
+
+        let Ok(size_bytes): Result<[u8; 4], _> = header[2..6].try_into() else {
+            unreachable!();
+        };
+        let size = u32::from_be_bytes(size_bytes) as usize;
+
+        if size < header.len() || size > TPM_MAX_COMMAND_SIZE {
+            pb.abandon_with_message("✖ Invalid response size in TPM header.");
+            return Err(TpmError::Parse(format!(
+                "Invalid response size in header: {size}"
+            )));
+        }
+
+        let mut resp_buf = header.to_vec();
+        resp_buf.resize(size, 0);
+        self.file.read_exact(&mut resp_buf[header.len()..])?;
+        pb.finish_with_message("✔ TPM operation complete.");
+
+        trace!(response = %hex::encode(&resp_buf), "Response");
+
+        match tpm2_protocol::message::tpm_parse_response(C::COMMAND, &resp_buf)? {
+            Ok((rc, response, auth)) => {
+                if rc.is_warning() {
+                    warn!(rc = %rc, "TPM command completed with a warning");
                 }
-                Err(TryRecvError::Empty) => {}
-                Err(TryRecvError::Disconnected) => {
-                    return Err(TpmError::Execution(
-                        "TPM disconnected unexpectedly".to_string(),
-                    ));
-                }
+                Ok((response, auth))
             }
-
-            if start_time.elapsed() > Duration::from_secs(1) {
-                spinner_active = true;
-                let frame = SPINNER_FRAMES[spinner_frame];
-                eprint!("\rTPM processing ... {frame} ");
-                let _ = io::stderr().flush();
-                spinner_frame = (spinner_frame + 1) % SPINNER_FRAMES.len();
-            }
-
-            thread::sleep(SPINNER_DELAY);
+            Err((rc, _)) => Err(TpmError::TpmRc(rc)),
         }
     }
 
@@ -258,17 +194,5 @@ impl TpmDevice {
             }
         }
         Ok(all_caps)
-    }
-}
-
-impl Drop for TpmDevice {
-    fn drop(&mut self) {
-        if let Some(tx) = self.command_tx.take() {
-            drop(tx);
-        }
-
-        if let Some(handle) = self.worker_handle.take() {
-            handle.join().expect("TPM worker thread panicked");
-        }
     }
 }

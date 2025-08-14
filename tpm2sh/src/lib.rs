@@ -754,6 +754,12 @@ impl From<TpmErrorKind> for TpmError {
     }
 }
 
+impl From<indicatif::style::TemplateError> for TpmError {
+    fn from(err: indicatif::style::TemplateError) -> Self {
+        TpmError::Execution(format!("Spinner template error: {err}"))
+    }
+}
+
 impl fmt::Display for TpmError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
