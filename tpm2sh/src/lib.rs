@@ -44,7 +44,7 @@ pub use self::device::*;
 
 #[derive(Parser)]
 #[grammar = "command/pcr_selection.pest"]
-struct PcrSelectionParser;
+pub struct PcrSelectionParser;
 
 pub(crate) fn parse_hex_u32(s: &str) -> Result<u32, TpmError> {
     maybe_hex(s).map_err(|e| TpmError::InvalidHandle(e.to_string()))

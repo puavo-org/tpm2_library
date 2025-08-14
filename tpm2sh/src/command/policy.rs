@@ -21,7 +21,7 @@ use tpm2_protocol::{
 
 #[derive(Parser)]
 #[grammar = "command/policy.pest"]
-struct PolicyParser;
+pub struct PolicyParser;
 
 #[derive(Debug, PartialEq, Clone)]
 enum PolicyAst {

@@ -16,9 +16,10 @@ pcr_expression = {
 
 secret_expression = { "secret" ~ "(" ~ quoted_string ~ ")" }
 
-or_expression = { "or" ~ "(" ~ policy_list ~ ")" }
+or_expression = { "or" ~ "(" ~ policy_expression ~ ("," ~ policy_expression)+ ~ ")" }
 
 quoted_string = @{ "\"" ~ inner ~ "\"" }
+
 inner = @{ (!"\"" ~ ANY)* }
 
 count_parameter = { "count=" ~ ASCII_DIGIT+ }

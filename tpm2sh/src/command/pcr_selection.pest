@@ -2,12 +2,16 @@
 
 WHITESPACE = _{ " " | "\t" | "\n" | "\r" }
 
-selection = { bank ~ ("+" ~ bank)* }
+selection_body = { bank ~ ("+" ~ bank)* }
 
-bank = { alg ~ ":" ~ pcr_list }
+bank = { alg ~ colon_and_list }
+
+colon_and_list = @{ ":" ~ pcr_list }
 
 alg = { "sha1" | "sha256" | "sha384" | "sha512" }
 
 pcr_list = { pcr_index ~ ("," ~ pcr_index)* }
 
 pcr_index = { ASCII_DIGIT+ }
+
+selection = { SOI ~ selection_body ~ EOI }
