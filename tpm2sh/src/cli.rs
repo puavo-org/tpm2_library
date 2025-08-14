@@ -375,6 +375,9 @@ pub struct Policy {
     pub expression: String,
     #[command(flatten)]
     pub auth: AuthArgs,
+    /// Enable partial consumption of the PCR object in the pipeline
+    #[arg(short, long)]
+    pub partial: bool,
 }
 
 /// Retrieves all handles of a specific type from the TPM.

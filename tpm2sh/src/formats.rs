@@ -10,3 +10,10 @@ pub struct PcrOutput {
     pub update_counter: u32,
     pub banks: BTreeMap<String, BTreeMap<String, String>>,
 }
+
+impl PcrOutput {
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.banks.values().all(BTreeMap::is_empty)
+    }
+}

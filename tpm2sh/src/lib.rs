@@ -34,7 +34,6 @@ pub mod command;
 pub mod crypto;
 pub mod device;
 pub mod formats;
-pub mod policy;
 
 pub use self::crypto::*;
 pub use self::device::*;

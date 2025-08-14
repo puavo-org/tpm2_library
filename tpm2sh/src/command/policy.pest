@@ -1,0 +1,22 @@
+WHITESPACE = _{ " " | "\t" | "\n" | "\r" }
+
+policy_expression = {
+    pcr_expression
+    | secret_expression
+    | or_expression
+}
+
+policy_list = { policy_expression ~ ("," ~ policy_expression)* }
+
+pcr_expression = {
+    "pcr" ~ "(" ~ quoted_string ~ ("," ~ quoted_string)? ~ ("," ~ count_parameter)? ~ ")"
+}
+
+secret_expression = { "secret" ~ "(" ~ quoted_string ~ ")" }
+
+or_expression = { "or" ~ "(" ~ policy_list ~ ")" }
+
+quoted_string = @{ "\"" ~ inner ~ "\"" }
+inner = @{ (!"\"" ~ ANY)* }
+
+count_parameter = { "count=" ~ ASCII_DIGIT+ }

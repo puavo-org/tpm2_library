@@ -3,10 +3,12 @@
 
 use crate::{
     cli::{self, Object, Policy, SessionType},
-    from_json_str, get_pcr_count, parse_pcr_selection,
-    policy::{parse_policy_expression, Policy as PolicyAst},
-    AuthSession, Command, CommandIo, Envelope, SessionData, TpmDevice, TpmError,
+    from_json_str, get_pcr_count, parse_pcr_selection, AuthSession, Command, CommandIo, Envelope,
+    SessionData, TpmDevice, TpmError,
 };
+use pest::iterators::Pairs;
+use pest::Parser;
+use pest_derive::Parser;
 use std::io::{self, Write};
 use tpm2_protocol::{
     data::{Tpm2b, Tpm2bDigest, TpmAlgId, TpmRh, TpmlDigest, TpmtSymDefObject},
@@ -17,104 +19,238 @@ use tpm2_protocol::{
     TpmSession,
 };
 
-fn execute_policy_ast(
-    chip: &mut TpmDevice,
-    io: &mut CommandIo<impl Write>,
-    cmd_auth: &cli::AuthArgs,
-    session: Option<&AuthSession>,
-    policy_session_handle: TpmSession,
-    ast: &PolicyAst,
-    pcr_count: usize,
-) -> Result<(), TpmError> {
-    match ast {
-        PolicyAst::Pcr {
-            selection_str,
-            digest_str,
-        } => {
-            let pcr_digest_bytes = if let Some(digest) = digest_str {
-                hex::decode(digest).map_err(|e| TpmError::Parse(e.to_string()))?
-            } else {
-                let pcr_obj = io.consume_object(|obj| matches!(obj, Object::Pcrs(_)))?;
-                let Object::Pcrs(pcr_output) = pcr_obj else {
-                    unreachable!();
-                };
+#[derive(Parser)]
+#[grammar = "command/policy.pest"]
+struct PolicyParser;
 
-                let (bank_name, pcr_index_str) =
-                    selection_str.split_once(':').ok_or_else(|| {
+/// An Abstract Syntax Tree (AST) for a policy expression.
+#[derive(Debug, PartialEq)]
+enum PolicyAst {
+    Pcr {
+        selection: String,
+        digest: Option<String>,
+        count: Option<u32>,
+    },
+    Secret {
+        auth_handle: String,
+    },
+    Or(Vec<PolicyAst>),
+}
+
+/// A helper function to parse an inner quoted string.
+fn parse_quoted_string(pairs: Pairs<Rule>) -> Result<String, TpmError> {
+    let mut pairs = pairs.into_iter();
+    let inner_pair = pairs
+        .next()
+        .ok_or_else(|| TpmError::Parse("expected a quoted string".to_string()))?;
+    if inner_pair.as_rule() != Rule::quoted_string {
+        return Err(TpmError::Parse("expected a quoted string".to_string()));
+    }
+    let inner_str = inner_pair
+        .into_inner()
+        .next()
+        .ok_or_else(|| TpmError::Parse("expected content for the quoted string".to_string()))?;
+    Ok(inner_str.as_str().to_string())
+}
+
+/// A helper function to parse a list of policy expressions.
+fn parse_policy_list(pairs: Pairs<Rule>) -> Result<Vec<PolicyAst>, TpmError> {
+    pairs
+        .into_iter()
+        .map(|pair| parse_policy_internal(pair.into_inner()))
+        .collect()
+}
+
+/// Parses a policy expression from a Pest pair.
+fn parse_policy_internal(pairs: Pairs<'_, Rule>) -> Result<PolicyAst, TpmError> {
+    let mut pairs = pairs.into_iter();
+    let pair = pairs
+        .next()
+        .ok_or_else(|| TpmError::Parse("expected a policy expression".to_string()))?;
+
+    match pair.as_rule() {
+        Rule::pcr_expression => {
+            let mut pairs = pair.into_inner();
+            let selection = parse_quoted_string(pairs.next().unwrap().into_inner())?;
+            let digest = pairs
+                .next()
+                .map(|p| parse_quoted_string(p.into_inner()))
+                .transpose()?;
+            let count_str = pairs
+                .next()
+                .map(|p| p.into_inner().next().unwrap().as_str());
+
+            let count = if let Some(s) = count_str {
+                Some(
+                    s.parse::<u32>()
+                        .map_err(|e| TpmError::Parse(e.to_string()))?,
+                )
+            } else {
+                None
+            };
+
+            Ok(PolicyAst::Pcr {
+                selection,
+                digest,
+                count,
+            })
+        }
+        Rule::secret_expression => {
+            let auth_handle = parse_quoted_string(pair.into_inner())?;
+            Ok(PolicyAst::Secret { auth_handle })
+        }
+        Rule::or_expression => {
+            let list = parse_policy_list(pair.into_inner())?;
+            Ok(PolicyAst::Or(list))
+        }
+        _ => Err(TpmError::Parse(format!(
+            "unexpected policy expression part: {:?}",
+            pair.as_rule()
+        ))),
+    }
+}
+
+/// Top-level parser function that consumes the entire input.
+///
+/// # Errors
+///
+/// Returns a descriptive error if parsing fails.
+///
+/// # Panics
+///
+/// Panics if the internal `pest` parser encounters an unexpected unwrap.
+fn parse_policy_expression(input: &str) -> Result<PolicyAst, TpmError> {
+    let mut pairs = PolicyParser::parse(Rule::policy_expression, input)
+        .map_err(|e| TpmError::Parse(e.to_string()))?;
+
+    let policy_ast = parse_policy_internal(pairs.next().unwrap().into_inner())?;
+
+    if pairs.next().is_some() {
+        return Err(TpmError::Parse("unexpected trailing input".to_string()));
+    }
+    Ok(policy_ast)
+}
+
+struct PolicyExecutor<'a, 'b, W: Write> {
+    chip: &'a mut TpmDevice,
+    io: &'b mut CommandIo<'a, W>,
+    cmd_auth: &'a cli::AuthArgs,
+    session: Option<&'a AuthSession>,
+    policy_session_handle: TpmSession,
+    pcr_count: usize,
+    partial_consumption: bool,
+}
+
+impl<W: Write> PolicyExecutor<'_, '_, W> {
+    fn execute_policy_ast(&mut self, ast: &PolicyAst) -> Result<(), TpmError> {
+        match ast {
+            PolicyAst::Pcr {
+                selection,
+                digest,
+                count,
+            } => {
+                let pcr_output_obj = self.io.consume_object(|obj| {
+                    if let Object::Pcrs(p) = obj {
+                        if let Some(c) = count {
+                            return p.update_counter == *c;
+                        }
+                        true
+                    } else {
+                        false
+                    }
+                })?;
+
+                let pcr_digest_bytes = if let Some(digest) = digest {
+                    hex::decode(digest).map_err(|e| TpmError::Parse(e.to_string()))?
+                } else {
+                    let Object::Pcrs(pcr_output) = pcr_output_obj else {
+                        unreachable!();
+                    };
+
+                    let (bank_name, pcr_index_str) = selection.split_once(':').ok_or_else(|| {
                         TpmError::Parse(format!(
-                            "pcr selection '{selection_str}' must be in 'alg:pcr' format when sourcing digest from pipeline"
+                            "pcr selection '{selection}' must be in 'alg:pcr' format when sourcing digest from pipeline"
                         ))
                     })?;
 
-                let bank = pcr_output.banks.get(bank_name).ok_or_else(|| {
-                    TpmError::Execution(format!(
-                        "pcr bank '{bank_name}' not found in pipeline object"
-                    ))
-                })?;
+                    let bank = pcr_output.banks.get(bank_name).ok_or_else(|| {
+                        TpmError::Execution(format!(
+                            "pcr bank '{bank_name}' not found in pipeline object"
+                        ))
+                    })?;
 
-                let digest_hex = bank.get(pcr_index_str).ok_or_else(|| {
-                    TpmError::Execution(format!(
-                        "pcr index '{pcr_index_str}' not found in bank '{bank_name}' in pipeline object"
-                    ))
-                })?;
+                    let digest_hex = bank.get(pcr_index_str).ok_or_else(|| {
+                        TpmError::Execution(format!(
+                            "pcr index '{pcr_index_str}' not found in bank '{bank_name}' in pipeline object"
+                        ))
+                    })?;
 
-                hex::decode(digest_hex).map_err(|e| TpmError::Parse(e.to_string()))?
-            };
+                    if self.partial_consumption {
+                        let mut pcr_output_modified = pcr_output.clone();
+                        if let Some(b) = pcr_output_modified.banks.get_mut(bank_name) {
+                            b.remove(pcr_index_str);
+                        }
 
-            let pcr_selection = parse_pcr_selection(selection_str, pcr_count)?;
-            let pcr_digest = Tpm2bDigest::try_from(pcr_digest_bytes.as_slice())?;
+                        if !pcr_output_modified.is_empty() {
+                            self.io.push_object(Object::Pcrs(pcr_output_modified));
+                        }
+                    }
 
-            let cmd = TpmPolicyPcrCommand {
-                pcr_digest,
-                pcrs: pcr_selection,
-            };
-            let handles = [policy_session_handle.into()];
-            let sessions = crate::get_auth_sessions(&cmd, &handles, session, None)?;
-            chip.execute(&cmd, Some(&handles), &sessions)?;
-        }
-        PolicyAst::Secret { auth_handle_str } => {
-            let auth_handle = crate::parse_hex_u32(auth_handle_str)?;
-            let cmd = TpmPolicySecretCommand {
-                nonce_tpm: Tpm2b::default(),
-                cp_hash_a: Tpm2bDigest::default(),
-                policy_ref: Tpm2b::default(),
-                expiration: 0,
-            };
-            let handles = [auth_handle, policy_session_handle.into()];
-            let sessions =
-                crate::get_auth_sessions(&cmd, &handles, session, cmd_auth.auth.as_deref())?;
-            chip.execute(&cmd, Some(&handles), &sessions)?;
-        }
-        PolicyAst::Or(branches) => {
-            let mut branch_digests = TpmlDigest::new();
-            for branch_ast in branches {
-                let branch_handle = start_trial_session(chip, session, SessionType::Trial)?;
+                    hex::decode(digest_hex).map_err(|e| TpmError::Parse(e.to_string()))?
+                };
 
-                execute_policy_ast(
-                    chip,
-                    io,
-                    cmd_auth,
-                    session,
-                    branch_handle,
-                    branch_ast,
-                    pcr_count,
-                )?;
+                let pcr_selection = parse_pcr_selection(selection, self.pcr_count)?;
+                let pcr_digest = Tpm2bDigest::try_from(pcr_digest_bytes.as_slice())?;
 
-                let digest = get_policy_digest(chip, session, branch_handle)?;
-                branch_digests.try_push(digest)?;
-
-                flush_session(chip, branch_handle)?;
+                let cmd = TpmPolicyPcrCommand {
+                    pcr_digest,
+                    pcrs: pcr_selection,
+                };
+                let handles = [self.policy_session_handle.into()];
+                let sessions = crate::get_auth_sessions(&cmd, &handles, self.session, None)?;
+                self.chip.execute(&cmd, Some(&handles), &sessions)?;
             }
+            PolicyAst::Secret { auth_handle } => {
+                let auth_handle = crate::parse_hex_u32(auth_handle)?;
+                let cmd = TpmPolicySecretCommand {
+                    nonce_tpm: Tpm2b::default(),
+                    cp_hash_a: Tpm2bDigest::default(),
+                    policy_ref: Tpm2b::default(),
+                    expiration: 0,
+                };
+                let handles = [auth_handle, self.policy_session_handle.into()];
+                let sessions = crate::get_auth_sessions(
+                    &cmd,
+                    &handles,
+                    self.session,
+                    self.cmd_auth.auth.as_deref(),
+                )?;
+                self.chip.execute(&cmd, Some(&handles), &sessions)?;
+            }
+            PolicyAst::Or(branches) => {
+                let mut branch_digests = TpmlDigest::new();
+                for branch_ast in branches {
+                    let branch_handle =
+                        start_trial_session(self.chip, self.session, SessionType::Trial)?;
 
-            let cmd = TpmPolicyOrCommand {
-                p_hash_list: branch_digests,
-            };
-            let handles = [policy_session_handle.into()];
-            let sessions = crate::get_auth_sessions(&cmd, &handles, session, None)?;
-            chip.execute(&cmd, Some(&handles), &sessions)?;
+                    self.execute_policy_ast(branch_ast)?;
+
+                    let digest = get_policy_digest(self.chip, self.session, branch_handle)?;
+                    branch_digests.try_push(digest)?;
+
+                    flush_session(self.chip, branch_handle)?;
+                }
+
+                let cmd = TpmPolicyOrCommand {
+                    p_hash_list: branch_digests,
+                };
+                let handles = [self.policy_session_handle.into()];
+                let sessions = crate::get_auth_sessions(&cmd, &handles, self.session, None)?;
+                self.chip.execute(&cmd, Some(&handles), &sessions)?;
+            }
         }
+        Ok(())
     }
-    Ok(())
 }
 
 fn start_trial_session(
@@ -191,18 +327,23 @@ impl Command for Policy {
         let pcr_count = get_pcr_count(chip)?;
         let policy_session_handle = TpmSession(session_data.handle);
 
-        execute_policy_ast(
-            chip,
-            &mut io,
-            &self.auth,
-            session,
-            policy_session_handle,
-            &ast,
-            pcr_count,
-        )?;
+        {
+            let mut executor = PolicyExecutor {
+                chip,
+                io: &mut io,
+                cmd_auth: &self.auth,
+                session,
+                policy_session_handle,
+                pcr_count,
+                partial_consumption: self.partial,
+            };
 
-        let final_digest = get_policy_digest(chip, session, policy_session_handle)?;
-        session_data.policy_digest = hex::encode(&*final_digest);
+            executor.execute_policy_ast(&ast)?;
+
+            let final_digest =
+                get_policy_digest(executor.chip, executor.session, policy_session_handle)?;
+            session_data.policy_digest = hex::encode(&*final_digest);
+        }
 
         let new_session_obj = Object::Context(serde_json::to_value(Envelope {
             version: 1,
