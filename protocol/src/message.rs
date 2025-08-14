@@ -133,7 +133,7 @@ pub fn tpm_build_response<R>(
 where
     R: for<'a> TpmHeader<'a>,
 {
-    let tag = if rc.value() == 0 && R::WITH_SESSIONS && !sessions.is_empty() {
+    let tag = if !rc.is_error() && R::WITH_SESSIONS && !sessions.is_empty() {
         TpmSt::Sessions
     } else {
         TpmSt::NoSessions
