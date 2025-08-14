@@ -6,20 +6,19 @@
 //!
 //! A library for building and parsing TCG TPM 2.0 protocol messages.
 //!
-//! ## Implementation constraints
+//! ## Constraints
 //!
-//! 1. The use of `alloc::*` is denied.
-//! 2. Minimize unsafe code but can be used for appropriate reasons.
-//! 3. Panics are not allowed. For unresolvable scenarios use
-//!    `TpmError::InternalError`.
-//! 4. Only Rustdoc comments, no inline comments allowed. I.e. only comments
-//!    that are related on generating documentation are allowed.
-//! 5. SPDX and Copyright lines are required and exempt from this rule.
-//! 6. Enum variants and struct fields follow idiomatic Rust naming conventions
-//!    (e.g., `PascalCase` and `snake_case` respectively).
-//! 7. The string representation for all enums, used for serialization and
-//!    parsing, must strictly follow the TCG specification's `UPPER_SNAKE_CASE`
-//!    naming (e.g., "`TPM_ALG_SHA256`").
+//! * `alloc` is disallowed.
+//! * Dependencies are disallowed.
+//! * Developer dependencies are disallowed.
+//! * Panics are disallowed.
+//!
+//! ## Design Goals
+//!
+//! * The library is aimed scale from bare metal embedded environments up to
+//!   high-end systems.
+//! * The library is aimed to  be easy to port to Linux kernel.
+//! * The test suite is aimed to be kselftest compatible.
 
 #![cfg_attr(not(test), no_std)]
 #![deny(unsafe_code)]
