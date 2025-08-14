@@ -1,5 +1,6 @@
 [package]
 name = "tpm2sh"
+description = "TPM 2.0 shell"
 version = { workspace = true }
 license = "MIT OR Apache-2.0"
 homepage = { workspace = true }
@@ -31,7 +32,7 @@ regex = "1.11"
 rsa = { version = "0.9", features = ["sha1", "sha2"] }
 sha1 = "0.10"
 sha2 = "0.10"
-tpm2-protocol = { path = "../protocol", version = "0.5.3" }
+tpm2-protocol = { path = "../protocol", version = "0.5.4" }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 cfb-mode = "0.8"

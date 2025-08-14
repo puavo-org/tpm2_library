@@ -3,7 +3,7 @@ members = [ "protocol", "tpm2sh" ]
 resolver = "2"
 
 [workspace.package]
-version = "0.5.3"
+version = "0.5.4"
 homepage = "https://github.com/puavo-os/tpm2_library.git"
 repository = "https://github.com/puavo-os/tpm2_library.git"
 edition = "2021"
