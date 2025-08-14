@@ -1,0 +1,13 @@
+// Copyright (c) 2025 Opinsys Oy
+
+WHITESPACE = _{ " " | "\t" | "\n" | "\r" }
+
+selection = { bank ~ ("+" ~ bank)* }
+
+bank = { alg ~ ":" ~ pcr_list }
+
+alg = { "sha1" | "sha256" | "sha384" | "sha512" }
+
+pcr_list = { pcr_index ~ ("," ~ pcr_index)* }
+
+pcr_index = { ASCII_DIGIT+ }

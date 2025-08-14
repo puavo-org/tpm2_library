@@ -6,8 +6,10 @@
 #![deny(clippy::pedantic)]
 
 use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
-use clap::Parser;
+use clap::Parser as ClapParser;
 use clap_num::maybe_hex;
+use pest::Parser as PestParser;
+use pest_derive::Parser;
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -15,6 +17,8 @@ use std::{
     error::Error,
     fmt, fs,
     io::{BufRead, BufReader, Error as IoError, ErrorKind, Read, Write},
+    num::ParseIntError,
+    str::FromStr,
     vec::Vec,
 };
 use tpm2_protocol::{
@@ -37,6 +41,10 @@ pub mod formats;
 
 pub use self::crypto::*;
 pub use self::device::*;
+
+#[derive(Parser)]
+#[grammar = "command/pcr_selection.pest"]
+struct PcrSelectionParser;
 
 pub(crate) fn parse_hex_u32(s: &str) -> Result<u32, TpmError> {
     maybe_hex(s).map_err(|e| TpmError::InvalidHandle(e.to_string()))
@@ -819,6 +827,7 @@ pub(crate) fn parse_pcr_selection(
     selection_str: &str,
     pcr_count: usize,
 ) -> Result<data::TpmlPcrSelection, TpmError> {
+    let mut list = data::TpmlPcrSelection::new();
     let pcr_select_size = pcr_count.div_ceil(8);
     if pcr_select_size > data::TPM_PCR_SELECT_MAX {
         return Err(TpmError::PcrSelection(format!(
@@ -827,24 +836,35 @@ pub(crate) fn parse_pcr_selection(
         )));
     }
 
-    let mut list = data::TpmlPcrSelection::new();
-    for bank_str in selection_str.split('+') {
-        let (alg_str, pcrs_str) = bank_str
-            .split_once(':')
-            .ok_or_else(|| TpmError::PcrSelection(format!("invalid bank format: {bank_str}")))?;
+    let pairs = PcrSelectionParser::parse(Rule::selection, selection_str)
+        .map_err(|e| TpmError::PcrSelection(e.to_string()))?;
 
-        let alg = crate::tpm_alg_id_from_str(alg_str).map_err(TpmError::PcrSelection)?;
+    for pair in pairs.into_iter().filter(|p| p.as_rule() == Rule::bank) {
+        let mut inner_pairs = pair.into_inner();
 
+        let alg_str = inner_pairs.next().unwrap().as_str();
+        let alg = PcrAlgId::from_str(alg_str)
+            .map_err(|()| TpmError::PcrSelection(format!("invalid algorithm: {alg_str}")))?
+            .0;
+
+        let pcr_list_pair = inner_pairs.next().unwrap();
         let mut pcr_select_bytes = vec![0u8; pcr_select_size];
-        for pcr_str in pcrs_str.split(',') {
-            let pcr_index: usize = pcr_str
-                .parse()
-                .map_err(|_| TpmError::PcrSelection(format!("invalid pcr index: {pcr_str}")))?;
+
+        for pcr_index_pair in pcr_list_pair.into_inner() {
+            let pcr_index: usize =
+                pcr_index_pair
+                    .as_str()
+                    .parse()
+                    .map_err(|e: ParseIntError| {
+                        TpmError::PcrSelection(format!("invalid pcr index: {e}"))
+                    })?;
+
             if pcr_index >= pcr_count {
                 return Err(TpmError::PcrSelection(format!(
                     "pcr index {pcr_index} is out of range for a TPM with {pcr_count} PCRs"
                 )));
             }
+
             pcr_select_bytes[pcr_index / 8] |= 1 << (pcr_index % 8);
         }
 
@@ -853,5 +873,22 @@ pub(crate) fn parse_pcr_selection(
             pcr_select: tpm2_protocol::TpmBuffer::try_from(pcr_select_bytes.as_slice())?,
         })?;
     }
+
     Ok(list)
+}
+
+struct PcrAlgId(data::TpmAlgId);
+
+impl FromStr for PcrAlgId {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "sha1" => Ok(Self(data::TpmAlgId::Sha1)),
+            "sha256" => Ok(Self(data::TpmAlgId::Sha256)),
+            "sha384" => Ok(Self(data::TpmAlgId::Sha384)),
+            "sha512" => Ok(Self(data::TpmAlgId::Sha512)),
+            _ => Err(()),
+        }
+    }
 }

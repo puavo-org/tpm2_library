@@ -1,3 +1,5 @@
+// Copyright (c) 2025 Opinsys Oy
+
 WHITESPACE = _{ " " | "\t" | "\n" | "\r" }
 
 policy_expression = {
