@@ -253,7 +253,7 @@ pub struct CreatePrimary {
     #[arg(short = 'H', long, value_enum)]
     pub hierarchy: Hierarchy,
     /// Public key algorithm. Run 'list-algs' for options
-    #[arg(long, value_parser = |s: &str| Alg::try_from(s).map_err(|e| e.to_string()))]
+    #[arg(long, value_parser = clap::value_parser!(Alg))]
     pub alg: Alg,
     /// Store object to non-volatile memory
     #[arg(long, value_parser = crate::parse_persistent_handle)]

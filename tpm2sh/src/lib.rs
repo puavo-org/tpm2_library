@@ -106,11 +106,11 @@ pub struct Alg {
     pub params: AlgInfo,
 }
 
-impl TryFrom<&str> for Alg {
-    type Error = String;
+impl FromStr for Alg {
+    type Err = String;
 
-    fn try_from(name: &str) -> Result<Self, Self::Error> {
-        let parts: Vec<&str> = name.split(':').collect();
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let parts: Vec<&str> = s.split(':').collect();
         match parts.as_slice() {
             ["rsa", key_bits_str, name_alg_str] => {
                 let key_bits: u16 = key_bits_str
@@ -118,7 +118,7 @@ impl TryFrom<&str> for Alg {
                     .map_err(|_| format!("invalid RSA key bits value: '{key_bits_str}'"))?;
                 let name_alg = crate::tpm_alg_id_from_str(name_alg_str)?;
                 Ok(Self {
-                    name: name.to_string(),
+                    name: s.to_string(),
                     object_type: TpmAlgId::Rsa,
                     name_alg,
                     params: AlgInfo::Rsa { key_bits },
@@ -128,7 +128,7 @@ impl TryFrom<&str> for Alg {
                 let curve_id = crate::tpm_ecc_curve_from_str(curve_id_str)?;
                 let name_alg = crate::tpm_alg_id_from_str(name_alg_str)?;
                 Ok(Self {
-                    name: name.to_string(),
+                    name: s.to_string(),
                     object_type: TpmAlgId::Ecc,
                     name_alg,
                     params: AlgInfo::Ecc { curve_id },
@@ -137,13 +137,13 @@ impl TryFrom<&str> for Alg {
             ["keyedhash", name_alg_str] => {
                 let name_alg = crate::tpm_alg_id_from_str(name_alg_str)?;
                 Ok(Self {
-                    name: name.to_string(),
+                    name: s.to_string(),
                     object_type: TpmAlgId::KeyedHash,
                     name_alg,
                     params: AlgInfo::KeyedHash,
                 })
             }
-            _ => Err(format!("invalid algorithm format: '{name}'")),
+            _ => Err(format!("invalid algorithm format: '{s}'")),
         }
     }
 }
