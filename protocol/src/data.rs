@@ -275,18 +275,6 @@ impl Display for TpmRcIndex {
     }
 }
 
-fn tpm_parse_base(value: u32) -> Result<TpmRcBase, crate::TpmErrorKind> {
-    let base_code = if (value & TPM_RC_FMT1) != 0 {
-        TPM_RC_FMT1 | (value & TPM_RC_FMT1_ERROR_MASK)
-    } else {
-        value
-    };
-    TpmRcBase::try_from(base_code).map_err(|()| crate::TpmErrorKind::InvalidDiscriminant {
-        type_name: "TpmRcBase",
-        value: u64::from(base_code),
-    })
-}
-
 tpm_enum! {
     #[derive(Debug, PartialEq, Eq, Copy, Clone)]
     #[allow(clippy::upper_case_acronyms)]
@@ -406,10 +394,17 @@ impl TpmRc {
     ///
     /// # Errors
     ///
-    /// Returns `TpmErrorKind::InvalidDiscriminant` if the base of the response
-    /// code is not a recognized `TpmRcBase` variant.
+    /// Returns `TpmErrorKind::InternalError` if the `TpmRc` was constructed
+    /// with an invalid value, indicating a bug in the library.
     pub fn base(self) -> Result<TpmRcBase, crate::TpmErrorKind> {
-        tpm_parse_base(self.0)
+        let value = self.0;
+        let base_code = if (value & TPM_RC_FMT1) != 0 {
+            TPM_RC_FMT1 | (value & TPM_RC_FMT1_ERROR_MASK)
+        } else {
+            value
+        };
+
+        TpmRcBase::try_from(base_code).map_err(|()| crate::TpmErrorKind::InternalError)
     }
 
     /// Returns the index of a parameter, handle, or session in error for format 1 response codes.
@@ -460,7 +455,17 @@ impl TryFrom<u32> for TpmRc {
     type Error = crate::TpmErrorKind;
 
     fn try_from(value: u32) -> Result<Self, Self::Error> {
-        tpm_parse_base(value)?;
+        let base_code = if (value & TPM_RC_FMT1) != 0 {
+            TPM_RC_FMT1 | (value & TPM_RC_FMT1_ERROR_MASK)
+        } else {
+            value
+        };
+
+        TpmRcBase::try_from(base_code).map_err(|()| crate::TpmErrorKind::InvalidDiscriminant {
+            type_name: "TpmRcBase",
+            value: u64::from(base_code),
+        })?;
+
         Ok(TpmRc(value))
     }
 }
