@@ -1099,7 +1099,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "tpm2-cli"
+name = "tpm2-protocol"
+version = "0.5.0"
+dependencies = [
+ "hex",
+ "rstest",
+]
+
+[[package]]
+name = "tpm2sh"
 version = "0.5.0"
 dependencies = [
  "aes",
@@ -1128,14 +1136,6 @@ dependencies = [
  "tpm2-protocol",
  "tracing",
  "tracing-subscriber",
-]
-
-[[package]]
-name = "tpm2-protocol"
-version = "0.5.0"
-dependencies = [
- "hex",
- "rstest",
 ]
 
 [[package]]

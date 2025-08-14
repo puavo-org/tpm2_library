@@ -2,7 +2,7 @@
 
 1. `tpm2_protocol`: a unipolar `no_std` TPM 2.0 implementation that does not
    require heap allocator and has zero dependencies.
-2. `tpm2_cli`: a command-line interface for TPM 2.0 chips.
+2. `tpm2sh`: a command-line interface for TPM 2.0 chips.
 
 ## Development
 
