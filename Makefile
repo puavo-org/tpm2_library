@@ -2,7 +2,7 @@
 
 .PHONY: test
 
-TARGET_DIR := protocol/target
+TARGET_DIR := target
 TARGET := $(TARGET_DIR)/libtpm2_protocol.rlib
 TEST := $(TARGET_DIR)/runner
 
