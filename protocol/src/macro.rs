@@ -9,7 +9,7 @@ macro_rules! tpm_bitflags {
         $vis:vis struct $name:ident($repr:ty) {
             $(
                 $(#[$inner:meta])*
-                const $field:ident = $value:expr;
+                const $field:ident = $value:expr, $string_name:literal;
             )*
         }
     ) => {
@@ -40,6 +40,17 @@ macro_rules! tpm_bitflags {
             #[must_use]
             pub const fn contains(&self, other: Self) -> bool {
                 (self.0 & other.0) == other.0
+            }
+
+            pub fn flag_names(&self) -> impl Iterator<Item = &'static str> + '_ {
+                [
+                    $(
+                        (Self::$field, $string_name),
+                    )*
+                ]
+                .into_iter()
+                .filter(move |(flag, _)| self.contains(*flag))
+                .map(|(_, name)| name)
             }
         }
 

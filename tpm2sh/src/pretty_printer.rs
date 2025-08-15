@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2025 Opinsys Oy
 
+use std::vec::Vec;
 use tpm2_protocol::{
     data::{
         self, Tpm2bPublic, Tpm2bSensitiveCreate, TpmAlgId, TpmCap, TpmCc, TpmEccCurve, TpmRh,
-        TpmSe, TpmSt, TpmaAlgorithm, TpmaLocality, TpmaObject, TpmaSession, TpmiYesNo,
+        TpmSe, TpmSt, TpmaAlgorithm, TpmaLocality, TpmaNv, TpmaObject, TpmaSession, TpmiYesNo,
         TpmsAlgProperty, TpmsAuthCommand, TpmsCapabilityData, TpmsContext, TpmsCreationData,
         TpmsEccPoint, TpmsKeyedhashParms, TpmsPcrSelection, TpmsSensitiveCreate,
         TpmsSymcipherParms, TpmtHa, TpmtKdfScheme, TpmtPublic, TpmtScheme, TpmtSymDef,
@@ -30,7 +31,7 @@ pub trait PrettyTrace {
     fn pretty_trace(&self, name: &str, indent: usize);
 }
 
-macro_rules! pretty_trace {
+macro_rules! pretty_trace_simple {
     ($type:ty, $format:literal) => {
         impl PrettyTrace for $type {
             fn pretty_trace(&self, name: &str, indent: usize) {
@@ -47,26 +48,52 @@ macro_rules! pretty_trace {
     };
 }
 
-pretty_trace!(u8, "{:#04x}");
-pretty_trace!(u16, "{:#06x}");
-pretty_trace!(u32, "{:#010x}");
-pretty_trace!(u64, "{:#018x}");
-pretty_trace!(i32, "{}");
-pretty_trace!(TpmAlgId, "{}");
-pretty_trace!(TpmCc, "{}");
-pretty_trace!(TpmRh, "{}");
-pretty_trace!(TpmCap, "{}");
-pretty_trace!(TpmSe, "{:?}");
-pretty_trace!(TpmSt, "{:?}");
-pretty_trace!(TpmEccCurve, "{:?}");
-pretty_trace!(TpmaObject, "{:?}");
-pretty_trace!(TpmaAlgorithm, "{:?}");
-pretty_trace!(TpmaSession, "{:?}");
-pretty_trace!(TpmaLocality, "{:?}");
-pretty_trace!(TpmiYesNo, "{:?}");
-pretty_trace!(TpmTransient, "{:#010x}");
-pretty_trace!(TpmPersistent, "{:#010x}");
-pretty_trace!(TpmSession, "{:#010x}");
+macro_rules! pretty_trace_bitflags {
+    ($type:ty) => {
+        impl PrettyTrace for $type {
+            fn pretty_trace(&self, name: &str, indent: usize) {
+                let prefix = " ".repeat(indent * INDENT);
+                let flags: Vec<&str> = self.flag_names().collect();
+                let flags_str = if flags.is_empty() {
+                    "NONE".to_string()
+                } else {
+                    flags.join(" | ")
+                };
+                trace!(
+                    target: "cli::device",
+                    "{prefix}{name}: {flags_str} ({value:#x})",
+                    name = name,
+                    prefix = prefix,
+                    flags_str = flags_str,
+                    value = self.bits()
+                );
+            }
+        }
+    };
+}
+
+pretty_trace_simple!(u8, "{:#04x}");
+pretty_trace_simple!(u16, "{:#06x}");
+pretty_trace_simple!(u32, "{:#010x}");
+pretty_trace_simple!(u64, "{:#018x}");
+pretty_trace_simple!(i32, "{}");
+pretty_trace_simple!(TpmAlgId, "{}");
+pretty_trace_simple!(TpmCc, "{}");
+pretty_trace_simple!(TpmRh, "{}");
+pretty_trace_simple!(TpmCap, "{}");
+pretty_trace_simple!(TpmSe, "{:?}");
+pretty_trace_simple!(TpmSt, "{:?}");
+pretty_trace_simple!(TpmEccCurve, "{:?}");
+pretty_trace_simple!(TpmiYesNo, "{:?}");
+pretty_trace_simple!(TpmTransient, "{:#010x}");
+pretty_trace_simple!(TpmPersistent, "{:#010x}");
+pretty_trace_simple!(TpmSession, "{:#010x}");
+
+pretty_trace_bitflags!(TpmaObject);
+pretty_trace_bitflags!(TpmaAlgorithm);
+pretty_trace_bitflags!(TpmaSession);
+pretty_trace_bitflags!(TpmaLocality);
+pretty_trace_bitflags!(TpmaNv);
 
 impl<const CAPACITY: usize> PrettyTrace for TpmBuffer<CAPACITY> {
     fn pretty_trace(&self, name: &str, indent: usize) {
@@ -102,7 +129,10 @@ macro_rules! pretty_trace_struct {
                 let prefix = " ".repeat(indent * INDENT);
                 if !name.is_empty() {
                     trace!(target: "cli::device", "{}{}:", prefix, name);
+                } else if stringify!($($field),*).is_empty() {
+                    return;
                 }
+
                 #[allow(unused_variables)]
                 let field_indent = if name.is_empty() { indent } else { indent + 1 };
                 $(
