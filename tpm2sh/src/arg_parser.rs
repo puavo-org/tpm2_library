@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2025 Opinsys Oy
 
+//! Created for the sake of gathered control. For that reason, no external
+//! crates are used for command-line-parsing.
+
 use crate::{
     cli::{
         Algorithms, Cli, Commands, Convert, CreatePrimary, Delete, Import, Load, Objects, PcrEvent,
