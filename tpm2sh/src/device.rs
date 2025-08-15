@@ -6,7 +6,7 @@ use crate::TpmError;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::{
     fs::{File, OpenOptions},
-    io::{self, Read, Write},
+    io::{self, IsTerminal, Read, Write},
     path::Path,
     time::Duration,
 };
@@ -83,13 +83,18 @@ impl TpmDevice {
         };
         let command_bytes = &command_buf[..len];
 
-        let pb = ProgressBar::new_spinner();
-        pb.enable_steady_tick(Duration::from_millis(100));
-        pb.set_style(
-            ProgressStyle::with_template("{spinner:.cyan.bold} {msg}")?
-                .tick_strings(&["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]),
-        );
-        pb.set_message("Communicating with TPM...");
+        let maybe_pb = if std::io::stderr().is_terminal() {
+            let pb = ProgressBar::new_spinner();
+            pb.enable_steady_tick(Duration::from_millis(100));
+            pb.set_style(
+                ProgressStyle::with_template("{spinner:.cyan.bold} {msg}")?
+                    .tick_strings(&["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]),
+            );
+            pb.set_message("Waiting for TPM...");
+            Some(pb)
+        } else {
+            None
+        };
 
         trace!(command = %hex::encode(command_bytes), "Command");
         self.file.write_all(command_bytes)?;
@@ -104,7 +109,9 @@ impl TpmDevice {
         let size = u32::from_be_bytes(size_bytes) as usize;
 
         if size < header.len() || size > TPM_MAX_COMMAND_SIZE {
-            pb.abandon_with_message("✖ Invalid response size in TPM header.");
+            if let Some(pb) = maybe_pb {
+                pb.abandon_with_message("✖ Invalid response size in TPM header.");
+            }
             return Err(TpmError::Parse(format!(
                 "Invalid response size in header: {size}"
             )));
@@ -113,7 +120,10 @@ impl TpmDevice {
         let mut resp_buf = header.to_vec();
         resp_buf.resize(size, 0);
         self.file.read_exact(&mut resp_buf[header.len()..])?;
-        pb.finish_with_message("✔ TPM operation complete.");
+
+        if let Some(pb) = maybe_pb {
+            pb.finish_with_message("✔ TPM operation complete.");
+        }
 
         trace!(response = %hex::encode(&resp_buf), "Response");
 

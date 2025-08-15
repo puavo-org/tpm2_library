@@ -5,7 +5,7 @@
 #![allow(clippy::all)]
 #![allow(clippy::pedantic)]
 
-use std::{convert::TryFrom, string::ToString, vec::Vec};
+use std::{convert::TryFrom, io::IsTerminal, string::ToString, vec::Vec};
 use tpm2_protocol::{
     data::{
         Tpm2bAuth, Tpm2bDigest, Tpm2bMaxBuffer, Tpm2bNonce, TpmAlgId, TpmCap, TpmCc, TpmRc,
@@ -527,6 +527,22 @@ fn test_response_macro_parse_correctness() {
     assert!(tail.is_empty(), "tail data");
 }
 
+fn print_ok() {
+    if std::io::stderr().is_terminal() {
+        println!("\x1B[32mOK\x1B[0m");
+    } else {
+        println!("OK");
+    }
+}
+
+fn print_failed() {
+    if std::io::stderr().is_terminal() {
+        println!("\x1B[31mFAILED\x1B[0m");
+    } else {
+        println!("FAILED");
+    }
+}
+
 fn run_all_tests() -> usize {
     let tests: &[(&str, fn())] = &[
         ("test_rc_base_from_raw_rc", test_rc_base_from_raw_rc),
@@ -573,10 +589,10 @@ fn run_all_tests() -> usize {
         print!("Test {name} ... ");
         let result = std::panic::catch_unwind(test);
         if result.is_err() {
-            println!("\x1B[31mFAILED\x1B[0m");
+            print_failed();
             failed += 1;
         } else {
-            println!("\x1B[32mOK\x1B[0m");
+            print_ok();
         }
     }
     failed
