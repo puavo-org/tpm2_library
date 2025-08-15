@@ -17,6 +17,11 @@ path = "src/lib.rs"
 name = "tpm2sh"
 path = "src/main.rs"
 
+[[test]]
+name = "parser"
+path = "tests/parser.rs"
+harness = true
+
 [dependencies]
 aes = "0.8"
 base64 = "0.22"
@@ -33,7 +38,7 @@ p256 = { version = "0.13", features = ["ecdh"] }
 p384 = { version = "0.13", features = ["ecdh"] }
 p521 = { version = "0.13", features = ["ecdh"] }
 pem = "3.0"
-pest = "2.8"
+pest = { version = "2.8", features = ["pretty-print"] }
 pest_derive = "2.8"
 pkcs8 = { version = "0.10", features = ["pem", "alloc"] }
 rand = "0.8"
@@ -49,4 +54,5 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [dev-dependencies]
 pest = { version = "2.8", features = ["pretty-print"] }
+pest_derive = "2.8"
 rstest = "0.26"
