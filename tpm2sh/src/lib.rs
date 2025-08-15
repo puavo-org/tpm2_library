@@ -6,8 +6,6 @@
 #![deny(clippy::pedantic)]
 
 use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
-use clap::Parser as ClapParser;
-use clap_num::maybe_hex;
 use pest::Parser as PestParser;
 use pest_derive::Parser;
 use rand::RngCore;
@@ -33,12 +31,14 @@ use tpm2_protocol::{
 };
 use tracing::debug;
 
+pub mod arg_parser;
 pub mod cli;
 pub mod command;
 pub mod crypto;
 pub mod device;
 pub mod formats;
 
+pub use self::arg_parser::parse_cli;
 pub use self::crypto::*;
 pub use self::device::*;
 
@@ -47,7 +47,8 @@ pub use self::device::*;
 pub struct PcrSelectionParser;
 
 pub(crate) fn parse_hex_u32(s: &str) -> Result<u32, TpmError> {
-    maybe_hex(s).map_err(|e| TpmError::InvalidHandle(e.to_string()))
+    let s = s.strip_prefix("0x").unwrap_or(s);
+    u32::from_str_radix(s, 16).map_err(|e| TpmError::InvalidHandle(e.to_string()))
 }
 
 pub(crate) fn parse_persistent_handle(s: &str) -> Result<TpmPersistent, TpmError> {
@@ -55,7 +56,8 @@ pub(crate) fn parse_persistent_handle(s: &str) -> Result<TpmPersistent, TpmError
 }
 
 pub(crate) fn parse_tpm_rc(s: &str) -> Result<TpmRc, TpmError> {
-    let raw_rc: u32 = maybe_hex(s).map_err(|e| TpmError::Execution(e.to_string()))?;
+    let raw_rc: u32 =
+        parse_hex_u32(s).map_err(|_| TpmError::Execution(format!("invalid hex u32: {s}")))?;
     Ok(TpmRc::try_from(raw_rc)?)
 }
 
@@ -75,18 +77,15 @@ pub trait Command {
 ///
 /// Returns a `TpmError` if opening the device, or executing the command fails.
 pub fn execute_cli() -> Result<(), TpmError> {
-    let cli = crate::cli::Cli::parse();
+    let Some(cli) = parse_cli(std::env::args())? else {
+        return Ok(());
+    };
 
     if let Some(command) = cli.command {
         let mut device = TpmDevice::new(&cli.device)?;
         let session = load_session(cli.session.as_deref())?;
         command.run(&mut device, session.as_ref())
     } else {
-        println!("Options:");
-        println!("  -d, --device <DEVICE>    [default: /dev/tpmrm0]");
-        println!("      --session <SESSION> Authorization session context");
-        println!("  -h, --help               Print help");
-        println!("  -V, --version            Print version");
         Ok(())
     }
 }
@@ -104,6 +103,17 @@ pub struct Alg {
     pub object_type: TpmAlgId,
     pub name_alg: TpmAlgId,
     pub params: AlgInfo,
+}
+
+impl Default for Alg {
+    fn default() -> Self {
+        Self {
+            name: String::new(),
+            object_type: TpmAlgId::Null,
+            name_alg: TpmAlgId::Null,
+            params: AlgInfo::KeyedHash,
+        }
+    }
 }
 
 impl FromStr for Alg {

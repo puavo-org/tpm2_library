@@ -3,13 +3,13 @@
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 
 use crate::{formats::PcrOutput, Alg, Command, TpmError};
-use clap::{Args, Parser, Subcommand, ValueEnum};
 use serde::{
     de::{self, Deserializer, MapAccess, Visitor},
     ser::{SerializeMap, Serializer},
     Deserialize, Serialize,
 };
 use std::fmt;
+use std::str::FromStr;
 use tpm2_protocol::{
     data::{TpmCap, TpmRc, TpmRh, TpmuCapabilities},
     TpmPersistent, TpmTransient,
@@ -100,28 +100,31 @@ impl<'de> Deserialize<'de> for Object {
     }
 }
 
-#[derive(Parser, Debug)]
-#[command(
-    author,
-    version,
-    about = "TPM 2.0 command-line interface",
-    disable_help_subcommand = true
-)]
+#[derive(Debug, Default)]
 pub struct Cli {
-    #[arg(short, long, default_value = r"/dev/tpmrm0", global = true)]
     pub device: String,
-    /// Authorization session context
-    #[arg(long, global = true)]
     pub session: Option<String>,
-    #[command(subcommand)]
     pub command: Option<Commands>,
 }
 
-#[derive(ValueEnum, Copy, Clone, Debug)]
+#[derive(Debug, Clone, Copy, Default)]
 pub enum Hierarchy {
+    #[default]
     Owner,
     Platform,
     Endorsement,
+}
+
+impl FromStr for Hierarchy {
+    type Err = TpmError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "owner" => Ok(Hierarchy::Owner),
+            "platform" => Ok(Hierarchy::Platform),
+            "endorsement" => Ok(Hierarchy::Endorsement),
+            _ => Err(TpmError::Execution(format!("invalid hierarchy: {s}"))),
+        }
+    }
 }
 
 impl From<Hierarchy> for TpmRh {
@@ -134,11 +137,24 @@ impl From<Hierarchy> for TpmRh {
     }
 }
 
-#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum SessionType {
+    #[default]
     Hmac,
     Policy,
     Trial,
+}
+
+impl FromStr for SessionType {
+    type Err = TpmError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "hmac" => Ok(SessionType::Hmac),
+            "policy" => Ok(SessionType::Policy),
+            "trial" => Ok(SessionType::Trial),
+            _ => Err(TpmError::Execution(format!("invalid session type: {s}"))),
+        }
+    }
 }
 
 impl From<SessionType> for tpm2_protocol::data::TpmSe {
@@ -151,11 +167,26 @@ impl From<SessionType> for tpm2_protocol::data::TpmSe {
     }
 }
 
-#[derive(ValueEnum, Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub enum SessionHashAlg {
+    #[default]
     Sha256,
     Sha384,
     Sha512,
+}
+
+impl FromStr for SessionHashAlg {
+    type Err = TpmError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "sha256" => Ok(SessionHashAlg::Sha256),
+            "sha384" => Ok(SessionHashAlg::Sha384),
+            "sha512" => Ok(SessionHashAlg::Sha512),
+            _ => Err(TpmError::Execution(format!(
+                "invalid session hash algorithm: {s}"
+            ))),
+        }
+    }
 }
 
 impl From<SessionHashAlg> for tpm2_protocol::data::TpmAlgId {
@@ -168,7 +199,7 @@ impl From<SessionHashAlg> for tpm2_protocol::data::TpmAlgId {
     }
 }
 
-#[derive(ValueEnum, Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum KeyFormat {
     #[default]
     Json,
@@ -176,39 +207,35 @@ pub enum KeyFormat {
     Der,
 }
 
-#[derive(Subcommand, Debug)]
+impl FromStr for KeyFormat {
+    type Err = TpmError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "json" => Ok(KeyFormat::Json),
+            "pem" => Ok(KeyFormat::Pem),
+            "der" => Ok(KeyFormat::Der),
+            _ => Err(TpmError::Execution(format!("invalid key format: {s}"))),
+        }
+    }
+}
+
+#[derive(Debug)]
 pub enum Commands {
-    /// Lists avaible algorithms
     Algorithms(Algorithms),
-    /// Converts keys between ASN.1 and JSON format
     Convert(Convert),
-    /// Creates a primary key
     CreatePrimary(CreatePrimary),
-    /// Deletes a transient or persistent object
     Delete(Delete),
-    /// Imports an external key
     Import(Import),
-    /// Loads a TPM key
     Load(Load),
-    /// Lists objects in volatile and non-volatile memory
     Objects(Objects),
-    /// Extends a PCR with an event
     PcrEvent(PcrEvent),
-    /// Reads PCRs
     PcrRead(PcrRead),
-    /// Builds a policy using a policy expression
     Policy(Policy),
-    /// Encodes and print a TPM error code
     PrintError(PrintError),
-    /// Resets the dictionary attack lockout timer
     ResetLock(ResetLock),
-    /// Saves to non-volatile memory
     Save(Save),
-    /// Seals a keyedhash object
     Seal(Seal),
-    /// Starts an authorization session
     StartSession(StartSession),
-    /// Unseals a keyedhash object
     Unseal(Unseal),
 }
 
@@ -239,144 +266,99 @@ impl Command for Commands {
     }
 }
 
-/// Arguments for authorization
-#[derive(Args, Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct AuthArgs {
-    /// Authorization value
-    #[arg(long)]
     pub auth: Option<String>,
 }
 
-#[derive(Args, Debug)]
+#[derive(Debug, Default)]
 pub struct CreatePrimary {
-    /// Hierarchy
-    #[arg(short = 'H', long, value_enum)]
     pub hierarchy: Hierarchy,
-    /// Public key algorithm. Run 'list-algs' for options
-    #[arg(long, value_parser = clap::value_parser!(Alg))]
     pub alg: Alg,
-    /// Store object to non-volatile memory
-    #[arg(long, value_parser = crate::parse_persistent_handle)]
     pub persistent: Option<TpmPersistent>,
-    #[command(flatten)]
     pub auth: AuthArgs,
 }
 
-#[derive(Args, Debug)]
+#[derive(Debug, Default)]
 pub struct Save {
-    /// Handle of the transient object
-    #[arg(long, value_parser = crate::parse_hex_u32)]
     pub object_handle: u32,
-    /// Handle for the persistent object to be created
-    #[arg(long, value_parser = crate::parse_persistent_handle)]
     pub persistent_handle: TpmPersistent,
-    #[command(flatten)]
     pub auth: AuthArgs,
 }
 
-#[derive(Args, Debug)]
+#[derive(Debug, Default)]
 pub struct Delete {
-    /// Handle of the object to delete (transient or persistent)
-    #[arg(value_parser = crate::parse_hex_u32)]
     pub handle: u32,
-    #[command(flatten)]
     pub auth: AuthArgs,
 }
 
-#[derive(Args, Debug)]
+#[derive(Debug, Default)]
 pub struct Import {
-    #[command(flatten)]
     pub parent_auth: AuthArgs,
 }
 
-#[derive(Args, Debug)]
+#[derive(Debug, Default)]
 pub struct Algorithms {
-    /// A regex to filter the algorithm names
-    #[arg(long)]
     pub filter: Option<String>,
 }
 
-#[derive(Args, Debug)]
+#[derive(Debug, Default)]
 pub struct Load {
-    #[command(flatten)]
     pub parent_auth: AuthArgs,
 }
 
-#[derive(Args, Debug)]
+#[derive(Debug, Default)]
 pub struct Objects {}
 
-#[derive(Args, Debug)]
+#[derive(Debug, Default)]
 pub struct PcrRead {
-    /// A PCR selection string (e.g., "sha1:0,1,2+sha256:0,1,2").
     pub selection: String,
 }
 
-#[derive(Args, Debug)]
+#[derive(Debug, Default)]
 pub struct PcrEvent {
-    /// The handle of the PCR to extend.
-    #[arg(long, value_parser = crate::parse_hex_u32)]
     pub pcr_handle: u32,
-    /// The data to be hashed and extended into the PCR.
     pub data: String,
-    #[command(flatten)]
     pub auth: AuthArgs,
 }
 
-#[derive(Args, Debug)]
+#[derive(Debug)]
 pub struct PrintError {
-    /// TPM error code
-    #[arg(value_parser = crate::parse_tpm_rc)]
     pub rc: TpmRc,
 }
 
-#[derive(Args, Debug)]
+#[derive(Debug, Default)]
 pub struct ResetLock {
-    #[command(flatten)]
     pub auth: AuthArgs,
 }
 
-#[derive(Args, Debug)]
+#[derive(Debug, Default)]
 pub struct StartSession {
-    /// Session type
-    #[arg(long, value_enum, default_value_t = SessionType::Hmac)]
     pub session_type: SessionType,
-    /// Hash algorithm for the session
-    #[arg(long, value_enum, default_value_t = SessionHashAlg::Sha256)]
     pub hash_alg: SessionHashAlg,
 }
 
-#[derive(Args, Debug)]
+#[derive(Debug, Default)]
 pub struct Seal {
-    #[command(flatten)]
     pub parent_auth: AuthArgs,
-    #[command(flatten)]
     pub object_auth: AuthArgs,
 }
 
-#[derive(Args, Debug)]
+#[derive(Debug, Default)]
 pub struct Unseal {
-    #[command(flatten)]
     pub auth: AuthArgs,
 }
 
-#[derive(Args, Debug)]
+#[derive(Debug, Default)]
 pub struct Convert {
-    /// Input format
-    #[arg(long, value_enum, default_value_t = KeyFormat::Json)]
     pub from: KeyFormat,
-    /// Output format
-    #[arg(long, value_enum, default_value_t = KeyFormat::Pem)]
     pub to: KeyFormat,
 }
 
-#[derive(Args, Debug)]
+#[derive(Debug, Default)]
 pub struct Policy {
-    /// A policy expression string (e.g. 'pcr(sha256:0,"...")')
     pub expression: String,
-    #[command(flatten)]
     pub auth: AuthArgs,
-    /// Enable partial consumption of the PCR object in the pipeline
-    #[arg(short, long)]
     pub partial: bool,
 }
 

@@ -40,7 +40,7 @@ fn test_pcr_selection_parser_invalid(#[case] input: &str) {
 #[case("or(pcr(\"s:0\"), pcr(\"s:1\"), pcr(\"s:2\"))")]
 #[case("or(pcr(\"s:0\"), or(secret(\"h:1\"), pcr(\"s:2\")))")]
 fn test_policy_parser_valid(#[case] input: &str) {
-    PolicyParser::parse(PolicyRule::policy_expression, input).expect(&format!("{input}"));
+    PolicyParser::parse(PolicyRule::policy_expression, input).expect(input);
 }
 
 #[rstest]
