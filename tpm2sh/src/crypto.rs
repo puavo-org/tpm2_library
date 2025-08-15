@@ -161,9 +161,9 @@ impl PrivateKey {
                     let e_bytes = rsa_key.e().to_bytes_be();
                     if e_bytes.len() > 4 {
                         return Err(TpmError::Parse(
-                            "RSA public exponent is larger than 32 bits and is not supported for import."
-                                .to_string(),
-                        ));
+							"RSA public exponent is larger than 32 bits and is not supported for import."
+								.to_string(),
+						));
                     }
                     let mut buf = [0u8; 4];
                     buf[4 - e_bytes.len()..].copy_from_slice(&e_bytes);
@@ -503,9 +503,9 @@ fn protect_seed_with_rsa(
 
 macro_rules! ecdh_protect_seed {
     (
-        $parent_point:expr, $name_alg:expr, $seed:expr,
-        $pk_ty:ty, $sk_ty:ty, $affine_ty:ty, $dh_fn:ident, $to_point_trait:ident, $curve_ty:ty, $encoded_point_ty:ty
-    ) => {{
+		$parent_point:expr, $name_alg:expr, $seed:expr,
+		$pk_ty:ty, $sk_ty:ty, $affine_ty:ty, $dh_fn:ident, $to_point_trait:ident, $curve_ty:ty, $encoded_point_ty:ty
+	) => {{
         let encoded_point = <$encoded_point_ty>::from_affine_coordinates(
             $parent_point.x.as_ref().into(),
             $parent_point.y.as_ref().into(),
@@ -519,10 +519,24 @@ macro_rules! ecdh_protect_seed {
         let parent_pk = <$pk_ty>::from_affine(affine_point)
             .map_err(|e| TpmError::Execution(format!("failed to construct public key: {e}")))?;
 
+        let context_b: Vec<u8> = [$parent_point.x.as_ref(), $parent_point.y.as_ref()].concat();
+
         let ephemeral_sk = <$sk_ty>::random(&mut thread_rng());
+        let ephemeral_pk_bytes_encoded = <$pk_ty as $to_point_trait<$curve_ty>>::to_encoded_point(
+            &ephemeral_sk.public_key(),
+            false,
+        );
+        let ephemeral_pk_bytes = ephemeral_pk_bytes_encoded.as_bytes();
+        if ephemeral_pk_bytes.is_empty() || ephemeral_pk_bytes[0] != UNCOMPRESSED_POINT_TAG {
+            return Err(TpmError::Execution(
+                "invalid ephemeral ECC public key format".to_string(),
+            ));
+        }
+        let context_a = &ephemeral_pk_bytes[1..];
+
         let shared_secret = $dh_fn(ephemeral_sk.to_nonzero_scalar(), parent_pk.as_affine());
         let z = shared_secret.raw_secret_bytes();
-        let sym_material = kdfa($name_alg, z, "STORAGE", &[], &[], 256)?;
+        let sym_material = kdfa($name_alg, z, "STORAGE", context_a, &context_b, 256)?;
         let (aes_key, iv) = sym_material.split_at(16);
         let mut encrypted_seed_buf = *$seed;
         let mut cipher = Encryptor::<Aes128>::new(aes_key.into(), iv.into());
@@ -530,11 +544,7 @@ macro_rules! ecdh_protect_seed {
         cipher.encrypt_block_mut(GenericArray::from_mut_slice(block1));
         cipher.encrypt_block_mut(GenericArray::from_mut_slice(block2));
 
-        let pk_bytes = <$pk_ty as $to_point_trait<$curve_ty>>::to_encoded_point(
-            &ephemeral_sk.public_key(),
-            false,
-        );
-        (encrypted_seed_buf, pk_bytes.as_bytes().to_vec())
+        (encrypted_seed_buf, ephemeral_pk_bytes.to_vec())
     }};
 }
 
