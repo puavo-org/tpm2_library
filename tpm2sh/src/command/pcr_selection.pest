@@ -1,12 +1,10 @@
 // Copyright (c) 2025 Opinsys Oy
 
-WHITESPACE = _{ " " | "\t" | "\n" | "\r" }
-
 selection_body = { bank ~ ("+" ~ bank)* }
 
 bank = { alg ~ colon_and_list }
 
-colon_and_list = @{ ":" ~ pcr_list }
+colon_and_list = { ":" ~ pcr_list }
 
 alg = { "sha1" | "sha256" | "sha384" | "sha512" }
 

@@ -885,7 +885,7 @@ pub(crate) fn parse_pcr_selection(
     let pairs = PcrSelectionParser::parse(Rule::selection, selection_str)
         .map_err(|e| TpmError::PcrSelection(e.to_string()))?;
 
-    for pair in pairs.into_iter().filter(|p| p.as_rule() == Rule::bank) {
+    for pair in pairs.flatten().filter(|p| p.as_rule() == Rule::bank) {
         let mut inner_pairs = pair.into_inner();
 
         let alg_str = inner_pairs.next().unwrap().as_str();
@@ -893,7 +893,8 @@ pub(crate) fn parse_pcr_selection(
             .map_err(|()| TpmError::PcrSelection(format!("invalid algorithm: {alg_str}")))?
             .0;
 
-        let pcr_list_pair = inner_pairs.next().unwrap();
+        let colon_and_list_pair = inner_pairs.next().unwrap();
+        let pcr_list_pair = colon_and_list_pair.into_inner().next().unwrap();
         let mut pcr_select_bytes = vec![0u8; pcr_select_size];
 
         for pcr_index_pair in pcr_list_pair.into_inner() {
