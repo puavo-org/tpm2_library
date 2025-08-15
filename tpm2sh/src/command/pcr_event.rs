@@ -2,7 +2,7 @@
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 // Copyright (c) 2025 Opinsys Oy
 
-use crate::{cli::PcrEvent, get_auth_sessions, AuthSession, Command, TpmDevice, TpmError};
+use crate::{cli, cli::PcrEvent, get_auth_sessions, AuthSession, Command, TpmDevice, TpmError};
 use tpm2_protocol::{data::Tpm2b, message::TpmPcrEventCommand};
 
 impl Command for PcrEvent {
@@ -11,7 +11,12 @@ impl Command for PcrEvent {
     /// # Errors
     ///
     /// Returns a `TpmError` if the execution fails
-    fn run(&self, chip: &mut TpmDevice, session: Option<&AuthSession>) -> Result<(), TpmError> {
+    fn run(
+        &self,
+        chip: &mut TpmDevice,
+        session: Option<&AuthSession>,
+        log_format: cli::LogFormat,
+    ) -> Result<(), TpmError> {
         if session.is_none() && self.auth.auth.is_none() {
             return Err(TpmError::Execution(
                 "Authorization is required for pcr-event. Use --auth or --session.".to_string(),
@@ -25,7 +30,7 @@ impl Command for PcrEvent {
 
         let sessions = get_auth_sessions(&command, &handles, session, self.auth.auth.as_deref())?;
 
-        let (resp, _) = chip.execute(&command, Some(&handles), &sessions)?;
+        let (resp, _) = chip.execute(&command, Some(&handles), &sessions, log_format)?;
         resp.PcrEvent()
             .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
 

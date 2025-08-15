@@ -1,9 +1,9 @@
-// SPDX-License-Identifier: GPL-3-0-or-later
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 // Copyright (c) 2025 Opinsys Oy
 
 use crate::{
-    build_to_vec, cli::Object, create_import_blob, get_auth_sessions, object_to_handle,
+    build_to_vec, cli, cli::Object, create_import_blob, get_auth_sessions, object_to_handle,
     read_public, AuthSession, Command, CommandIo, Envelope, ObjectData, PrivateKey, TpmDevice,
     TpmError, ID_IMPORTABLE_KEY,
 };
@@ -21,13 +21,18 @@ impl Command for crate::cli::Import {
     ///
     /// Returns a `TpmError`.
     #[allow(clippy::too_many_lines)]
-    fn run(&self, chip: &mut TpmDevice, session: Option<&AuthSession>) -> Result<(), TpmError> {
-        let mut io = CommandIo::new(io::stdin(), io::stdout(), session)?;
+    fn run(
+        &self,
+        chip: &mut TpmDevice,
+        session: Option<&AuthSession>,
+        log_format: cli::LogFormat,
+    ) -> Result<(), TpmError> {
+        let mut io = CommandIo::new(io::stdin(), io::stdout(), session, log_format)?;
 
         let parent_obj = io.consume_object(|obj| !matches!(obj, Object::Pcrs(_)))?;
-        let parent_handle = object_to_handle(chip, &parent_obj)?;
+        let parent_handle = object_to_handle(chip, &parent_obj, log_format)?;
 
-        let (parent_public, parent_name) = read_public(chip, parent_handle)?;
+        let (parent_public, parent_name) = read_public(chip, parent_handle, log_format)?;
         let parent_name_alg = parent_public.name_alg;
 
         let private_key_obj = io.consume_object(|obj| matches!(obj, Object::Context(_)))?;
@@ -72,7 +77,7 @@ impl Command for crate::cli::Import {
             self.parent_auth.auth.as_deref(),
         )?;
 
-        let (resp, _) = chip.execute(&import_cmd, Some(&handles), &sessions)?;
+        let (resp, _) = chip.execute(&import_cmd, Some(&handles), &sessions, log_format)?;
         let import_resp = resp.Import().map_err(|e| {
             TpmError::Execution(format!("unexpected response type for Import: {e:?}"))
         })?;

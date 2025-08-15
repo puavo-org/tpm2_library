@@ -2,7 +2,7 @@
 // Copyright (c) 2025 Opinsys Oy
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 
-use crate::TpmError;
+use crate::{cli, pretty_printer::PrettyTrace, TpmError};
 use indicatif::{ProgressBar, ProgressStyle};
 use std::{
     fs::{File, OpenOptions},
@@ -60,9 +60,10 @@ impl TpmDevice {
         command: &C,
         handles: Option<&[u32]>,
         sessions: &[tpm2_protocol::data::TpmsAuthCommand],
+        log_format: cli::LogFormat,
     ) -> Result<(TpmResponseBody, tpm2_protocol::message::TpmAuthResponses), TpmError>
     where
-        C: for<'a> tpm2_protocol::message::TpmHeader<'a>,
+        C: for<'a> tpm2_protocol::message::TpmHeader<'a> + PrettyTrace,
     {
         let mut command_buf = [0u8; TPM_MAX_COMMAND_SIZE];
         let len = {
@@ -96,7 +97,13 @@ impl TpmDevice {
             None
         };
 
-        trace!(command = %hex::encode(command_bytes), "Command");
+        match log_format {
+            cli::LogFormat::Pretty => {
+                trace!(target: "cli::device", "{}", C::COMMAND);
+                command.pretty_trace("", 1);
+            }
+            cli::LogFormat::Plain => trace!(command = %hex::encode(command_bytes), "Command"),
+        }
         self.file.write_all(command_bytes)?;
         self.file.flush()?;
 
@@ -125,9 +132,23 @@ impl TpmDevice {
             pb.finish_with_message("✔ TPM operation complete.");
         }
 
-        trace!(response = %hex::encode(&resp_buf), "Response");
+        let result = tpm2_protocol::message::tpm_parse_response(C::COMMAND, &resp_buf)?;
 
-        match tpm2_protocol::message::tpm_parse_response(C::COMMAND, &resp_buf)? {
+        match &result {
+            Ok((rc, response_body, _)) => match log_format {
+                cli::LogFormat::Pretty => {
+                    trace!(target: "cli::device", "Response (rc={})", rc);
+                    response_body.pretty_trace("", 1);
+                }
+                cli::LogFormat::Plain => trace!(response = %hex::encode(&resp_buf), "Response"),
+            },
+            Err((rc, _)) => {
+                trace!(target: "cli::device", "Error Response (rc={})", rc);
+                trace!(response = %hex::encode(&resp_buf));
+            }
+        }
+
+        match result {
             Ok((rc, response, auth)) => {
                 if rc.is_warning() {
                     warn!(rc = %rc, "TPM command completed with a warning");
@@ -143,12 +164,16 @@ impl TpmDevice {
     /// # Errors
     ///
     /// Returns a `TpmError` if the underlying `execute` call fails.
-    pub fn get_handle_names(&mut self, handles: &[u32]) -> Result<Vec<Vec<u8>>, TpmError> {
+    pub fn get_handle_names(
+        &mut self,
+        handles: &[u32],
+        log_format: cli::LogFormat,
+    ) -> Result<Vec<Vec<u8>>, TpmError> {
         handles
             .iter()
             .map(|&handle| {
                 let cmd = TpmReadPublicCommand {};
-                let (resp, _) = self.execute(&cmd, Some(&[handle]), &[])?;
+                let (resp, _) = self.execute(&cmd, Some(&[handle]), &[], log_format)?;
                 let read_public_resp = resp
                     .ReadPublic()
                     .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
@@ -168,6 +193,7 @@ impl TpmDevice {
         cap: data::TpmCap,
         mut property: u32,
         count: u32,
+        log_format: cli::LogFormat,
     ) -> Result<Vec<data::TpmsCapabilityData>, TpmError> {
         let mut all_caps = Vec::new();
         loop {
@@ -177,7 +203,7 @@ impl TpmDevice {
                 property_count: count,
             };
 
-            let (resp, _) = self.execute(&cmd, None, &[])?;
+            let (resp, _) = self.execute(&cmd, None, &[], log_format)?;
             let TpmGetCapabilityResponse {
                 more_data,
                 capability_data,

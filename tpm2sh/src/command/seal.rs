@@ -1,10 +1,10 @@
-// SPDX-License-Identifier: GPL-3-0-or-later
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 // Copyright (c) 2025 Opinsys Oy
 
 use crate::{
     build_to_vec,
-    cli::{Object, Seal},
+    cli::{self, Object, Seal},
     get_auth_sessions, input_to_bytes, object_to_handle, AuthSession, Command, CommandIo, Envelope,
     ObjectData, TpmDevice, TpmError, ID_SEALED_DATA,
 };
@@ -25,11 +25,16 @@ impl Command for Seal {
     /// # Errors
     ///
     /// Returns a `TpmError` if the execution fails
-    fn run(&self, chip: &mut TpmDevice, session: Option<&AuthSession>) -> Result<(), TpmError> {
-        let mut io = CommandIo::new(io::stdin(), io::stdout(), session)?;
+    fn run(
+        &self,
+        chip: &mut TpmDevice,
+        session: Option<&AuthSession>,
+        log_format: cli::LogFormat,
+    ) -> Result<(), TpmError> {
+        let mut io = CommandIo::new(io::stdin(), io::stdout(), session, log_format)?;
 
         let parent_obj = io.consume_object(|obj| !matches!(obj, Object::Context(_)))?;
-        let parent_handle = object_to_handle(chip, &parent_obj)?;
+        let parent_handle = object_to_handle(chip, &parent_obj, log_format)?;
 
         let data_to_seal_obj = io.consume_object(|obj| matches!(obj, Object::Context(_)))?;
         let data_to_seal = match data_to_seal_obj {
@@ -80,7 +85,7 @@ impl Command for Seal {
         let sessions =
             get_auth_sessions(&cmd, &handles, io.session, self.parent_auth.auth.as_deref())?;
 
-        let (resp, _) = chip.execute(&cmd, Some(&handles), &sessions)?;
+        let (resp, _) = chip.execute(&cmd, Some(&handles), &sessions, log_format)?;
 
         let create_resp = resp.Create().map_err(|e| {
             TpmError::Execution(format!("unexpected response type for Create: {e:?}"))

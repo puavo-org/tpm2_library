@@ -3,8 +3,8 @@
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 
 use crate::{
-    build_to_vec, get_auth_sessions, Alg, AlgInfo, AuthSession, Command, ContextData, Envelope,
-    TpmDevice, TpmError,
+    build_to_vec, cli, get_auth_sessions, Alg, AlgInfo, AuthSession, Command, ContextData,
+    Envelope, TpmDevice, TpmError,
 };
 use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
 use tpm2_protocol::{
@@ -85,9 +85,13 @@ fn build_public_template(alg_desc: &Alg) -> TpmtPublic {
 ///
 /// Returns a `TpmError` if the context cannot be saved or the file cannot be
 /// written.
-pub fn save_key_context(chip: &mut TpmDevice, handle: TpmTransient) -> Result<String, TpmError> {
+pub fn save_key_context(
+    chip: &mut TpmDevice,
+    handle: TpmTransient,
+    log_format: cli::LogFormat,
+) -> Result<String, TpmError> {
     let save_command = TpmContextSaveCommand {};
-    let (resp, _) = chip.execute(&save_command, Some(&[handle.into()]), &[])?;
+    let (resp, _) = chip.execute(&save_command, Some(&[handle.into()]), &[], log_format)?;
 
     let save_resp = resp
         .ContextSave()
@@ -112,7 +116,12 @@ impl Command for crate::cli::CreatePrimary {
     /// # Errors
     ///
     /// Returns a `TpmError` if the execution fails
-    fn run(&self, chip: &mut TpmDevice, session: Option<&AuthSession>) -> Result<(), TpmError> {
+    fn run(
+        &self,
+        chip: &mut TpmDevice,
+        session: Option<&AuthSession>,
+        log_format: cli::LogFormat,
+    ) -> Result<(), TpmError> {
         let primary_handle: TpmRh = self.hierarchy.into();
         let handles = [primary_handle as u32];
         let public_template = build_public_template(&self.alg);
@@ -133,7 +142,7 @@ impl Command for crate::cli::CreatePrimary {
         };
 
         let sessions = get_auth_sessions(&cmd, &handles, session, self.auth.auth.as_deref())?;
-        let (resp, _) = chip.execute(&cmd, Some(&handles), &sessions)?;
+        let (resp, _) = chip.execute(&cmd, Some(&handles), &sessions, log_format)?;
 
         let create_primary_resp = resp
             .CreatePrimary()
@@ -144,12 +153,17 @@ impl Command for crate::cli::CreatePrimary {
             let evict_cmd = TpmEvictControlCommand { persistent_handle };
             let evict_handles = [TpmRh::Owner as u32, object_handle.into()];
             let evict_sessions = get_auth_sessions(&evict_cmd, &evict_handles, session, None)?;
-            let (resp, _) = chip.execute(&evict_cmd, Some(&evict_handles), &evict_sessions)?;
+            let (resp, _) = chip.execute(
+                &evict_cmd,
+                Some(&evict_handles),
+                &evict_sessions,
+                log_format,
+            )?;
             resp.EvictControl()
                 .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
             println!("{persistent_handle:#010x}");
         } else {
-            let json_out = save_key_context(chip, object_handle)?;
+            let json_out = save_key_context(chip, object_handle, log_format)?;
             println!("{json_out}");
         }
 

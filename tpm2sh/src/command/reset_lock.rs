@@ -2,7 +2,7 @@
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 // Copyright (c) 2025 Opinsys Oy
 
-use crate::{cli::ResetLock, get_auth_sessions, AuthSession, Command, TpmDevice, TpmError};
+use crate::{cli, cli::ResetLock, get_auth_sessions, AuthSession, Command, TpmDevice, TpmError};
 use tpm2_protocol::{data::TpmRh, message::TpmDictionaryAttackLockResetCommand};
 
 impl Command for ResetLock {
@@ -11,13 +11,18 @@ impl Command for ResetLock {
     /// # Errors
     ///
     /// Returns a `TpmError` if the execution fails
-    fn run(&self, chip: &mut TpmDevice, session: Option<&AuthSession>) -> Result<(), TpmError> {
+    fn run(
+        &self,
+        chip: &mut TpmDevice,
+        session: Option<&AuthSession>,
+        log_format: cli::LogFormat,
+    ) -> Result<(), TpmError> {
         let command = TpmDictionaryAttackLockResetCommand {};
         let handles = [TpmRh::Lockout as u32];
 
         let sessions = get_auth_sessions(&command, &handles, session, self.auth.auth.as_deref())?;
 
-        let (resp, _) = chip.execute(&command, Some(&handles), &sessions)?;
+        let (resp, _) = chip.execute(&command, Some(&handles), &sessions, log_format)?;
         resp.DictionaryAttackLockReset()
             .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
 

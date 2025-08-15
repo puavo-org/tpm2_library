@@ -3,6 +3,7 @@
 // Copyright (c) 2025 Opinsys Oy
 
 use crate::{
+    cli,
     cli::{Object, PcrRead},
     formats::PcrOutput,
     get_pcr_count, parse_pcr_selection, tpm_alg_id_to_str, AuthSession, Command, CommandIo,
@@ -18,14 +19,19 @@ impl Command for PcrRead {
     /// # Errors
     ///
     /// Returns a `TpmError` if the execution fails
-    fn run(&self, chip: &mut TpmDevice, session: Option<&AuthSession>) -> Result<(), TpmError> {
-        let mut io = CommandIo::new(io::stdin(), io::stdout(), session)?;
+    fn run(
+        &self,
+        chip: &mut TpmDevice,
+        session: Option<&AuthSession>,
+        log_format: cli::LogFormat,
+    ) -> Result<(), TpmError> {
+        let mut io = CommandIo::new(io::stdin(), io::stdout(), session, log_format)?;
 
-        let pcr_count = get_pcr_count(chip)?;
+        let pcr_count = get_pcr_count(chip, log_format)?;
         let pcr_selection_in = parse_pcr_selection(&self.selection, pcr_count)?;
 
         let cmd = TpmPcrReadCommand { pcr_selection_in };
-        let (resp, _) = chip.execute(&cmd, None, &[])?;
+        let (resp, _) = chip.execute(&cmd, None, &[], log_format)?;
 
         let pcr_read_resp = resp
             .PcrRead()

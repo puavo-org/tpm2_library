@@ -1,9 +1,9 @@
-// SPDX-License-Identifier: GPL-3-0-or-later
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 // Copyright (c) 2025 Opinsys Oy
 
 use crate::{
-    cli::Unseal, get_auth_sessions, parse_parent_handle_from_json, pop_object_data,
+    cli, cli::Unseal, get_auth_sessions, parse_parent_handle_from_json, pop_object_data,
     with_loaded_object, AuthSession, Command, CommandIo, TpmDevice, TpmError,
 };
 use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
@@ -20,8 +20,13 @@ impl Command for Unseal {
     /// # Errors
     ///
     /// Returns a `TpmError` if the execution fails
-    fn run(&self, chip: &mut TpmDevice, session: Option<&AuthSession>) -> Result<(), TpmError> {
-        let mut io = CommandIo::new(io::stdin(), io::stdout(), session)?;
+    fn run(
+        &self,
+        chip: &mut TpmDevice,
+        session: Option<&AuthSession>,
+        log_format: cli::LogFormat,
+    ) -> Result<(), TpmError> {
+        let mut io = CommandIo::new(io::stdin(), io::stdout(), session, log_format)?;
         let object_data = pop_object_data(&mut io)?;
 
         let parent_handle = parse_parent_handle_from_json(&object_data)?;
@@ -43,6 +48,7 @@ impl Command for Unseal {
             io.session,
             in_public,
             in_private,
+            log_format,
             |chip, object_handle| {
                 let unseal_cmd = TpmUnsealCommand {};
                 let unseal_handles = [object_handle.into()];
@@ -54,7 +60,7 @@ impl Command for Unseal {
                 )?;
 
                 let (unseal_resp, _) =
-                    chip.execute(&unseal_cmd, Some(&unseal_handles), &sessions)?;
+                    chip.execute(&unseal_cmd, Some(&unseal_handles), &sessions, log_format)?;
 
                 let unseal_resp = unseal_resp
                     .Unseal()

@@ -10,15 +10,20 @@ impl Command for Objects {
     /// # Errors
     ///
     /// Returns a `TpmError` if the execution fails
-    fn run(&self, device: &mut TpmDevice, _session: Option<&AuthSession>) -> Result<(), TpmError> {
-        let transient_handles = cli::get_handles(device, TpmRh::TransientFirst)?;
+    fn run(
+        &self,
+        device: &mut TpmDevice,
+        _session: Option<&AuthSession>,
+        log_format: cli::LogFormat,
+    ) -> Result<(), TpmError> {
+        let transient_handles = cli::get_handles(device, TpmRh::TransientFirst, log_format)?;
         for handle in transient_handles {
             let obj = cli::Object::Handle(TpmTransient(handle));
             let json_line = serde_json::to_string(&obj)?;
             println!("{json_line}");
         }
 
-        let persistent_handles = cli::get_handles(device, TpmRh::PersistentFirst)?;
+        let persistent_handles = cli::get_handles(device, TpmRh::PersistentFirst, log_format)?;
         for handle in persistent_handles {
             let obj = cli::Object::Persistent(TpmPersistent(handle));
             let json_line = serde_json::to_string(&obj)?;

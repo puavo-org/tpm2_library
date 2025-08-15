@@ -37,10 +37,12 @@ pub mod command;
 pub mod crypto;
 pub mod device;
 pub mod formats;
+pub mod pretty_printer;
 
 pub use self::arg_parser::parse_cli;
 pub use self::crypto::*;
 pub use self::device::*;
+pub use self::pretty_printer::PrettyTrace;
 
 #[derive(Parser)]
 #[grammar = "command/pcr_selection.pest"]
@@ -68,7 +70,12 @@ pub trait Command {
     /// # Errors
     ///
     /// Returns a `TpmError` if the execution fails
-    fn run(&self, device: &mut TpmDevice, session: Option<&AuthSession>) -> Result<(), TpmError>;
+    fn run(
+        &self,
+        device: &mut TpmDevice,
+        session: Option<&AuthSession>,
+        log_format: cli::LogFormat,
+    ) -> Result<(), TpmError>;
 }
 
 /// Parses command-line arguments and executes the corresponding command.
@@ -84,7 +91,7 @@ pub fn execute_cli() -> Result<(), TpmError> {
     if let Some(command) = cli.command {
         let mut device = TpmDevice::new(&cli.device)?;
         let session = load_session(cli.session.as_deref())?;
-        command.run(&mut device, session.as_ref())
+        command.run(&mut device, session.as_ref(), cli.log_format)
     } else {
         Ok(())
     }
@@ -370,6 +377,7 @@ pub struct CommandIo<'a, W: Write> {
     input_objects: Vec<cli::Object>,
     output_objects: Vec<cli::Object>,
     pub session: Option<&'a AuthSession>,
+    pub log_format: cli::LogFormat,
 }
 
 impl<'a, W: Write> CommandIo<'a, W> {
@@ -382,6 +390,7 @@ impl<'a, W: Write> CommandIo<'a, W> {
         reader: R,
         writer: W,
         session: Option<&'a AuthSession>,
+        log_format: cli::LogFormat,
     ) -> Result<Self, TpmError> {
         let mut input_objects = Vec::new();
         let buf_reader = BufReader::new(reader);
@@ -396,6 +405,7 @@ impl<'a, W: Write> CommandIo<'a, W> {
             input_objects,
             output_objects: Vec::new(),
             session,
+            log_format,
         })
     }
 
@@ -487,6 +497,7 @@ pub fn parse_parent_handle_from_json(object_data: &ObjectData) -> Result<TpmTran
 /// Returns the error from the primary operation (`op`). If `op` succeeds but
 /// the subsequent flush fails, the flush error is returned instead.
 #[allow(clippy::module_name_repetitions)]
+#[allow(clippy::too_many_arguments)]
 pub fn with_loaded_object<F, R>(
     chip: &mut TpmDevice,
     parent_handle: TpmTransient,
@@ -494,6 +505,7 @@ pub fn with_loaded_object<F, R>(
     session: Option<&AuthSession>,
     in_public: data::Tpm2bPublic,
     in_private: data::Tpm2bPrivate,
+    log_format: cli::LogFormat,
     op: F,
 ) -> Result<R, TpmError>
 where
@@ -511,7 +523,12 @@ where
         parent_auth.auth.as_deref(),
     )?;
 
-    let (load_resp, _) = chip.execute(&load_cmd, Some(&parent_handles), &parent_sessions)?;
+    let (load_resp, _) = chip.execute(
+        &load_cmd,
+        Some(&parent_handles),
+        &parent_sessions,
+        log_format,
+    )?;
     let load_resp = load_resp
         .Load()
         .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
@@ -522,7 +539,7 @@ where
     let flush_cmd = TpmFlushContextCommand {
         flush_handle: object_handle.into(),
     };
-    let flush_err = chip.execute(&flush_cmd, Some(&[]), &[]).err();
+    let flush_err = chip.execute(&flush_cmd, Some(&[]), &[], log_format).err();
 
     if let Some(e) = flush_err {
         tracing::debug!(handle = ?object_handle, error = %e, "failed to flush object context after operation");
@@ -573,7 +590,11 @@ pub fn input_to_utf8(s: &str) -> Result<String, TpmError> {
 /// # Errors
 ///
 /// Returns a `TpmError` if the object is of an invalid type or cannot be loaded.
-pub fn object_to_handle(chip: &mut TpmDevice, obj: &cli::Object) -> Result<TpmTransient, TpmError> {
+pub fn object_to_handle(
+    chip: &mut TpmDevice,
+    obj: &cli::Object,
+    log_format: cli::LogFormat,
+) -> Result<TpmTransient, TpmError> {
     match obj {
         cli::Object::Handle(handle) => Ok(*handle),
         cli::Object::Persistent(handle) => Ok(TpmTransient(handle.0)),
@@ -584,7 +605,7 @@ pub fn object_to_handle(chip: &mut TpmDevice, obj: &cli::Object) -> Result<TpmTr
             let context_blob = input_to_bytes(s)?;
             let (context, _) = data::TpmsContext::parse(&context_blob)?;
             let load_cmd = TpmContextLoadCommand { context };
-            let (resp, _) = chip.execute(&load_cmd, None, &[])?;
+            let (resp, _) = chip.execute(&load_cmd, None, &[], log_format)?;
             let load_resp = resp
                 .ContextLoad()
                 .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
@@ -604,9 +625,10 @@ pub fn object_to_handle(chip: &mut TpmDevice, obj: &cli::Object) -> Result<TpmTr
 pub fn read_public(
     chip: &mut TpmDevice,
     handle: TpmTransient,
+    log_format: cli::LogFormat,
 ) -> Result<(TpmtPublic, data::Tpm2bName), TpmError> {
     let cmd = TpmReadPublicCommand {};
-    let (resp, _) = chip.execute(&cmd, Some(&[handle.into()]), &[])?;
+    let (resp, _) = chip.execute(&cmd, Some(&[handle.into()]), &[], log_format)?;
     let read_public_resp = resp
         .ReadPublic()
         .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
@@ -815,8 +837,16 @@ impl From<serde_json::Error> for TpmError {
 }
 
 /// Gets the number of PCRs from the TPM.
-pub(crate) fn get_pcr_count(chip: &mut TpmDevice) -> Result<usize, TpmError> {
-    let cap_data = chip.get_capability(data::TpmCap::Pcrs, 0, device::TPM_CAP_PROPERTY_MAX)?;
+pub(crate) fn get_pcr_count(
+    chip: &mut TpmDevice,
+    log_format: cli::LogFormat,
+) -> Result<usize, TpmError> {
+    let cap_data = chip.get_capability(
+        data::TpmCap::Pcrs,
+        0,
+        device::TPM_CAP_PROPERTY_MAX,
+        log_format,
+    )?;
     let Some(first_cap) = cap_data.into_iter().next() else {
         return Err(TpmError::Execution(
             "TPM reported no capabilities for PCRs.".to_string(),

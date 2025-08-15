@@ -100,9 +100,29 @@ impl<'de> Deserialize<'de> for Object {
     }
 }
 
+#[derive(Debug, Clone, Copy, Default)]
+pub enum LogFormat {
+    #[default]
+    Plain,
+    Pretty,
+}
+
+impl FromStr for LogFormat {
+    type Err = TpmError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "plain" => Ok(Self::Plain),
+            "pretty" => Ok(Self::Pretty),
+            _ => Err(TpmError::Execution(format!("invalid log format: {s}"))),
+        }
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct Cli {
     pub device: String,
+    pub log_format: LogFormat,
     pub session: Option<String>,
     pub command: Option<Commands>,
 }
@@ -244,24 +264,25 @@ impl Command for Commands {
         &self,
         device: &mut crate::TpmDevice,
         session: Option<&crate::AuthSession>,
+        log_format: crate::cli::LogFormat,
     ) -> Result<(), crate::TpmError> {
         match self {
-            Self::Algorithms(args) => args.run(device, session),
-            Self::Convert(args) => args.run(device, session),
-            Self::CreatePrimary(args) => args.run(device, session),
-            Self::Delete(args) => args.run(device, session),
-            Self::Import(args) => args.run(device, session),
-            Self::Load(args) => args.run(device, session),
-            Self::Objects(args) => args.run(device, session),
-            Self::PcrEvent(args) => args.run(device, session),
-            Self::PcrRead(args) => args.run(device, session),
-            Self::Policy(args) => args.run(device, session),
-            Self::PrintError(args) => args.run(device, session),
-            Self::ResetLock(args) => args.run(device, session),
-            Self::Save(args) => args.run(device, session),
-            Self::Seal(args) => args.run(device, session),
-            Self::StartSession(args) => args.run(device, session),
-            Self::Unseal(args) => args.run(device, session),
+            Self::Algorithms(args) => args.run(device, session, log_format),
+            Self::Convert(args) => args.run(device, session, log_format),
+            Self::CreatePrimary(args) => args.run(device, session, log_format),
+            Self::Delete(args) => args.run(device, session, log_format),
+            Self::Import(args) => args.run(device, session, log_format),
+            Self::Load(args) => args.run(device, session, log_format),
+            Self::Objects(args) => args.run(device, session, log_format),
+            Self::PcrEvent(args) => args.run(device, session, log_format),
+            Self::PcrRead(args) => args.run(device, session, log_format),
+            Self::Policy(args) => args.run(device, session, log_format),
+            Self::PrintError(args) => args.run(device, session, log_format),
+            Self::ResetLock(args) => args.run(device, session, log_format),
+            Self::Save(args) => args.run(device, session, log_format),
+            Self::Seal(args) => args.run(device, session, log_format),
+            Self::StartSession(args) => args.run(device, session, log_format),
+            Self::Unseal(args) => args.run(device, session, log_format),
         }
     }
 }
@@ -367,9 +388,17 @@ pub struct Policy {
 /// # Errors
 ///
 /// Returns a `TpmError` if the `get_capability` call to the TPM device fails.
-pub fn get_handles(device: &mut crate::TpmDevice, handle: TpmRh) -> Result<Vec<u32>, TpmError> {
-    let cap_data_vec =
-        device.get_capability(TpmCap::Handles, handle as u32, crate::TPM_CAP_PROPERTY_MAX)?;
+pub fn get_handles(
+    device: &mut crate::TpmDevice,
+    handle: TpmRh,
+    log_format: LogFormat,
+) -> Result<Vec<u32>, TpmError> {
+    let cap_data_vec = device.get_capability(
+        TpmCap::Handles,
+        handle as u32,
+        crate::TPM_CAP_PROPERTY_MAX,
+        log_format,
+    )?;
     let handles: Vec<u32> = cap_data_vec
         .into_iter()
         .flat_map(|cap_data| {

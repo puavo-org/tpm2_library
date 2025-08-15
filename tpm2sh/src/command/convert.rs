@@ -3,8 +3,8 @@
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 
 use crate::{
-    cli::KeyFormat, from_json_str, AuthSession, Command, Envelope, ObjectData, TpmDevice, TpmError,
-    TpmKey,
+    cli, cli::KeyFormat, from_json_str, AuthSession, Command, Envelope, ObjectData, TpmDevice,
+    TpmError, TpmKey,
 };
 use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
 use std::{
@@ -79,7 +79,12 @@ impl Command for crate::cli::Convert {
     /// # Errors
     ///
     /// Returns a `TpmError` if the execution fails
-    fn run(&self, _device: &mut TpmDevice, _session: Option<&AuthSession>) -> Result<(), TpmError> {
+    fn run(
+        &self,
+        _device: &mut TpmDevice,
+        _session: Option<&AuthSession>,
+        _log_format: cli::LogFormat,
+    ) -> Result<(), TpmError> {
         let input = read_all(None)?;
         match (self.from, self.to) {
             (KeyFormat::Json, KeyFormat::Pem) => {

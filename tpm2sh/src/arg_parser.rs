@@ -19,6 +19,12 @@ const GLOBAL_OPTIONS: &[CommandLineOption] = &[
     (Some("-d"), "--device", "<DEVICE>", "[default: /dev/tpmrm0]"),
     (
         None,
+        "--log-format",
+        "<FORMAT>",
+        "[default: plain, possible: plain, pretty]",
+    ),
+    (
+        None,
         "--session",
         "<SESSION>",
         "Authorization session context",
@@ -134,7 +140,7 @@ const PCR_READ_USAGE: &str = "tpm2sh pcr-read <SELECTION>";
 const PCR_READ_ARGS: &[CommandLineArgument] = &[("<SELECTION>", "e.g. 'sha256:0,1,2+sha1:0'")];
 
 const POLICY_USAGE: &str = "tpm2sh policy [OPTIONS] <EXPRESSION>";
-const POLICY_ARGS: &[CommandLineArgument] = &[("<EXPRESSION>", "e.g. 'pcr(\"sha256:0\",\"...\")'")];
+const POLICY_ARGS: &[CommandLineArgument] = &[("<EXPRESSION>", "e.g. 'pcr(\"sha256:0\",\"...\"')")];
 const POLICY_OPTIONS: &[CommandLineOption] = &[
     (None, "--auth", "<AUTH>", "Authorization value"),
     (
@@ -437,6 +443,7 @@ pub fn parse_cli(args: Args) -> Result<Option<Cli>, TpmError> {
                 return Ok(None);
             }
             "-d" | "--device" => cli.device = parser.expect_value(&arg)?,
+            "--log-format" => cli.log_format = parser.expect_value(&arg)?.parse()?,
             "--session" => cli.session = Some(parser.expect_value(&arg)?),
             "--" => {
                 subcommand_arg = parser.next();

@@ -3,7 +3,7 @@
 // Copyright (c) 2025 Opinsys Oy
 
 use crate::{
-    cli::{Object, StartSession},
+    cli::{self, Object, StartSession},
     AuthSession, Command, Envelope, SessionData, TpmDevice, TpmError,
 };
 use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
@@ -19,7 +19,12 @@ impl Command for StartSession {
     /// # Errors
     ///
     /// Returns a `TpmError` if the execution fails
-    fn run(&self, chip: &mut TpmDevice, _session: Option<&AuthSession>) -> Result<(), TpmError> {
+    fn run(
+        &self,
+        chip: &mut TpmDevice,
+        _session: Option<&AuthSession>,
+        log_format: cli::LogFormat,
+    ) -> Result<(), TpmError> {
         let mut nonce_bytes = vec![0; 16];
         thread_rng().fill_bytes(&mut nonce_bytes);
 
@@ -35,7 +40,7 @@ impl Command for StartSession {
         };
 
         let handles = [TpmRh::Null as u32, TpmRh::Null as u32];
-        let (response, _) = chip.execute(&cmd, Some(&handles), &[])?;
+        let (response, _) = chip.execute(&cmd, Some(&handles), &[], log_format)?;
 
         let start_auth_session_resp = response
             .StartAuthSession()

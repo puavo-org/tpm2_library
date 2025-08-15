@@ -1,20 +1,25 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2025 Opinsys Oy
 
-use crate::{cli::Delete, get_auth_sessions, AuthSession, Command, TpmDevice, TpmError};
+use crate::{cli, get_auth_sessions, AuthSession, Command, TpmDevice, TpmError};
 use tpm2_protocol::{
     data::TpmRh,
     message::{TpmEvictControlCommand, TpmFlushContextCommand},
     TpmPersistent, TpmTransient,
 };
 
-impl Command for Delete {
+impl Command for cli::Delete {
     /// Runs `delete`.
     ///
     /// # Errors
     ///
     /// Returns a `TpmError` if the execution fails
-    fn run(&self, chip: &mut TpmDevice, session: Option<&AuthSession>) -> Result<(), TpmError> {
+    fn run(
+        &self,
+        chip: &mut TpmDevice,
+        session: Option<&AuthSession>,
+        log_format: cli::LogFormat,
+    ) -> Result<(), TpmError> {
         let handle_type = (self.handle >> 24) as u8;
 
         match handle_type {
@@ -23,7 +28,7 @@ impl Command for Delete {
                 let flush_cmd = TpmFlushContextCommand {
                     flush_handle: flush_handle.into(),
                 };
-                let (resp, _) = chip.execute(&flush_cmd, Some(&[]), &[])?;
+                let (resp, _) = chip.execute(&flush_cmd, Some(&[]), &[], log_format)?;
                 resp.FlushContext()
                     .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
                 println!("{flush_handle:#010x}");
@@ -36,7 +41,7 @@ impl Command for Delete {
 
                 let sessions =
                     get_auth_sessions(&evict_cmd, &handles, session, self.auth.auth.as_deref())?;
-                let (resp, _) = chip.execute(&evict_cmd, Some(&handles), &sessions)?;
+                let (resp, _) = chip.execute(&evict_cmd, Some(&handles), &sessions, log_format)?;
                 resp.EvictControl()
                     .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
                 println!("{persistent_handle:#010x}");

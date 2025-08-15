@@ -1,9 +1,9 @@
-// SPDX-License-Identifier: GPL-3-0-or-later
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 // Copyright (c) 2025 Opinsys Oy
 
 use crate::{
-    cli::{Load, Object},
+    cli::{self, Load, Object},
     get_auth_sessions, object_to_handle, pop_object_data, AuthSession, Command, CommandIo,
     TpmDevice, TpmError,
 };
@@ -21,11 +21,16 @@ impl Command for Load {
     /// # Errors
     ///
     /// Returns a `TpmError` if the execution fails
-    fn run(&self, chip: &mut TpmDevice, session: Option<&AuthSession>) -> Result<(), TpmError> {
-        let mut io = CommandIo::new(io::stdin(), io::stdout(), session)?;
+    fn run(
+        &self,
+        chip: &mut TpmDevice,
+        session: Option<&AuthSession>,
+        log_format: cli::LogFormat,
+    ) -> Result<(), TpmError> {
+        let mut io = CommandIo::new(io::stdin(), io::stdout(), session, log_format)?;
 
         let parent_obj = io.consume_object(|obj| !matches!(obj, Object::Pcrs(_)))?;
-        let parent_handle = object_to_handle(chip, &parent_obj)?;
+        let parent_handle = object_to_handle(chip, &parent_obj, log_format)?;
 
         let object_data = pop_object_data(&mut io)?;
 
@@ -52,7 +57,7 @@ impl Command for Load {
             self.parent_auth.auth.as_deref(),
         )?;
 
-        let (resp, _) = chip.execute(&load_cmd, Some(&handles), &sessions)?;
+        let (resp, _) = chip.execute(&load_cmd, Some(&handles), &sessions, log_format)?;
         let load_resp = resp
             .Load()
             .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;

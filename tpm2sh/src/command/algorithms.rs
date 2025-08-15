@@ -3,14 +3,18 @@
 // Copyright (c) 2025 Opinsys Oy
 
 use crate::{
-    cli::Algorithms, enumerate_all, AuthSession, Command, TpmDevice, TpmError, TPM_CAP_PROPERTY_MAX,
+    cli, cli::Algorithms, enumerate_all, AuthSession, Command, TpmDevice, TpmError,
+    TPM_CAP_PROPERTY_MAX,
 };
 use regex::Regex;
 use std::collections::HashSet;
 use tpm2_protocol::data::{TpmAlgId, TpmCap, TpmuCapabilities};
 
-fn get_chip_algorithms(device: &mut TpmDevice) -> Result<HashSet<TpmAlgId>, TpmError> {
-    let cap_data_vec = device.get_capability(TpmCap::Algs, 0, TPM_CAP_PROPERTY_MAX)?;
+fn get_chip_algorithms(
+    device: &mut TpmDevice,
+    log_format: cli::LogFormat,
+) -> Result<HashSet<TpmAlgId>, TpmError> {
+    let cap_data_vec = device.get_capability(TpmCap::Algs, 0, TPM_CAP_PROPERTY_MAX, log_format)?;
     let algs: HashSet<TpmAlgId> = cap_data_vec
         .into_iter()
         .flat_map(|cap_data| {
@@ -30,8 +34,13 @@ impl Command for Algorithms {
     /// # Errors
     ///
     /// Returns a `TpmError` if the execution fails
-    fn run(&self, device: &mut TpmDevice, _session: Option<&AuthSession>) -> Result<(), TpmError> {
-        let chip_algorithms = get_chip_algorithms(device)?;
+    fn run(
+        &self,
+        device: &mut TpmDevice,
+        _session: Option<&AuthSession>,
+        log_format: cli::LogFormat,
+    ) -> Result<(), TpmError> {
+        let chip_algorithms = get_chip_algorithms(device, log_format)?;
         let cli_algorithms = enumerate_all();
 
         let supported_algorithms: Vec<_> = cli_algorithms
