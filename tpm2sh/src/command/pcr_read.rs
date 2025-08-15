@@ -6,11 +6,10 @@ use crate::{
     cli,
     cli::{Object, PcrRead},
     formats::PcrOutput,
-    get_pcr_count, parse_pcr_selection, tpm_alg_id_to_str, AuthSession, Command, CommandIo,
-    TpmDevice, TpmError,
+    get_pcr_count, parse_pcr_selection, tpm_alg_id_to_str, AuthSession, Command, TpmDevice,
+    TpmError,
 };
 use std::collections::BTreeMap;
-use std::io;
 use tpm2_protocol::message::TpmPcrReadCommand;
 
 impl Command for PcrRead {
@@ -22,11 +21,9 @@ impl Command for PcrRead {
     fn run(
         &self,
         chip: &mut TpmDevice,
-        session: Option<&AuthSession>,
+        _session: Option<&AuthSession>,
         log_format: cli::LogFormat,
     ) -> Result<(), TpmError> {
-        let mut io = CommandIo::new(io::stdin(), io::stdout(), session, log_format)?;
-
         let pcr_count = get_pcr_count(chip, log_format)?;
         let pcr_selection_in = parse_pcr_selection(&self.selection, pcr_count)?;
 
@@ -62,8 +59,9 @@ impl Command for PcrRead {
         };
 
         let output_object = Object::Pcrs(pcr_output);
-        io.push_object(output_object);
+        let json_line = serde_json::to_string(&output_object)?;
+        println!("{json_line}");
 
-        io.finalize()
+        Ok(())
     }
 }
