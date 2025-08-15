@@ -2,7 +2,7 @@
 // Copyright (c) 2025 Opinsys Oy
 
 use crate::{
-    cli::{self, Object, Policy, SessionType},
+    cli::{self, Object, Policy},
     from_json_str, get_pcr_count, parse_pcr_selection, AuthSession, Command, CommandIo, Envelope,
     SessionData, TpmDevice, TpmError,
 };
@@ -105,7 +105,6 @@ struct PolicyExecutor<'a, 'b, 'c, W: Write> {
     io: &'b mut CommandIo<'c, W>,
     auth: &'c cli::AuthArgs,
     session: Option<&'c AuthSession>,
-    session_handle: TpmSession,
     pcr_count: usize,
     partial: bool,
 }
@@ -113,6 +112,7 @@ struct PolicyExecutor<'a, 'b, 'c, W: Write> {
 impl<W: Write> PolicyExecutor<'_, '_, '_, W> {
     fn execute_pcr_policy(
         &mut self,
+        session_handle: TpmSession,
         selection: &str,
         digest: Option<&String>,
         count: Option<&u32>,
@@ -150,8 +150,8 @@ impl<W: Write> PolicyExecutor<'_, '_, '_, W> {
 
             let digest_hex = bank.get(pcr_index_str).ok_or_else(|| {
                 TpmError::Execution(format!(
-                    "pcr index '{pcr_index_str}' not found in bank '{bank_name}' in pipeline object"
-                ))
+					"pcr index '{pcr_index_str}' not found in bank '{bank_name}' in pipeline object"
+				))
             })?;
 
             if self.partial {
@@ -175,34 +175,43 @@ impl<W: Write> PolicyExecutor<'_, '_, '_, W> {
             pcr_digest,
             pcrs: pcr_selection,
         };
-        let handles = [self.session_handle.into()];
+        let handles = [session_handle.into()];
         let sessions = crate::get_auth_sessions(&cmd, &handles, self.session, None)?;
         self.chip.execute(&cmd, Some(&handles), &sessions)?;
 
         Ok(())
     }
 
-    fn execute_secret_policy(&mut self, auth_handle: &str) -> Result<(), TpmError> {
-        let auth_handle = crate::parse_hex_u32(auth_handle)?;
+    fn execute_secret_policy(
+        &mut self,
+        session_handle: TpmSession,
+        auth_handle_str: &str,
+    ) -> Result<(), TpmError> {
+        let auth_handle = crate::parse_hex_u32(auth_handle_str)?;
         let cmd = TpmPolicySecretCommand {
             nonce_tpm: Tpm2b::default(),
             cp_hash_a: Tpm2bDigest::default(),
             policy_ref: Tpm2b::default(),
             expiration: 0,
         };
-        let handles = [auth_handle, self.session_handle.into()];
+        let handles = [auth_handle, session_handle.into()];
         let sessions =
             crate::get_auth_sessions(&cmd, &handles, self.session, self.auth.auth.as_deref())?;
         self.chip.execute(&cmd, Some(&handles), &sessions)?;
         Ok(())
     }
 
-    fn execute_or_policy(&mut self, branches: &[PolicyAst]) -> Result<(), TpmError> {
+    fn execute_or_policy(
+        &mut self,
+        session_handle: TpmSession,
+        branches: &[PolicyAst],
+    ) -> Result<(), TpmError> {
         let mut branch_digests = TpmlDigest::new();
         for branch_ast in branches {
-            let branch_handle = start_trial_session(self.chip, self.session, SessionType::Trial)?;
+            let branch_handle =
+                start_trial_session(self.chip, self.session, cli::SessionType::Trial)?;
 
-            self.execute_policy_ast(branch_ast)?;
+            self.execute_policy_ast(branch_handle, branch_ast)?;
 
             let digest = get_policy_digest(self.chip, self.session, branch_handle)?;
             branch_digests.try_push(digest)?;
@@ -213,22 +222,30 @@ impl<W: Write> PolicyExecutor<'_, '_, '_, W> {
         let cmd = TpmPolicyOrCommand {
             p_hash_list: branch_digests,
         };
-        let handles = [self.session_handle.into()];
+        let handles = [session_handle.into()];
         let sessions = crate::get_auth_sessions(&cmd, &handles, self.session, None)?;
         self.chip.execute(&cmd, Some(&handles), &sessions)?;
 
         Ok(())
     }
 
-    fn execute_policy_ast(&mut self, ast: &PolicyAst) -> Result<(), TpmError> {
+    fn execute_policy_ast(
+        &mut self,
+        session_handle: TpmSession,
+        ast: &PolicyAst,
+    ) -> Result<(), TpmError> {
         match ast {
             PolicyAst::Pcr {
                 selection,
                 digest,
                 count,
-            } => self.execute_pcr_policy(selection, digest.as_ref(), count.as_ref()),
-            PolicyAst::Secret { auth_handle } => self.execute_secret_policy(auth_handle),
-            PolicyAst::Or(branches) => self.execute_or_policy(branches),
+            } => {
+                self.execute_pcr_policy(session_handle, selection, digest.as_ref(), count.as_ref())
+            }
+            PolicyAst::Secret { auth_handle } => {
+                self.execute_secret_policy(session_handle, auth_handle)
+            }
+            PolicyAst::Or(branches) => self.execute_or_policy(session_handle, branches),
         }
     }
 }
@@ -236,7 +253,7 @@ impl<W: Write> PolicyExecutor<'_, '_, '_, W> {
 fn start_trial_session(
     chip: &mut TpmDevice,
     session: Option<&AuthSession>,
-    session_type: SessionType,
+    session_type: cli::SessionType,
 ) -> Result<TpmSession, TpmError> {
     let auth_hash = session.map_or(TpmAlgId::Sha256, |s| s.auth_hash);
 
@@ -287,8 +304,8 @@ impl Command for Policy {
         let mut io = CommandIo::new(io::stdin(), io::stdout(), session)?;
 
         let session_obj = io.consume_object(|obj| {
-            if let Object::Context(v) = obj {
-                if let Ok(env) = serde_json::from_value::<Envelope>(v.clone()) {
+            if let Object::Context(val) = obj {
+                if let Ok(env) = serde_json::from_value::<Envelope>(val.clone()) {
                     return env.object_type == "session";
                 }
             }
@@ -312,11 +329,10 @@ impl Command for Policy {
             io: &mut io,
             auth: &self.auth,
             session,
-            session_handle,
             pcr_count,
             partial: self.partial,
         };
-        executor.execute_policy_ast(&ast)?;
+        executor.execute_policy_ast(session_handle, &ast)?;
 
         let final_digest = get_policy_digest(chip, session, session_handle)?;
         session_data.policy_digest = hex::encode(&*final_digest);
