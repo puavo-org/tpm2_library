@@ -252,7 +252,7 @@ macro_rules! tpm_integer {
                     return Err(TpmErrorKind::Boundary);
                 }
                 let (bytes, buf) = buf.split_at(size);
-                let array = bytes.try_into().map_err(|_| TpmErrorKind::InvalidValue)?;
+                let array = bytes.try_into().map_err(|_| TpmErrorKind::InternalError)?;
                 let val = <$ty>::from_be_bytes(array);
                 Ok((val, buf))
             }
@@ -335,12 +335,6 @@ impl<const CAPACITY: usize> TpmBuffer<CAPACITY> {
             bytes: [0; CAPACITY],
             len: 0,
         }
-    }
-
-    /// Returns true if the buffer has a length of zero.
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.len == 0
     }
 }
 
@@ -488,17 +482,18 @@ impl<'a, T: TpmParse<'a> + Copy + Default, const CAPACITY: usize> TpmParse<'a>
 {
     fn parse(buf: &'a [u8]) -> TpmResult<(Self, &'a [u8])> {
         let (count, mut buf) = u32::parse(buf)?;
-        if count as usize > CAPACITY {
+        let count_usize = count as usize;
+        if count_usize > CAPACITY {
             return Err(TpmErrorKind::ValueTooLarge);
         }
 
         let mut list = Self::new();
-        for i in 0..(count as usize) {
+        for i in 0..count_usize {
             let (item, rest) = T::parse(buf)?;
             list.items[i] = item;
-            list.len += 1;
             buf = rest;
         }
+        list.len = count;
 
         Ok((list, buf))
     }
