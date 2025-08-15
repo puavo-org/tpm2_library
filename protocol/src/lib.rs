@@ -15,10 +15,8 @@
 //!
 //! ## Design Goals
 //!
-//! * The library is aimed scale from bare metal embedded environments up to
-//!   high-end systems.
-//! * The library is aimed to  be easy to port to Linux kernel.
-//! * The test suite is aimed to be kselftest compatible.
+//! * The crate must compile with GNU make and rustc without any external
+//!   dependencies.
 
 #![cfg_attr(not(test), no_std)]
 #![deny(unsafe_code)]
