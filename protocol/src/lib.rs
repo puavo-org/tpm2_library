@@ -252,7 +252,7 @@ macro_rules! tpm_integer {
                     return Err(TpmErrorKind::Boundary);
                 }
                 let (bytes, buf) = buf.split_at(size);
-                let array = bytes.try_into().map_err(|_| TpmErrorKind::InternalError)?;
+                let array = bytes.try_into().map_err(|_| TpmErrorKind::InvalidValue)?;
                 let val = <$ty>::from_be_bytes(array);
                 Ok((val, buf))
             }
@@ -379,7 +379,7 @@ impl<'a, const CAPACITY: usize> TpmParse<'a> for TpmBuffer<CAPACITY> {
         }
         let mut buffer = Self::new();
         buffer.bytes[..bytes.len()].copy_from_slice(bytes);
-        buffer.len = u16::try_from(bytes.len()).map_err(|_| TpmErrorKind::InternalError)?;
+        buffer.len = u16::try_from(bytes.len()).map_err(|_| TpmErrorKind::ValueTooLarge)?;
         Ok((buffer, remainder))
     }
 }
@@ -393,7 +393,7 @@ impl<const CAPACITY: usize> TryFrom<&[u8]> for TpmBuffer<CAPACITY> {
         }
         let mut buffer = Self::new();
         buffer.bytes[..slice.len()].copy_from_slice(slice);
-        buffer.len = u16::try_from(slice.len()).map_err(|_| TpmErrorKind::InternalError)?;
+        buffer.len = u16::try_from(slice.len()).map_err(|_| TpmErrorKind::ValueTooLarge)?;
         Ok(buffer)
     }
 }
