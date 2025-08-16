@@ -5,11 +5,12 @@
 use crate::{
     data::{
         Tpm2b, Tpm2bAttest, Tpm2bAuth, Tpm2bCreationData, Tpm2bData, Tpm2bDigest,
-        Tpm2bEncryptedSecret, Tpm2bMaxBuffer, Tpm2bMaxNvBuffer, Tpm2bName, Tpm2bNvPublic,
-        Tpm2bPrivate, Tpm2bPublic, Tpm2bSensitiveCreate, TpmAlgId, TpmCap, TpmCc, TpmRc, TpmRh,
-        TpmSe, TpmSt, TpmSu, TpmiYesNo, TpmlDigest, TpmlDigestValues, TpmlPcrSelection,
-        TpmsAuthCommand, TpmsAuthResponse, TpmsCapabilityData, TpmsContext, TpmtSignature,
-        TpmtSymDef, TpmtSymDefObject, TpmtTkCreation, TpmtTkHashcheck, TpmtTkVerified,
+        Tpm2bEncryptedSecret, Tpm2bIdObject, Tpm2bMaxBuffer, Tpm2bMaxNvBuffer, Tpm2bName,
+        Tpm2bNvPublic, Tpm2bPrivate, Tpm2bPublic, Tpm2bSensitive, Tpm2bSensitiveCreate, TpmAlgId,
+        TpmCap, TpmCc, TpmRc, TpmRh, TpmSe, TpmSt, TpmSu, TpmiYesNo, TpmlDigest, TpmlDigestValues,
+        TpmlPcrSelection, TpmsAuthCommand, TpmsAuthResponse, TpmsCapabilityData, TpmsContext,
+        TpmtSignature, TpmtSymDef, TpmtSymDefObject, TpmtTkCreation, TpmtTkHashcheck,
+        TpmtTkVerified,
     },
     tpm_dispatch, tpm_response, tpm_struct, TpmBuild, TpmErrorKind, TpmList, TpmParse,
     TpmPersistent, TpmResult, TpmSession, TpmSized, TpmTransient, TpmWriter,
@@ -1505,6 +1506,81 @@ tpm_response!(
     }
 );
 
+tpm_struct!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmMakeCredentialCommand,
+    TpmCc::MakeCredential,
+    true,
+    true,
+    1,
+    {
+        pub credential: Tpm2bDigest,
+        pub object_name: Tpm2bName,
+    }
+);
+
+tpm_response!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmMakeCredentialResponse,
+    TpmCc::MakeCredential,
+    true,
+    true,
+    {
+        pub credential_blob: Tpm2bIdObject,
+        pub secret: Tpm2bEncryptedSecret,
+    }
+);
+
+tpm_struct!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmLoadExternalCommand,
+    TpmCc::LoadExternal,
+    true,
+    true,
+    0,
+    {
+        pub in_private: Tpm2bSensitive,
+        pub in_public: Tpm2bPublic,
+        pub hierarchy: TpmRh,
+    }
+);
+
+tpm_response!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmLoadExternalResponse,
+    TpmCc::LoadExternal,
+    true,
+    true,
+    pub object_handle: TpmTransient,
+    {
+        pub name: Tpm2bName,
+    }
+);
+
+tpm_struct!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmActivateCredentialCommand,
+    TpmCc::ActivateCredential,
+    true,
+    true,
+    2,
+    {
+        pub credential_blob: Tpm2bIdObject,
+        pub secret: Tpm2bEncryptedSecret,
+    }
+);
+
+tpm_response!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmActivateCredentialResponse,
+    TpmCc::ActivateCredential,
+    true,
+    true,
+    {
+        pub cert_info: Tpm2bDigest,
+    }
+);
+
 tpm_dispatch! {
     (TpmNvUndefineSpaceSpecialCommand, TpmNvUndefineSpaceSpecialResponse, NvUndefineSpaceSpecial),
     (TpmEvictControlCommand, TpmEvictControlResponse, EvictControl),
@@ -1523,6 +1599,7 @@ tpm_dispatch! {
     (TpmPcrEventCommand, TpmPcrEventResponse, PcrEvent),
     (TpmStartupCommand, TpmStartupResponse, Startup),
     (TpmShutdownCommand, TpmShutdownResponse, Shutdown),
+    (TpmActivateCredentialCommand, TpmActivateCredentialResponse, ActivateCredential),
     (TpmCertifyCommand, TpmCertifyResponse, Certify),
     (TpmCertifyCreationCommand, TpmCertifyCreationResponse, CertifyCreation),
     (TpmGetTimeCommand, TpmGetTimeResponse, GetTime),
@@ -1540,6 +1617,8 @@ tpm_dispatch! {
     (TpmContextLoadCommand, TpmContextLoadResponse, ContextLoad),
     (TpmContextSaveCommand, TpmContextSaveResponse, ContextSave),
     (TpmFlushContextCommand, TpmFlushContextResponse, FlushContext),
+    (TpmLoadExternalCommand, TpmLoadExternalResponse, LoadExternal),
+    (TpmMakeCredentialCommand, TpmMakeCredentialResponse, MakeCredential),
     (TpmNvReadPublicCommand, TpmNvReadPublicResponse, NvReadPublic),
     (TpmPolicyAuthValueCommand, TpmPolicyAuthValueResponse, PolicyAuthValue),
     (TpmPolicyCommandCodeCommand, TpmPolicyCommandCodeResponse, PolicyCommandCode),

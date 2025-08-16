@@ -56,6 +56,11 @@ tpm2b_struct!(
     TpmsSensitiveCreate
 );
 tpm2b_struct!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    Tpm2bSensitive,
+    TpmtSensitive
+);
+tpm2b_struct!(
     #[derive(Debug, PartialEq, Eq, Clone, Default)]
     Tpm2bCreationData,
     TpmsCreationData
@@ -69,6 +74,11 @@ tpm2b_struct!(
     #[derive(Debug, PartialEq, Eq, Clone)]
     Tpm2bNvPublic,
     TpmsNvPublic
+);
+tpm2b_struct!(
+    #[derive(Debug, PartialEq, Eq, Clone, Default)]
+    Tpm2bIdObject,
+    TpmsIdObject
 );
 
 tpm_enum! {
@@ -143,6 +153,7 @@ tpm_enum! {
         (PcrEvent, 0x0000_013C, "TPM_CC_PCR_Event"),
         (Startup, 0x0000_0144, "TPM_CC_Startup"),
         (Shutdown, 0x0000_0145, "TPM_CC_Shutdown"),
+        (ActivateCredential, 0x0000_0147, "TPM_CC_ActivateCredential"),
         (Certify, 0x0000_0148, "TPM_CC_Certify"),
         (CertifyCreation, 0x0000_014A, "TPM_CC_CertifyCreation"),
         (GetTime, 0x0000_014C, "TPM_CC_GetTime"),
@@ -160,6 +171,8 @@ tpm_enum! {
         (ContextLoad, 0x0000_0161, "TPM_CC_ContextLoad"),
         (ContextSave, 0x0000_0162, "TPM_CC_ContextSave"),
         (FlushContext, 0x0000_0165, "TPM_CC_FlushContext"),
+        (LoadExternal, 0x0000_0167, "TPM_CC_LoadExternal"),
+        (MakeCredential, 0x0000_0168, "TPM_CC_MakeCredential"),
         (NvReadPublic, 0x0000_0169, "TPM_CC_NV_ReadPublic"),
         (PolicyAuthValue, 0x0000_016B, "TPM_CC_PolicyAuthValue"),
         (PolicyCommandCode, 0x0000_016C, "TPM_CC_PolicyCommandCode"),

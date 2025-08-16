@@ -194,6 +194,14 @@ tpm_struct! {
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone, Default, Copy)]
+    pub struct TpmsIdObject {
+        pub integrity_hmac: Tpm2bDigest,
+        pub enc_identity: Tpm2bDigest,
+    }
+}
+
+tpm_struct! {
+    #[derive(Debug, PartialEq, Eq, Clone, Default, Copy)]
     pub struct TpmsSymcipherParms {
         pub sym: TpmtSymDefObject,
     }
