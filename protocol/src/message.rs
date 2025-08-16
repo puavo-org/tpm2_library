@@ -1889,6 +1889,98 @@ tpm_response!(
     {}
 );
 
+tpm_struct!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmHashSequenceStartCommand,
+    TpmCc::HashSequenceStart,
+    true,
+    true,
+    0,
+    {
+        pub auth: Tpm2bAuth,
+        pub hash_alg: TpmAlgId,
+    }
+);
+
+tpm_response!(
+    #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+    TpmHashSequenceStartResponse,
+    TpmCc::HashSequenceStart,
+    true,
+    true,
+    pub sequence_handle: TpmTransient,
+    {}
+);
+
+tpm_struct!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmSequenceUpdateCommand,
+    TpmCc::SequenceUpdate,
+    true,
+    true,
+    1,
+    {
+        pub buffer: Tpm2bMaxBuffer,
+    }
+);
+
+tpm_response!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmSequenceUpdateResponse,
+    TpmCc::SequenceUpdate,
+    true,
+    true,
+    {}
+);
+
+tpm_struct!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmSequenceCompleteCommand,
+    TpmCc::SequenceComplete,
+    true,
+    true,
+    1,
+    {
+        pub buffer: Tpm2bMaxBuffer,
+        pub hierarchy: TpmRh,
+    }
+);
+
+tpm_response!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmSequenceCompleteResponse,
+    TpmCc::SequenceComplete,
+    true,
+    true,
+    {
+        pub result: Tpm2bDigest,
+        pub validation: TpmtTkHashcheck,
+    }
+);
+
+tpm_struct!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmEventSequenceCompleteCommand,
+    TpmCc::EventSequenceComplete,
+    true,
+    true,
+    2,
+    {
+        pub buffer: Tpm2bMaxBuffer,
+    }
+);
+
+tpm_response!(
+    #[derive(Debug, Default, PartialEq, Eq, Clone)]
+    TpmEventSequenceCompleteResponse,
+    TpmCc::EventSequenceComplete,
+    true,
+    true,
+    {
+        pub results: TpmlDigestValues,
+    }
+);
+
 tpm_dispatch! {
     (TpmNvUndefineSpaceSpecialCommand, TpmNvUndefineSpaceSpecialResponse, NvUndefineSpaceSpecial),
     (TpmEvictControlCommand, TpmEvictControlResponse, EvictControl),
@@ -1905,6 +1997,7 @@ tpm_dispatch! {
     (TpmDictionaryAttackLockResetCommand, TpmDictionaryAttackLockResetResponse, DictionaryAttackLockReset),
     (TpmNvChangeAuthCommand, TpmNvChangeAuthResponse, NvChangeAuth),
     (TpmPcrEventCommand, TpmPcrEventResponse, PcrEvent),
+    (TpmSequenceCompleteCommand, TpmSequenceCompleteResponse, SequenceComplete),
     (TpmIncrementalSelfTestCommand, TpmIncrementalSelfTestResponse, IncrementalSelfTest),
     (TpmSelfTestCommand, TpmSelfTestResponse, SelfTest),
     (TpmStartupCommand, TpmStartupResponse, Startup),
@@ -1927,6 +2020,7 @@ tpm_dispatch! {
     (TpmLoadCommand, TpmLoadResponse, Load),
     (TpmQuoteCommand, TpmQuoteResponse, Quote),
     (TpmRsaDecryptCommand, TpmRsaDecryptResponse, RsaDecrypt),
+    (TpmSequenceUpdateCommand, TpmSequenceUpdateResponse, SequenceUpdate),
     (TpmSignCommand, TpmSignResponse, Sign),
     (TpmUnsealCommand, TpmUnsealResponse, Unseal),
     (TpmContextLoadCommand, TpmContextLoadResponse, ContextLoad),
@@ -1952,6 +2046,8 @@ tpm_dispatch! {
     (TpmPolicyPcrCommand, TpmPolicyPcrResponse, PolicyPcr),
     (TpmPolicyRestartCommand, TpmPolicyRestartResponse, PolicyRestart),
     (TpmNvCertifyCommand, TpmNvCertifyResponse, NvCertify),
+    (TpmEventSequenceCompleteCommand, TpmEventSequenceCompleteResponse, EventSequenceComplete),
+    (TpmHashSequenceStartCommand, TpmHashSequenceStartResponse, HashSequenceStart),
     (TpmPolicyGetDigestCommand, TpmPolicyGetDigestResponse, PolicyGetDigest),
     (TpmPolicyPasswordCommand, TpmPolicyPasswordResponse, PolicyPassword),
     (TpmEncryptDecrypt2Command, TpmEncryptDecrypt2Response, EncryptDecrypt2),
