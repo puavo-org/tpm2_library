@@ -506,8 +506,15 @@ macro_rules! ecdh_protect_seed {
         );
         let affine_point_opt: Option<$affine_ty> =
             <$affine_ty>::from_encoded_point(&encoded_point).into();
-        let affine_point = affine_point_opt
-            .ok_or_else(|| TpmError::Execution("Invalid parent public key".to_string()))?;
+        let affine_point = affine_point_opt.ok_or_else(|| {
+            TpmError::Execution("Invalid parent public key: not on curve".to_string())
+        })?;
+
+        if affine_point.is_identity().into() {
+            return Err(TpmError::Execution(
+                "Invalid parent public key: point at infinity".to_string(),
+            ));
+        }
 
         let parent_pk = <$pk_ty>::from_affine(affine_point)
             .map_err(|e| TpmError::Execution(format!("failed to construct public key: {e}")))?;
