@@ -1,5 +1,5 @@
 [workspace]
-members = [ "protocol", "tpm2sh" ]
+members = [ "tpm2_protocol", "tpm2sh" ]
 resolver = "2"
 
 [workspace.package]
