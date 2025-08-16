@@ -384,7 +384,7 @@ fn print_usage() {
             let mut left = if let Some(s) = short {
                 format!("{s}, ")
             } else {
-                "   ".to_string()
+                "    ".to_string()
             };
             left.push_str(long);
             if !val.is_empty() {
