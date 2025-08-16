@@ -7,9 +7,9 @@ use crate::{
         Tpm2b, Tpm2bAttest, Tpm2bAuth, Tpm2bCreationData, Tpm2bData, Tpm2bDigest,
         Tpm2bEncryptedSecret, Tpm2bMaxBuffer, Tpm2bMaxNvBuffer, Tpm2bName, Tpm2bNvPublic,
         Tpm2bPrivate, Tpm2bPublic, Tpm2bSensitiveCreate, TpmAlgId, TpmCap, TpmCc, TpmRc, TpmRh,
-        TpmSe, TpmSt, TpmiYesNo, TpmlDigest, TpmlDigestValues, TpmlPcrSelection, TpmsAuthCommand,
-        TpmsAuthResponse, TpmsCapabilityData, TpmsContext, TpmtSignature, TpmtSymDef,
-        TpmtSymDefObject, TpmtTkCreation, TpmtTkHashcheck,
+        TpmSe, TpmSt, TpmSu, TpmiYesNo, TpmlDigest, TpmlDigestValues, TpmlPcrSelection,
+        TpmsAuthCommand, TpmsAuthResponse, TpmsCapabilityData, TpmsContext, TpmtSignature,
+        TpmtSymDef, TpmtSymDefObject, TpmtTkCreation, TpmtTkHashcheck,
     },
     tpm_dispatch, tpm_response, tpm_struct, TpmBuild, TpmErrorKind, TpmList, TpmParse,
     TpmPersistent, TpmResult, TpmSession, TpmSized, TpmTransient, TpmWriter,
@@ -318,6 +318,50 @@ pub fn tpm_parse_response(cc: TpmCc, buf: &[u8]) -> TpmResult<TpmParseResult> {
 
     Ok(Ok((rc, body, auth_responses)))
 }
+
+tpm_struct!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmStartupCommand,
+    TpmCc::Startup,
+    true,
+    false,
+    0,
+    {
+        pub startup_type: TpmSu,
+    }
+);
+
+tpm_struct!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmStartupResponse,
+    TpmCc::Startup,
+    true,
+    false,
+    0,
+    {}
+);
+
+tpm_struct!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmShutdownCommand,
+    TpmCc::Shutdown,
+    true,
+    true,
+    0,
+    {
+        pub shutdown_type: TpmSu,
+    }
+);
+
+tpm_struct!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmShutdownResponse,
+    TpmCc::Shutdown,
+    true,
+    true,
+    0,
+    {}
+);
 
 tpm_struct!(
     #[derive(Debug, PartialEq, Eq, Clone)]
@@ -1274,6 +1318,8 @@ tpm_dispatch! {
     (TpmDictionaryAttackLockResetCommand, TpmDictionaryAttackLockResetResponse, DictionaryAttackLockReset),
     (TpmNvChangeAuthCommand, TpmNvChangeAuthResponse, NvChangeAuth),
     (TpmPcrEventCommand, TpmPcrEventResponse, PcrEvent),
+    (TpmStartupCommand, TpmStartupResponse, Startup),
+    (TpmShutdownCommand, TpmShutdownResponse, Shutdown),
     (TpmNvReadCommand, TpmNvReadResponse, NvRead),
     (TpmNvReadLockCommand, TpmNvReadLockResponse, NvReadLock),
     (TpmObjectChangeAuthCommand, TpmObjectChangeAuthResponse, ObjectChangeAuth),

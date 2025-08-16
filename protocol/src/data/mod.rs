@@ -140,6 +140,8 @@ tpm_enum! {
         (DictionaryAttackLockReset, 0x0000_0139, "TPM_CC_DictionaryAttackLockReset"),
         (NvChangeAuth, 0x0000_013B, "TPM_CC_NV_ChangeAuth"),
         (PcrEvent, 0x0000_013C, "TPM_CC_PCR_Event"),
+        (Startup, 0x0000_0144, "TPM_CC_Startup"),
+        (Shutdown, 0x0000_0145, "TPM_CC_Shutdown"),
         (NvRead, 0x0000_014E, "TPM_CC_NV_Read"),
         (NvReadLock, 0x0000_014F, "TPM_CC_NV_ReadLock"),
         (ObjectChangeAuth, 0x0000_0150, "TPM_CC_ObjectChangeAuth"),
@@ -370,6 +372,15 @@ tpm_enum! {
         (AuthSecret, 0x8023, "TPM_ST_AUTH_SECRET"),
         (HashCheck, 0x8024, "TPM_ST_HASHCHECK"),
         (AuthSigned, 0x8025, "TPM_ST_AUTH_SIGNED"),
+    }
+}
+
+tpm_enum! {
+    #[derive(Debug, PartialEq, Eq, Copy, Clone, Default)]
+    pub enum TpmSu(u16) {
+        (Clear, 0x0000, "TPM_SU_CLEAR"),
+        #[default]
+        (State, 0x0001, "TPM_SU_STATE"),
     }
 }
 
