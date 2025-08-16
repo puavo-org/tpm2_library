@@ -266,6 +266,15 @@ tpm_struct! {
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone, Copy, Default)]
+    pub struct TpmtTkVerified {
+        pub tag: TpmSt,
+        pub hierarchy: TpmRh,
+        pub digest: Tpm2bDigest,
+    }
+}
+
+tpm_struct! {
+    #[derive(Debug, PartialEq, Eq, Clone, Copy, Default)]
     pub struct TpmtTkHashcheck {
         pub tag: TpmSt,
         pub hierarchy: TpmRh,

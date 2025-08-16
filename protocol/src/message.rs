@@ -1303,6 +1303,159 @@ tpm_struct!(
     }
 );
 
+tpm_struct! (
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmCertifyCommand,
+    TpmCc::Certify,
+    false,
+    true,
+    2,
+    {
+        pub qualifying_data: Tpm2bData,
+        pub in_scheme: TpmtSignature,
+    }
+);
+
+tpm_response!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmCertifyResponse,
+    TpmCc::Certify,
+    false,
+    true,
+    {
+        pub certify_info: Tpm2bAttest,
+        pub signature: TpmtSignature,
+    }
+);
+
+tpm_struct! (
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmCertifyCreationCommand,
+    TpmCc::CertifyCreation,
+    false,
+    true,
+    2,
+    {
+        pub qualifying_data: Tpm2bData,
+        pub creation_hash: Tpm2bDigest,
+        pub in_scheme: TpmtSignature,
+        pub creation_ticket: TpmtTkCreation,
+    }
+);
+
+tpm_response!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmCertifyCreationResponse,
+    TpmCc::CertifyCreation,
+    false,
+    true,
+    {
+        pub certify_info: Tpm2bAttest,
+        pub signature: TpmtSignature,
+    }
+);
+
+tpm_struct! (
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmQuoteCommand,
+    TpmCc::Quote,
+    false,
+    true,
+    1,
+    {
+        pub qualifying_data: Tpm2bData,
+        pub in_scheme: TpmtSignature,
+        pub pcr_select: TpmlPcrSelection,
+    }
+);
+
+tpm_response!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmQuoteResponse,
+    TpmCc::Quote,
+    false,
+    true,
+    {
+        pub quoted: Tpm2bAttest,
+        pub signature: TpmtSignature,
+    }
+);
+
+tpm_struct! (
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmGetSessionAuditDigestCommand,
+    TpmCc::GetSessionAuditDigest,
+    false,
+    true,
+    3,
+    {
+        pub qualifying_data: Tpm2bData,
+        pub in_scheme: TpmtSignature,
+    }
+);
+
+tpm_response!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmGetSessionAuditDigestResponse,
+    TpmCc::GetSessionAuditDigest,
+    false,
+    true,
+    {
+        pub audit_info: Tpm2bAttest,
+        pub signature: TpmtSignature,
+    }
+);
+
+tpm_struct! (
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmGetCommandAuditDigestCommand,
+    TpmCc::GetCommandAuditDigest,
+    false,
+    true,
+    2,
+    {
+        pub qualifying_data: Tpm2bData,
+        pub in_scheme: TpmtSignature,
+    }
+);
+
+tpm_response!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmGetCommandAuditDigestResponse,
+    TpmCc::GetCommandAuditDigest,
+    false,
+    true,
+    {
+        pub audit_info: Tpm2bAttest,
+        pub signature: TpmtSignature,
+    }
+);
+
+tpm_struct! (
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmGetTimeCommand,
+    TpmCc::GetTime,
+    false,
+    true,
+    2,
+    {
+        pub qualifying_data: Tpm2bData,
+        pub in_scheme: TpmtSignature,
+    }
+);
+
+tpm_response!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmGetTimeResponse,
+    TpmCc::GetTime,
+    false,
+    true,
+    {
+        pub time_info: Tpm2bAttest,
+        pub signature: TpmtSignature,
+    }
+);
+
 tpm_dispatch! {
     (TpmNvUndefineSpaceSpecialCommand, TpmNvUndefineSpaceSpecialResponse, NvUndefineSpaceSpecial),
     (TpmEvictControlCommand, TpmEvictControlResponse, EvictControl),
@@ -1310,6 +1463,7 @@ tpm_dispatch! {
     (TpmNvDefineSpaceCommand, TpmNvDefineSpaceResponse, NvDefineSpace),
     (TpmCreatePrimaryCommand, TpmCreatePrimaryResponse, CreatePrimary),
     (TpmNvGlobalWriteLockCommand, TpmNvGlobalWriteLockResponse, NvGlobalWriteLock),
+    (TpmGetCommandAuditDigestCommand, TpmGetCommandAuditDigestResponse, GetCommandAuditDigest),
     (TpmNvIncrementCommand, TpmNvIncrementResponse, NvIncrement),
     (TpmNvSetBitsCommand, TpmNvSetBitsResponse, NvSetBits),
     (TpmNvExtendCommand, TpmNvExtendResponse, NvExtend),
@@ -1320,6 +1474,10 @@ tpm_dispatch! {
     (TpmPcrEventCommand, TpmPcrEventResponse, PcrEvent),
     (TpmStartupCommand, TpmStartupResponse, Startup),
     (TpmShutdownCommand, TpmShutdownResponse, Shutdown),
+    (TpmCertifyCommand, TpmCertifyResponse, Certify),
+    (TpmCertifyCreationCommand, TpmCertifyCreationResponse, CertifyCreation),
+    (TpmGetTimeCommand, TpmGetTimeResponse, GetTime),
+    (TpmGetSessionAuditDigestCommand, TpmGetSessionAuditDigestResponse, GetSessionAuditDigest),
     (TpmNvReadCommand, TpmNvReadResponse, NvRead),
     (TpmNvReadLockCommand, TpmNvReadLockResponse, NvReadLock),
     (TpmObjectChangeAuthCommand, TpmObjectChangeAuthResponse, ObjectChangeAuth),
@@ -1327,6 +1485,7 @@ tpm_dispatch! {
     (TpmCreateCommand, TpmCreateResponse, Create),
     (TpmImportCommand, TpmImportResponse, Import),
     (TpmLoadCommand, TpmLoadResponse, Load),
+    (TpmQuoteCommand, TpmQuoteResponse, Quote),
     (TpmUnsealCommand, TpmUnsealResponse, Unseal),
     (TpmContextLoadCommand, TpmContextLoadResponse, ContextLoad),
     (TpmContextSaveCommand, TpmContextSaveResponse, ContextSave),
