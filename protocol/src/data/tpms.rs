@@ -4,8 +4,8 @@
 use crate::{
     data::{
         Tpm2bAuth, Tpm2bData, Tpm2bDigest, Tpm2bEccParameter, Tpm2bMaxNvBuffer, Tpm2bName,
-        Tpm2bNonce, Tpm2bSensitiveData, TpmAlgId, TpmCap, TpmRh, TpmSt, TpmaAlgorithm,
-        TpmaLocality, TpmaNv, TpmaSession, TpmiYesNo, TpmlPcrSelection, TpmtScheme,
+        Tpm2bNonce, Tpm2bSensitiveData, TpmAlgId, TpmCap, TpmEccCurve, TpmRh, TpmSt, TpmaAlgorithm,
+        TpmaLocality, TpmaNv, TpmaSession, TpmiYesNo, TpmlPcrSelection, TpmtKdfScheme, TpmtScheme,
         TpmtSymDefObject, TpmuCapabilities,
     },
     tpm_struct, TpmBuffer, TpmBuild, TpmErrorKind, TpmParse, TpmParseTagged, TpmResult, TpmSized,
@@ -296,6 +296,23 @@ tpm_struct! {
     pub struct TpmsNvDigestCertifyInfo {
         pub index_name: Tpm2bName,
         pub nv_digest: Tpm2bDigest,
+    }
+}
+
+tpm_struct! {
+    #[derive(Debug, PartialEq, Eq, Clone, Copy, Default)]
+    pub struct TpmsAlgorithmDetailEcc {
+        pub curve_id: TpmEccCurve,
+        pub key_size: u16,
+        pub kdf: TpmtKdfScheme,
+        pub sign: TpmtScheme,
+        pub p: Tpm2bEccParameter,
+        pub a: Tpm2bEccParameter,
+        pub b: Tpm2bEccParameter,
+        pub gx: Tpm2bEccParameter,
+        pub gy: Tpm2bEccParameter,
+        pub n: Tpm2bEccParameter,
+        pub h: Tpm2bEccParameter,
     }
 }
 

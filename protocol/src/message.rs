@@ -5,12 +5,12 @@
 use crate::{
     data::{
         Tpm2b, Tpm2bAttest, Tpm2bAuth, Tpm2bCreationData, Tpm2bData, Tpm2bDigest,
-        Tpm2bEncryptedSecret, Tpm2bIdObject, Tpm2bMaxBuffer, Tpm2bMaxNvBuffer, Tpm2bName,
-        Tpm2bNvPublic, Tpm2bPrivate, Tpm2bPublic, Tpm2bSensitive, Tpm2bSensitiveCreate, TpmAlgId,
-        TpmCap, TpmCc, TpmRc, TpmRh, TpmSe, TpmSt, TpmSu, TpmiYesNo, TpmlAlg, TpmlDigest,
-        TpmlDigestValues, TpmlPcrSelection, TpmsAuthCommand, TpmsAuthResponse, TpmsCapabilityData,
-        TpmsContext, TpmtSignature, TpmtSymDef, TpmtSymDefObject, TpmtTkCreation, TpmtTkHashcheck,
-        TpmtTkVerified,
+        Tpm2bEccParameter, Tpm2bEncryptedSecret, Tpm2bIdObject, Tpm2bMaxBuffer, Tpm2bMaxNvBuffer,
+        Tpm2bName, Tpm2bNvPublic, Tpm2bPrivate, Tpm2bPublic, Tpm2bSensitive, Tpm2bSensitiveCreate,
+        TpmAlgId, TpmCap, TpmCc, TpmRc, TpmRh, TpmSe, TpmSt, TpmSu, TpmiYesNo, TpmlAlg, TpmlDigest,
+        TpmlDigestValues, TpmlPcrSelection, TpmsAlgorithmDetailEcc, TpmsAuthCommand,
+        TpmsAuthResponse, TpmsCapabilityData, TpmsContext, TpmtRsaDecrypt, TpmtSignature,
+        TpmtSymDef, TpmtSymDefObject, TpmtTkCreation, TpmtTkHashcheck, TpmtTkVerified,
     },
     tpm_dispatch, tpm_response, tpm_struct, TpmBuild, TpmErrorKind, TpmList, TpmParse,
     TpmPersistent, TpmResult, TpmSession, TpmSized, TpmTransient, TpmWriter,
@@ -1647,6 +1647,58 @@ tpm_response!(
     }
 );
 
+tpm_struct!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmDuplicateCommand,
+    TpmCc::Duplicate,
+    false,
+    true,
+    2,
+    {
+        pub encryption_key_in: Tpm2bData,
+        pub symmetric_alg: TpmtSymDefObject,
+    }
+);
+
+tpm_response!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmDuplicateResponse,
+    TpmCc::Duplicate,
+    false,
+    true,
+    {
+        pub encryption_key_out: Tpm2bData,
+        pub duplicate: Tpm2bPrivate,
+        pub out_sym_seed: Tpm2bEncryptedSecret,
+    }
+);
+
+tpm_struct!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmRewrapCommand,
+    TpmCc::Rewrap,
+    false,
+    true,
+    2,
+    {
+        pub in_duplicate: Tpm2bPrivate,
+        pub name: Tpm2bName,
+        pub in_sym_seed: Tpm2bEncryptedSecret,
+    }
+);
+
+tpm_response!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmRewrapResponse,
+    TpmCc::Rewrap,
+    false,
+    true,
+    {
+        pub out_duplicate: Tpm2bPrivate,
+        pub out_sym_seed: Tpm2bEncryptedSecret,
+    }
+);
+
 tpm_dispatch! {
     (TpmNvUndefineSpaceSpecialCommand, TpmNvUndefineSpaceSpecialResponse, NvUndefineSpaceSpecial),
     (TpmEvictControlCommand, TpmEvictControlResponse, EvictControl),
@@ -1670,12 +1722,14 @@ tpm_dispatch! {
     (TpmActivateCredentialCommand, TpmActivateCredentialResponse, ActivateCredential),
     (TpmCertifyCommand, TpmCertifyResponse, Certify),
     (TpmCertifyCreationCommand, TpmCertifyCreationResponse, CertifyCreation),
+    (TpmDuplicateCommand, TpmDuplicateResponse, Duplicate),
     (TpmGetTimeCommand, TpmGetTimeResponse, GetTime),
     (TpmGetSessionAuditDigestCommand, TpmGetSessionAuditDigestResponse, GetSessionAuditDigest),
     (TpmNvReadCommand, TpmNvReadResponse, NvRead),
     (TpmNvReadLockCommand, TpmNvReadLockResponse, NvReadLock),
     (TpmObjectChangeAuthCommand, TpmObjectChangeAuthResponse, ObjectChangeAuth),
     (TpmPolicySecretCommand, TpmPolicySecretResponse, PolicySecret),
+    (TpmRewrapCommand, TpmRewrapResponse, Rewrap),
     (TpmCreateCommand, TpmCreateResponse, Create),
     (TpmImportCommand, TpmImportResponse, Import),
     (TpmLoadCommand, TpmLoadResponse, Load),

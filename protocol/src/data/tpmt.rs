@@ -105,6 +105,13 @@ tpm_struct! {
     }
 }
 
+tpm_struct! {
+    #[derive(Debug, PartialEq, Eq, Clone, Copy, Default)]
+    pub struct TpmtRsaDecrypt {
+        pub scheme: TpmtScheme,
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct TpmtSensitive {
     pub sensitive_type: TpmAlgId,
