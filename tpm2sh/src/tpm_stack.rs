@@ -4,7 +4,7 @@
 use tpm2_protocol::{TpmBuild, TpmErrorKind, TpmParse, TpmResult, TpmWriter, TPM_MAX_COMMAND_SIZE};
 
 /// A stack of TPM objects
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct TpmStack {
     stack: Vec<Vec<u8>>,
 }
@@ -14,6 +14,39 @@ impl TpmStack {
     #[must_use]
     pub fn new() -> Self {
         TpmStack { stack: Vec::new() }
+    }
+
+    /// Parses TPM objects from the byte stream.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `TpmError` if parsing fails.
+    pub fn from_bytes(bytes: &[u8]) -> TpmResult<Self> {
+        let mut stack = TpmStack::new();
+        let mut tail = bytes;
+
+        while !tail.is_empty() {
+            let (size, after_size) = u16::parse(tail)?;
+            let size = size as usize;
+
+            if after_size.len() < size {
+                return Err(TpmErrorKind::Boundary);
+            }
+
+            let total_len = 2 + size;
+            let object_bytes = &tail[..total_len];
+            stack.stack.push(object_bytes.to_vec());
+
+            tail = &tail[total_len..];
+        }
+
+        Ok(stack)
+    }
+
+    /// Concatenates objects into bytes.
+    #[must_use]
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.stack.concat()
     }
 
     /// Pushes a TPM object onto the stack.
@@ -42,9 +75,10 @@ impl TpmStack {
     pub fn pop<T: for<'a> TpmParse<'a>>(&mut self) -> TpmResult<T> {
         let bytes = self.stack.pop().ok_or(TpmErrorKind::Boundary)?;
 
-        let (obj, remainder) = T::parse(&bytes)?;
+        let (obj, tail) = T::parse(&bytes)?;
 
-        if !remainder.is_empty() {
+        if !tail.is_empty() {
+            self.stack.push(bytes);
             return Err(TpmErrorKind::TrailingData);
         }
 
