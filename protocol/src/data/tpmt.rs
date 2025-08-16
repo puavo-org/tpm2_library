@@ -237,26 +237,26 @@ impl<'a> TpmParse<'a> for TpmtSymDef {
     fn parse(buf: &'a [u8]) -> TpmResult<(Self, &'a [u8])> {
         let (algorithm, buf) = TpmAlgId::parse(buf)?;
         if algorithm == TpmAlgId::Null {
-            Ok((
+            return Ok((
                 Self {
                     algorithm,
                     key_bits: TpmuSymKeyBits::Null,
                     mode: TpmuSymMode::Null,
                 },
                 buf,
-            ))
-        } else {
-            let (key_bits, buf) = TpmuSymKeyBits::parse_tagged(algorithm, buf)?;
-            let (mode, buf) = TpmuSymMode::parse_tagged(algorithm, buf)?;
-            Ok((
-                Self {
-                    algorithm,
-                    key_bits,
-                    mode,
-                },
-                buf,
-            ))
+            ));
         }
+
+        let (key_bits, buf) = TpmuSymKeyBits::parse_tagged(algorithm, buf)?;
+        let (mode, buf) = TpmuSymMode::parse_tagged(algorithm, buf)?;
+        Ok((
+            Self {
+                algorithm,
+                key_bits,
+                mode,
+            },
+            buf,
+        ))
     }
 }
 
