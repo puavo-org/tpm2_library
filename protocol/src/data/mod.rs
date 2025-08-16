@@ -80,6 +80,11 @@ tpm2b_struct!(
     Tpm2bIdObject,
     TpmsIdObject
 );
+tpm2b_struct!(
+    #[derive(Debug, PartialEq, Eq, Clone, Copy, Default)]
+    Tpm2bEccPoint,
+    TpmsEccPoint
+);
 
 tpm_enum! {
     #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Hash, Default)]
@@ -155,6 +160,7 @@ tpm_enum! {
         (SelfTest, 0x0000_0143, "TPM_CC_SelfTest"),
         (Startup, 0x0000_0144, "TPM_CC_Startup"),
         (Shutdown, 0x0000_0145, "TPM_CC_Shutdown"),
+        (StirRandom, 0x0000_0146, "TPM_CC_StirRandom"),
         (ActivateCredential, 0x0000_0147, "TPM_CC_ActivateCredential"),
         (Certify, 0x0000_0148, "TPM_CC_Certify"),
         (CertifyCreation, 0x0000_014A, "TPM_CC_CertifyCreation"),
@@ -167,13 +173,16 @@ tpm_enum! {
         (PolicySecret, 0x0000_0151, "TPM_CC_PolicySecret"),
         (Rewrap, 0x0000_0152, "TPM_CC_Rewrap"),
         (Create, 0x0000_0153, "TPM_CC_Create"),
+        (EcdhZGen, 0x0000_0154, "TPM_CC_ECDH_ZGen"),
         (Import, 0x0000_0156, "TPM_CC_Import"),
         (Load, 0x0000_0157, "TPM_CC_Load"),
         (Quote, 0x0000_0158, "TPM_CC_Quote"),
+        (RsaDecrypt, 0x0000_0159, "TPM_CC_RSA_Decrypt"),
         (Sign, 0x0000_015D, "TPM_CC_Sign"),
         (Unseal, 0x0000_015E, "TPM_CC_Unseal"),
         (ContextLoad, 0x0000_0161, "TPM_CC_ContextLoad"),
         (ContextSave, 0x0000_0162, "TPM_CC_ContextSave"),
+        (EcdhKeyGen, 0x0000_0163, "TPM_CC_ECDH_KeyGen"),
         (FlushContext, 0x0000_0165, "TPM_CC_FlushContext"),
         (LoadExternal, 0x0000_0167, "TPM_CC_LoadExternal"),
         (MakeCredential, 0x0000_0168, "TPM_CC_MakeCredential"),
@@ -182,9 +191,12 @@ tpm_enum! {
         (PolicyCommandCode, 0x0000_016C, "TPM_CC_PolicyCommandCode"),
         (PolicyOR, 0x0000_0171, "TPM_CC_PolicyOR"),
         (ReadPublic, 0x0000_0173, "TPM_CC_ReadPublic"),
+        (RsaEncrypt, 0x0000_0174, "TPM_CC_RSA_Encrypt"),
         (StartAuthSession, 0x0000_0176, "TPM_CC_StartAuthSession"),
         (VerifySignature, 0x0000_0177, "TPM_CC_VerifySignature"),
+        (EccParameters, 0x0000_0178, "TPM_CC_ECC_Parameters"),
         (GetCapability, 0x0000_017A, "TPM_CC_GetCapability"),
+        (GetRandom, 0x0000_017B, "TPM_CC_GetRandom"),
         (GetTestResult, 0x0000_017C, "TPM_CC_GetTestResult"),
         (Hash, 0x0000_017D, "TPM_CC_Hash"),
         (PcrRead, 0x0000_017E, "TPM_CC_PCR_Read"),
@@ -193,6 +205,7 @@ tpm_enum! {
         (NvCertify, 0x0000_0184, "TPM_CC_NV_Certify"),
         (PolicyGetDigest, 0x0000_0189, "TPM_CC_PolicyGetDigest"),
         (PolicyPassword, 0x0000_018C, "TPM_CC_PolicyPassword"),
+        (EncryptDecrypt2, 0x0000_0193, "TPM_CC_EncryptDecrypt2"),
         (NvDefineSpace2, 0x0000_019D, "TPM_CC_NV_DefineSpace2"),
         (NvReadPublic2, 0x0000_019E, "TPM_CC_NV_ReadPublic2"),
         (VendorTcgTest, 0x2000_0000, "TPM_CC_Vendor_TCG_Test"),
@@ -200,8 +213,9 @@ tpm_enum! {
 }
 
 tpm_enum! {
-    #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+    #[derive(Debug, PartialEq, Eq, Clone, Copy, Default)]
     pub enum TpmEccCurve(u16) {
+        #[default]
         (None, 0x0000, "TPM_ECC_NONE"),
         (NistP192, 0x0001, "TPM_ECC_NIST_P192"),
         (NistP224, 0x0002, "TPM_ECC_NIST_P224"),

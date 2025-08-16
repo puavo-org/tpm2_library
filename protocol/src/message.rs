@@ -4,13 +4,14 @@
 
 use crate::{
     data::{
-        Tpm2b, Tpm2bAttest, Tpm2bAuth, Tpm2bCreationData, Tpm2bData, Tpm2bDigest,
-        Tpm2bEccParameter, Tpm2bEncryptedSecret, Tpm2bIdObject, Tpm2bMaxBuffer, Tpm2bMaxNvBuffer,
-        Tpm2bName, Tpm2bNvPublic, Tpm2bPrivate, Tpm2bPublic, Tpm2bSensitive, Tpm2bSensitiveCreate,
-        TpmAlgId, TpmCap, TpmCc, TpmRc, TpmRh, TpmSe, TpmSt, TpmSu, TpmiYesNo, TpmlAlg, TpmlDigest,
-        TpmlDigestValues, TpmlPcrSelection, TpmsAlgorithmDetailEcc, TpmsAuthCommand,
-        TpmsAuthResponse, TpmsCapabilityData, TpmsContext, TpmtRsaDecrypt, TpmtSignature,
-        TpmtSymDef, TpmtSymDefObject, TpmtTkCreation, TpmtTkHashcheck, TpmtTkVerified,
+        Tpm2b, Tpm2bAttest, Tpm2bAuth, Tpm2bCreationData, Tpm2bData, Tpm2bDigest, Tpm2bEccPoint,
+        Tpm2bEncryptedSecret, Tpm2bIdObject, Tpm2bMaxBuffer, Tpm2bMaxNvBuffer, Tpm2bName,
+        Tpm2bNvPublic, Tpm2bPrivate, Tpm2bPublic, Tpm2bPublicKeyRsa, Tpm2bSensitive,
+        Tpm2bSensitiveCreate, Tpm2bSensitiveData, TpmAlgId, TpmCap, TpmCc, TpmEccCurve, TpmRc,
+        TpmRh, TpmSe, TpmSt, TpmSu, TpmiYesNo, TpmlAlg, TpmlDigest, TpmlDigestValues,
+        TpmlPcrSelection, TpmsAlgorithmDetailEcc, TpmsAuthCommand, TpmsAuthResponse,
+        TpmsCapabilityData, TpmsContext, TpmtRsaDecrypt, TpmtSignature, TpmtSymDef,
+        TpmtSymDefObject, TpmtTkCreation, TpmtTkHashcheck, TpmtTkVerified,
     },
     tpm_dispatch, tpm_response, tpm_struct, TpmBuild, TpmErrorKind, TpmList, TpmParse,
     TpmPersistent, TpmResult, TpmSession, TpmSized, TpmTransient, TpmWriter,
@@ -1699,6 +1700,195 @@ tpm_response!(
     }
 );
 
+tpm_struct!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmRsaEncryptCommand,
+    TpmCc::RsaEncrypt,
+    true,
+    true,
+    1,
+    {
+        pub message: Tpm2bPublicKeyRsa,
+        pub in_scheme: TpmtRsaDecrypt,
+        pub label: Tpm2bData,
+    }
+);
+
+tpm_response!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmRsaEncryptResponse,
+    TpmCc::RsaEncrypt,
+    true,
+    true,
+    {
+        pub out_data: Tpm2bPublicKeyRsa,
+    }
+);
+
+tpm_struct!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmRsaDecryptCommand,
+    TpmCc::RsaDecrypt,
+    false,
+    true,
+    1,
+    {
+        pub cipher_text: Tpm2bPublicKeyRsa,
+        pub in_scheme: TpmtRsaDecrypt,
+        pub label: Tpm2bData,
+    }
+);
+
+tpm_response!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmRsaDecryptResponse,
+    TpmCc::RsaDecrypt,
+    false,
+    true,
+    {
+        pub message: Tpm2bPublicKeyRsa,
+    }
+);
+
+tpm_struct!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmEcdhKeyGenCommand,
+    TpmCc::EcdhKeyGen,
+    true,
+    true,
+    1,
+    {}
+);
+
+tpm_response!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmEcdhKeyGenResponse,
+    TpmCc::EcdhKeyGen,
+    true,
+    true,
+    {
+        pub z_point: Tpm2bEccPoint,
+        pub pub_point: Tpm2bEccPoint,
+    }
+);
+
+tpm_struct!(
+    #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+    TpmEcdhZGenCommand,
+    TpmCc::EcdhZGen,
+    false,
+    true,
+    1,
+    {
+        pub in_point: Tpm2bEccPoint,
+    }
+);
+
+tpm_response!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmEcdhZGenResponse,
+    TpmCc::EcdhZGen,
+    false,
+    true,
+    {
+        pub out_point: Tpm2bEccPoint,
+    }
+);
+
+tpm_struct!(
+    #[derive(Debug, PartialEq, Eq, Copy, Clone)]
+    TpmEccParametersCommand,
+    TpmCc::EccParameters,
+    true,
+    true,
+    0,
+    {
+        pub curve_id: TpmEccCurve,
+    }
+);
+
+tpm_response!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmEccParametersResponse,
+    TpmCc::EccParameters,
+    true,
+    true,
+    {
+        pub parameters: TpmsAlgorithmDetailEcc,
+    }
+);
+
+tpm_struct!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmEncryptDecrypt2Command,
+    TpmCc::EncryptDecrypt2,
+    false,
+    true,
+    1,
+    {
+        pub in_data: Tpm2bMaxBuffer,
+        pub decrypt: TpmiYesNo,
+        pub mode: TpmAlgId,
+        pub iv_in: Tpm2b,
+    }
+);
+
+tpm_response!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmEncryptDecrypt2Response,
+    TpmCc::EncryptDecrypt2,
+    false,
+    true,
+    {
+        pub out_data: Tpm2bMaxBuffer,
+        pub iv_out: Tpm2b,
+    }
+);
+
+tpm_struct!(
+    #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+    TpmGetRandomCommand,
+    TpmCc::GetRandom,
+    true,
+    true,
+    0,
+    {
+        pub bytes_requested: u16,
+    }
+);
+
+tpm_response!(
+    #[derive(Debug, Default, PartialEq, Eq, Clone)]
+    TpmGetRandomResponse,
+    TpmCc::GetRandom,
+    true,
+    true,
+    {
+        pub random_bytes: Tpm2bDigest,
+    }
+);
+
+tpm_struct!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmStirRandomCommand,
+    TpmCc::StirRandom,
+    true,
+    true,
+    0,
+    {
+        pub in_data: Tpm2bSensitiveData,
+    }
+);
+
+tpm_response!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmStirRandomResponse,
+    TpmCc::StirRandom,
+    true,
+    true,
+    {}
+);
+
 tpm_dispatch! {
     (TpmNvUndefineSpaceSpecialCommand, TpmNvUndefineSpaceSpecialResponse, NvUndefineSpaceSpecial),
     (TpmEvictControlCommand, TpmEvictControlResponse, EvictControl),
@@ -1719,6 +1909,7 @@ tpm_dispatch! {
     (TpmSelfTestCommand, TpmSelfTestResponse, SelfTest),
     (TpmStartupCommand, TpmStartupResponse, Startup),
     (TpmShutdownCommand, TpmShutdownResponse, Shutdown),
+    (TpmStirRandomCommand, TpmStirRandomResponse, StirRandom),
     (TpmActivateCredentialCommand, TpmActivateCredentialResponse, ActivateCredential),
     (TpmCertifyCommand, TpmCertifyResponse, Certify),
     (TpmCertifyCreationCommand, TpmCertifyCreationResponse, CertifyCreation),
@@ -1731,13 +1922,16 @@ tpm_dispatch! {
     (TpmPolicySecretCommand, TpmPolicySecretResponse, PolicySecret),
     (TpmRewrapCommand, TpmRewrapResponse, Rewrap),
     (TpmCreateCommand, TpmCreateResponse, Create),
+    (TpmEcdhZGenCommand, TpmEcdhZGenResponse, EcdhZGen),
     (TpmImportCommand, TpmImportResponse, Import),
     (TpmLoadCommand, TpmLoadResponse, Load),
     (TpmQuoteCommand, TpmQuoteResponse, Quote),
+    (TpmRsaDecryptCommand, TpmRsaDecryptResponse, RsaDecrypt),
     (TpmSignCommand, TpmSignResponse, Sign),
     (TpmUnsealCommand, TpmUnsealResponse, Unseal),
     (TpmContextLoadCommand, TpmContextLoadResponse, ContextLoad),
     (TpmContextSaveCommand, TpmContextSaveResponse, ContextSave),
+    (TpmEcdhKeyGenCommand, TpmEcdhKeyGenResponse, EcdhKeyGen),
     (TpmFlushContextCommand, TpmFlushContextResponse, FlushContext),
     (TpmLoadExternalCommand, TpmLoadExternalResponse, LoadExternal),
     (TpmMakeCredentialCommand, TpmMakeCredentialResponse, MakeCredential),
@@ -1746,9 +1940,12 @@ tpm_dispatch! {
     (TpmPolicyCommandCodeCommand, TpmPolicyCommandCodeResponse, PolicyCommandCode),
     (TpmPolicyOrCommand, TpmPolicyOrResponse, PolicyOr),
     (TpmReadPublicCommand, TpmReadPublicResponse, ReadPublic),
+    (TpmRsaEncryptCommand, TpmRsaEncryptResponse, RsaEncrypt),
     (TpmStartAuthSessionCommand, TpmStartAuthSessionResponse, StartAuthSession),
     (TpmVerifySignatureCommand, TpmVerifySignatureResponse, VerifySignature),
+    (TpmEccParametersCommand, TpmEccParametersResponse, EccParameters),
     (TpmGetCapabilityCommand, TpmGetCapabilityResponse, GetCapability),
+    (TpmGetRandomCommand, TpmGetRandomResponse, GetRandom),
     (TpmGetTestResultCommand, TpmGetTestResultResponse, GetTestResult),
     (TpmHashCommand, TpmHashResponse, Hash),
     (TpmPcrReadCommand, TpmPcrReadResponse, PcrRead),
@@ -1757,5 +1954,6 @@ tpm_dispatch! {
     (TpmNvCertifyCommand, TpmNvCertifyResponse, NvCertify),
     (TpmPolicyGetDigestCommand, TpmPolicyGetDigestResponse, PolicyGetDigest),
     (TpmPolicyPasswordCommand, TpmPolicyPasswordResponse, PolicyPassword),
+    (TpmEncryptDecrypt2Command, TpmEncryptDecrypt2Response, EncryptDecrypt2),
     (TpmVendorTcgTestCommand, TpmVendorTcgTestResponse, VendorTcgTest),
 }
