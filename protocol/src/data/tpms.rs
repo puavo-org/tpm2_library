@@ -3,7 +3,7 @@
 
 use crate::{
     data::{
-        Tpm2bAuth, Tpm2bData, Tpm2bDigest, Tpm2bEccParameter, Tpm2bMaxNvBuffer, Tpm2bName,
+        Tpm2b, Tpm2bAuth, Tpm2bData, Tpm2bDigest, Tpm2bEccParameter, Tpm2bMaxNvBuffer, Tpm2bName,
         Tpm2bNonce, Tpm2bSensitiveData, TpmAlgId, TpmCap, TpmEccCurve, TpmRh, TpmSt, TpmaAlgorithm,
         TpmaLocality, TpmaNv, TpmaSession, TpmiYesNo, TpmlPcrSelection, TpmtKdfScheme, TpmtScheme,
         TpmtSymDefObject, TpmuCapabilities,
@@ -92,7 +92,7 @@ tpm_struct! {
         pub sequence: u64,
         pub saved_handle: crate::TpmTransient,
         pub hierarchy: TpmRh,
-        pub context_blob: crate::data::Tpm2b,
+        pub context_blob: Tpm2b,
     }
 }
 

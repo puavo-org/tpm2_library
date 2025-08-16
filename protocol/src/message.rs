@@ -7,11 +7,11 @@ use crate::{
         Tpm2b, Tpm2bAttest, Tpm2bAuth, Tpm2bCreationData, Tpm2bData, Tpm2bDigest, Tpm2bEccPoint,
         Tpm2bEncryptedSecret, Tpm2bIdObject, Tpm2bMaxBuffer, Tpm2bMaxNvBuffer, Tpm2bName,
         Tpm2bNvPublic, Tpm2bPrivate, Tpm2bPublic, Tpm2bPublicKeyRsa, Tpm2bSensitive,
-        Tpm2bSensitiveCreate, Tpm2bSensitiveData, TpmAlgId, TpmCap, TpmCc, TpmEccCurve, TpmRc,
-        TpmRh, TpmSe, TpmSt, TpmSu, TpmiYesNo, TpmlAlg, TpmlDigest, TpmlDigestValues,
-        TpmlPcrSelection, TpmsAlgorithmDetailEcc, TpmsAuthCommand, TpmsAuthResponse,
-        TpmsCapabilityData, TpmsContext, TpmtRsaDecrypt, TpmtSignature, TpmtSymDef,
-        TpmtSymDefObject, TpmtTkCreation, TpmtTkHashcheck, TpmtTkVerified,
+        Tpm2bSensitiveCreate, Tpm2bSensitiveData, Tpm2bTimeout, TpmAlgId, TpmCap, TpmCc,
+        TpmEccCurve, TpmRc, TpmRh, TpmSe, TpmSt, TpmSu, TpmaLocality, TpmiYesNo, TpmlAlg,
+        TpmlDigest, TpmlDigestValues, TpmlPcrSelection, TpmsAlgorithmDetailEcc, TpmsAuthCommand,
+        TpmsAuthResponse, TpmsCapabilityData, TpmsContext, TpmtRsaDecrypt, TpmtSignature,
+        TpmtSymDef, TpmtSymDefObject, TpmtTkAuth, TpmtTkCreation, TpmtTkHashcheck, TpmtTkVerified,
     },
     tpm_dispatch, tpm_response, tpm_struct, TpmBuild, TpmErrorKind, TpmList, TpmParse,
     TpmPersistent, TpmResult, TpmSession, TpmSized, TpmTransient, TpmWriter,
@@ -1981,11 +1981,387 @@ tpm_response!(
     }
 );
 
+tpm_struct! (
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmPolicySignedCommand,
+    TpmCc::PolicySigned,
+    false,
+    true,
+    2,
+    {
+        pub nonce_tpm: crate::data::Tpm2bNonce,
+        pub cp_hash_a: Tpm2bDigest,
+        pub policy_ref: crate::data::Tpm2bNonce,
+        pub expiration: i32,
+        pub auth: TpmtSignature,
+    }
+);
+
+tpm_response!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmPolicySignedResponse,
+    TpmCc::PolicySigned,
+    false,
+    true,
+    {
+        pub timeout: Tpm2bTimeout,
+        pub policy_ticket: TpmtTkAuth,
+    }
+);
+
+tpm_struct! (
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmPolicyTicketCommand,
+    TpmCc::PolicyTicket,
+    false,
+    true,
+    1,
+    {
+        pub timeout: Tpm2bTimeout,
+        pub cp_hash_a: Tpm2bDigest,
+        pub policy_ref: crate::data::Tpm2bNonce,
+        pub auth_name: Tpm2bName,
+        pub ticket: TpmtTkAuth,
+    }
+);
+
+tpm_response!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmPolicyTicketResponse,
+    TpmCc::PolicyTicket,
+    false,
+    true,
+    {}
+);
+
+tpm_struct! (
+    #[derive(Debug, PartialEq, Eq, Copy, Clone)]
+    TpmPolicyLocalityCommand,
+    TpmCc::PolicyLocality,
+    false,
+    true,
+    1,
+    {
+        pub locality: TpmaLocality,
+    }
+);
+
+tpm_response!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmPolicyLocalityResponse,
+    TpmCc::PolicyLocality,
+    false,
+    true,
+    {}
+);
+
+tpm_struct! (
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmPolicyCpHashCommand,
+    TpmCc::PolicyCpHash,
+    false,
+    true,
+    1,
+    {
+        pub cp_hash_a: Tpm2bDigest,
+    }
+);
+
+tpm_response!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmPolicyCpHashResponse,
+    TpmCc::PolicyCpHash,
+    false,
+    true,
+    {}
+);
+
+tpm_struct!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmPolicyPhysicalPresenceCommand,
+    TpmCc::PolicyPhysicalPresence,
+    false,
+    true,
+    1,
+    {}
+);
+
+tpm_response!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmPolicyPhysicalPresenceResponse,
+    TpmCc::PolicyPhysicalPresence,
+    false,
+    true,
+    {}
+);
+
+tpm_struct!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmHierarchyControlCommand,
+    TpmCc::HierarchyControl,
+    false,
+    true,
+    1,
+    {
+        pub enable: TpmRh,
+        pub state: TpmiYesNo,
+    }
+);
+
+tpm_response!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmHierarchyControlResponse,
+    TpmCc::HierarchyControl,
+    false,
+    true,
+    {}
+);
+
+tpm_struct!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmSetPrimaryPolicyCommand,
+    TpmCc::SetPrimaryPolicy,
+    false,
+    true,
+    1,
+    {
+        pub auth_policy: Tpm2bDigest,
+        pub hash_alg: TpmAlgId,
+    }
+);
+
+tpm_response!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmSetPrimaryPolicyResponse,
+    TpmCc::SetPrimaryPolicy,
+    false,
+    true,
+    {}
+);
+
+tpm_struct!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmChangePpsCommand,
+    TpmCc::ChangePps,
+    false,
+    true,
+    1,
+    {}
+);
+
+tpm_response!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmChangePpsResponse,
+    TpmCc::ChangePps,
+    false,
+    true,
+    {}
+);
+
+tpm_struct!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmChangeEpsCommand,
+    TpmCc::ChangeEps,
+    false,
+    true,
+    1,
+    {}
+);
+
+tpm_response!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmChangeEpsResponse,
+    TpmCc::ChangeEps,
+    false,
+    true,
+    {}
+);
+
+tpm_struct!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmClearCommand,
+    TpmCc::Clear,
+    false,
+    true,
+    1,
+    {}
+);
+
+tpm_response!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmClearResponse,
+    TpmCc::Clear,
+    false,
+    true,
+    {}
+);
+
+tpm_struct!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmClearControlCommand,
+    TpmCc::ClearControl,
+    false,
+    true,
+    1,
+    {
+        pub disable: TpmiYesNo,
+    }
+);
+
+tpm_response!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmClearControlResponse,
+    TpmCc::ClearControl,
+    false,
+    true,
+    {}
+);
+
+tpm_struct!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmHierarchyChangeAuthCommand,
+    TpmCc::HierarchyChangeAuth,
+    false,
+    true,
+    1,
+    {
+        pub new_auth: Tpm2bAuth,
+    }
+);
+
+tpm_response!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmHierarchyChangeAuthResponse,
+    TpmCc::HierarchyChangeAuth,
+    false,
+    true,
+    {}
+);
+
+tpm_struct!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmPcrExtendCommand,
+    TpmCc::PcrExtend,
+    false,
+    true,
+    1,
+    {
+        pub digests: TpmlDigestValues,
+    }
+);
+
+tpm_response!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmPcrExtendResponse,
+    TpmCc::PcrExtend,
+    false,
+    true,
+    {}
+);
+
+tpm_struct!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmPcrAllocateCommand,
+    TpmCc::PcrAllocate,
+    false,
+    true,
+    1,
+    {
+        pub pcr_allocation: TpmlPcrSelection,
+    }
+);
+
+tpm_response!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmPcrAllocateResponse,
+    TpmCc::PcrAllocate,
+    false,
+    true,
+    {
+        pub allocation_success: TpmiYesNo,
+        pub max_pcr: u32,
+        pub size_needed: u32,
+        pub size_available: u32,
+    }
+);
+
+tpm_struct!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmPcrSetAuthPolicyCommand,
+    TpmCc::PcrSetAuthPolicy,
+    false,
+    true,
+    1,
+    {
+        pub auth_policy: Tpm2bDigest,
+        pub hash_alg: TpmAlgId,
+        pub pcr_num: TpmRh,
+    }
+);
+
+tpm_response!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmPcrSetAuthPolicyResponse,
+    TpmCc::PcrSetAuthPolicy,
+    false,
+    true,
+    {}
+);
+
+tpm_struct!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmPcrSetAuthValueCommand,
+    TpmCc::PcrSetAuthValue,
+    false,
+    true,
+    1,
+    {
+        pub auth: Tpm2bDigest,
+    }
+);
+
+tpm_response!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmPcrSetAuthValueResponse,
+    TpmCc::PcrSetAuthValue,
+    false,
+    true,
+    {}
+);
+
+tpm_struct!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmPcrResetCommand,
+    TpmCc::PcrReset,
+    false,
+    true,
+    1,
+    {}
+);
+
+tpm_response!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmPcrResetResponse,
+    TpmCc::PcrReset,
+    false,
+    true,
+    {}
+);
+
 tpm_dispatch! {
     (TpmNvUndefineSpaceSpecialCommand, TpmNvUndefineSpaceSpecialResponse, NvUndefineSpaceSpecial),
     (TpmEvictControlCommand, TpmEvictControlResponse, EvictControl),
+    (TpmHierarchyControlCommand, TpmHierarchyControlResponse, HierarchyControl),
     (TpmNvUndefineSpaceCommand, TpmNvUndefineSpaceResponse, NvUndefineSpace),
+    (TpmChangeEpsCommand, TpmChangeEpsResponse, ChangeEps),
+    (TpmChangePpsCommand, TpmChangePpsResponse, ChangePps),
+    (TpmClearCommand, TpmClearResponse, Clear),
+    (TpmClearControlCommand, TpmClearControlResponse, ClearControl),
+    (TpmHierarchyChangeAuthCommand, TpmHierarchyChangeAuthResponse, HierarchyChangeAuth),
     (TpmNvDefineSpaceCommand, TpmNvDefineSpaceResponse, NvDefineSpace),
+    (TpmPcrAllocateCommand, TpmPcrAllocateResponse, PcrAllocate),
+    (TpmPcrSetAuthPolicyCommand, TpmPcrSetAuthPolicyResponse, PcrSetAuthPolicy),
+    (TpmSetPrimaryPolicyCommand, TpmSetPrimaryPolicyResponse, SetPrimaryPolicy),
     (TpmCreatePrimaryCommand, TpmCreatePrimaryResponse, CreatePrimary),
     (TpmNvGlobalWriteLockCommand, TpmNvGlobalWriteLockResponse, NvGlobalWriteLock),
     (TpmGetCommandAuditDigestCommand, TpmGetCommandAuditDigestResponse, GetCommandAuditDigest),
@@ -1997,6 +2373,7 @@ tpm_dispatch! {
     (TpmDictionaryAttackLockResetCommand, TpmDictionaryAttackLockResetResponse, DictionaryAttackLockReset),
     (TpmNvChangeAuthCommand, TpmNvChangeAuthResponse, NvChangeAuth),
     (TpmPcrEventCommand, TpmPcrEventResponse, PcrEvent),
+    (TpmPcrResetCommand, TpmPcrResetResponse, PcrReset),
     (TpmSequenceCompleteCommand, TpmSequenceCompleteResponse, SequenceComplete),
     (TpmIncrementalSelfTestCommand, TpmIncrementalSelfTestResponse, IncrementalSelfTest),
     (TpmSelfTestCommand, TpmSelfTestResponse, SelfTest),
@@ -2023,6 +2400,7 @@ tpm_dispatch! {
     (TpmSequenceUpdateCommand, TpmSequenceUpdateResponse, SequenceUpdate),
     (TpmSignCommand, TpmSignResponse, Sign),
     (TpmUnsealCommand, TpmUnsealResponse, Unseal),
+    (TpmPolicySignedCommand, TpmPolicySignedResponse, PolicySigned),
     (TpmContextLoadCommand, TpmContextLoadResponse, ContextLoad),
     (TpmContextSaveCommand, TpmContextSaveResponse, ContextSave),
     (TpmEcdhKeyGenCommand, TpmEcdhKeyGenResponse, EcdhKeyGen),
@@ -2032,7 +2410,10 @@ tpm_dispatch! {
     (TpmNvReadPublicCommand, TpmNvReadPublicResponse, NvReadPublic),
     (TpmPolicyAuthValueCommand, TpmPolicyAuthValueResponse, PolicyAuthValue),
     (TpmPolicyCommandCodeCommand, TpmPolicyCommandCodeResponse, PolicyCommandCode),
+    (TpmPolicyCpHashCommand, TpmPolicyCpHashResponse, PolicyCpHash),
+    (TpmPolicyLocalityCommand, TpmPolicyLocalityResponse, PolicyLocality),
     (TpmPolicyOrCommand, TpmPolicyOrResponse, PolicyOr),
+    (TpmPolicyTicketCommand, TpmPolicyTicketResponse, PolicyTicket),
     (TpmReadPublicCommand, TpmReadPublicResponse, ReadPublic),
     (TpmRsaEncryptCommand, TpmRsaEncryptResponse, RsaEncrypt),
     (TpmStartAuthSessionCommand, TpmStartAuthSessionResponse, StartAuthSession),
@@ -2045,9 +2426,12 @@ tpm_dispatch! {
     (TpmPcrReadCommand, TpmPcrReadResponse, PcrRead),
     (TpmPolicyPcrCommand, TpmPolicyPcrResponse, PolicyPcr),
     (TpmPolicyRestartCommand, TpmPolicyRestartResponse, PolicyRestart),
+    (TpmPcrExtendCommand, TpmPcrExtendResponse, PcrExtend),
+    (TpmPcrSetAuthValueCommand, TpmPcrSetAuthValueResponse, PcrSetAuthValue),
     (TpmNvCertifyCommand, TpmNvCertifyResponse, NvCertify),
     (TpmEventSequenceCompleteCommand, TpmEventSequenceCompleteResponse, EventSequenceComplete),
     (TpmHashSequenceStartCommand, TpmHashSequenceStartResponse, HashSequenceStart),
+    (TpmPolicyPhysicalPresenceCommand, TpmPolicyPhysicalPresenceResponse, PolicyPhysicalPresence),
     (TpmPolicyGetDigestCommand, TpmPolicyGetDigestResponse, PolicyGetDigest),
     (TpmPolicyPasswordCommand, TpmPolicyPasswordResponse, PolicyPassword),
     (TpmEncryptDecrypt2Command, TpmEncryptDecrypt2Response, EncryptDecrypt2),
