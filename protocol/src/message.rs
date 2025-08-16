@@ -7,9 +7,9 @@ use crate::{
         Tpm2b, Tpm2bAttest, Tpm2bAuth, Tpm2bCreationData, Tpm2bData, Tpm2bDigest,
         Tpm2bEncryptedSecret, Tpm2bIdObject, Tpm2bMaxBuffer, Tpm2bMaxNvBuffer, Tpm2bName,
         Tpm2bNvPublic, Tpm2bPrivate, Tpm2bPublic, Tpm2bSensitive, Tpm2bSensitiveCreate, TpmAlgId,
-        TpmCap, TpmCc, TpmRc, TpmRh, TpmSe, TpmSt, TpmSu, TpmiYesNo, TpmlDigest, TpmlDigestValues,
-        TpmlPcrSelection, TpmsAuthCommand, TpmsAuthResponse, TpmsCapabilityData, TpmsContext,
-        TpmtSignature, TpmtSymDef, TpmtSymDefObject, TpmtTkCreation, TpmtTkHashcheck,
+        TpmCap, TpmCc, TpmRc, TpmRh, TpmSe, TpmSt, TpmSu, TpmiYesNo, TpmlAlg, TpmlDigest,
+        TpmlDigestValues, TpmlPcrSelection, TpmsAuthCommand, TpmsAuthResponse, TpmsCapabilityData,
+        TpmsContext, TpmtSignature, TpmtSymDef, TpmtSymDefObject, TpmtTkCreation, TpmtTkHashcheck,
         TpmtTkVerified,
     },
     tpm_dispatch, tpm_response, tpm_struct, TpmBuild, TpmErrorKind, TpmList, TpmParse,
@@ -1581,6 +1581,72 @@ tpm_response!(
     }
 );
 
+tpm_struct!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmSelfTestCommand,
+    TpmCc::SelfTest,
+    true,
+    true,
+    0,
+    {
+        pub full_test: TpmiYesNo,
+    }
+);
+
+tpm_response!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmSelfTestResponse,
+    TpmCc::SelfTest,
+    true,
+    true,
+    {}
+);
+
+tpm_struct!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmIncrementalSelfTestCommand,
+    TpmCc::IncrementalSelfTest,
+    true,
+    true,
+    0,
+    {
+        pub to_test: TpmlAlg,
+    }
+);
+
+tpm_response!(
+    #[derive(Debug, Default, PartialEq, Eq, Clone)]
+    TpmIncrementalSelfTestResponse,
+    TpmCc::IncrementalSelfTest,
+    true,
+    true,
+    {
+        pub to_do_list: TpmlAlg,
+    }
+);
+
+tpm_struct!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmGetTestResultCommand,
+    TpmCc::GetTestResult,
+    true,
+    true,
+    0,
+    {}
+);
+
+tpm_response!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmGetTestResultResponse,
+    TpmCc::GetTestResult,
+    true,
+    true,
+    {
+        pub out_data: Tpm2bMaxBuffer,
+        pub test_result: TpmRc,
+    }
+);
+
 tpm_dispatch! {
     (TpmNvUndefineSpaceSpecialCommand, TpmNvUndefineSpaceSpecialResponse, NvUndefineSpaceSpecial),
     (TpmEvictControlCommand, TpmEvictControlResponse, EvictControl),
@@ -1597,6 +1663,8 @@ tpm_dispatch! {
     (TpmDictionaryAttackLockResetCommand, TpmDictionaryAttackLockResetResponse, DictionaryAttackLockReset),
     (TpmNvChangeAuthCommand, TpmNvChangeAuthResponse, NvChangeAuth),
     (TpmPcrEventCommand, TpmPcrEventResponse, PcrEvent),
+    (TpmIncrementalSelfTestCommand, TpmIncrementalSelfTestResponse, IncrementalSelfTest),
+    (TpmSelfTestCommand, TpmSelfTestResponse, SelfTest),
     (TpmStartupCommand, TpmStartupResponse, Startup),
     (TpmShutdownCommand, TpmShutdownResponse, Shutdown),
     (TpmActivateCredentialCommand, TpmActivateCredentialResponse, ActivateCredential),
@@ -1627,6 +1695,7 @@ tpm_dispatch! {
     (TpmStartAuthSessionCommand, TpmStartAuthSessionResponse, StartAuthSession),
     (TpmVerifySignatureCommand, TpmVerifySignatureResponse, VerifySignature),
     (TpmGetCapabilityCommand, TpmGetCapabilityResponse, GetCapability),
+    (TpmGetTestResultCommand, TpmGetTestResultResponse, GetTestResult),
     (TpmHashCommand, TpmHashResponse, Hash),
     (TpmPcrReadCommand, TpmPcrReadResponse, PcrRead),
     (TpmPolicyPcrCommand, TpmPolicyPcrResponse, PolicyPcr),

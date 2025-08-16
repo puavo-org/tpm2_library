@@ -151,6 +151,8 @@ tpm_enum! {
         (DictionaryAttackLockReset, 0x0000_0139, "TPM_CC_DictionaryAttackLockReset"),
         (NvChangeAuth, 0x0000_013B, "TPM_CC_NV_ChangeAuth"),
         (PcrEvent, 0x0000_013C, "TPM_CC_PCR_Event"),
+        (IncrementalSelfTest, 0x0000_0142, "TPM_CC_IncrementalSelfTest"),
+        (SelfTest, 0x0000_0143, "TPM_CC_SelfTest"),
         (Startup, 0x0000_0144, "TPM_CC_Startup"),
         (Shutdown, 0x0000_0145, "TPM_CC_Shutdown"),
         (ActivateCredential, 0x0000_0147, "TPM_CC_ActivateCredential"),
@@ -181,6 +183,7 @@ tpm_enum! {
         (StartAuthSession, 0x0000_0176, "TPM_CC_StartAuthSession"),
         (VerifySignature, 0x0000_0177, "TPM_CC_VerifySignature"),
         (GetCapability, 0x0000_017A, "TPM_CC_GetCapability"),
+        (GetTestResult, 0x0000_017C, "TPM_CC_GetTestResult"),
         (Hash, 0x0000_017D, "TPM_CC_Hash"),
         (PcrRead, 0x0000_017E, "TPM_CC_PCR_Read"),
         (PolicyPcr, 0x0000_017F, "TPM_CC_PolicyPCR"),
@@ -311,6 +314,27 @@ impl TpmRc {
     }
 }
 
+impl crate::TpmSized for TpmRc {
+    const SIZE: usize = core::mem::size_of::<u32>();
+    fn len(&self) -> usize {
+        Self::SIZE
+    }
+}
+
+impl crate::TpmBuild for TpmRc {
+    fn build(&self, writer: &mut crate::TpmWriter) -> crate::TpmResult<()> {
+        self.0.build(writer)
+    }
+}
+
+impl<'a> crate::TpmParse<'a> for TpmRc {
+    fn parse(buf: &'a [u8]) -> crate::TpmResult<(Self, &'a [u8])> {
+        let (val, remainder) = u32::parse(buf)?;
+        let rc = Self::try_from(val)?;
+        Ok((rc, remainder))
+    }
+}
+
 impl TryFrom<u32> for TpmRc {
     type Error = TpmErrorKind;
     fn try_from(value: u32) -> Result<Self, Self::Error> {
@@ -411,6 +435,7 @@ tpm_bool! {
 }
 
 tpml!(TpmlAlgProperty, TpmsAlgProperty, 64);
+tpml!(TpmlAlg, TpmAlgId, 64);
 tpml!(TpmlDigest, Tpm2bDigest, 8);
 tpml!(TpmlDigestValues, TpmtHa, 8);
 tpml!(TpmlHandle, u32, 128);
