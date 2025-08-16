@@ -25,12 +25,8 @@ fn json_to_tpm_key(json_str: &str) -> Result<TpmKey, TpmError> {
             })
             .collect::<Result<_, _>>()?,
         parent: data.parent,
-        pub_key: base64_engine
-            .decode(data.public)
-            .map_err(|e| TpmError::Parse(e.to_string()))?,
-        priv_key: base64_engine
-            .decode(data.private)
-            .map_err(|e| TpmError::Parse(e.to_string()))?,
+        pub_key: base64_engine.decode(data.public)?,
+        priv_key: base64_engine.decode(data.private)?,
     })
 }
 

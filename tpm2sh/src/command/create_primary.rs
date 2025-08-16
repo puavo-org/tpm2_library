@@ -105,9 +105,9 @@ pub fn save_key_context(
     let envelope = Envelope {
         version: 1,
         object_type: "context".to_string(),
-        data: serde_json::to_value(data).map_err(|e| TpmError::Json(e.to_string()))?,
+        data: serde_json::to_value(data)?,
     };
-    serde_json::to_string_pretty(&envelope).map_err(|e| TpmError::Json(e.to_string()))
+    serde_json::to_string_pretty(&envelope).map_err(Into::into)
 }
 
 impl Command for crate::cli::CreatePrimary {

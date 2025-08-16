@@ -10,15 +10,7 @@ use pest::Parser as PestParser;
 use pest_derive::Parser;
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
-use std::{
-    cmp::Ordering,
-    error::Error,
-    fmt, fs,
-    io::{BufRead, BufReader, Error as IoError, ErrorKind, Read, Write},
-    num::ParseIntError,
-    str::FromStr,
-    vec::Vec,
-};
+use std::{cmp::Ordering, fs, io::Write, str::FromStr, vec::Vec};
 use tpm2_protocol::{
     self,
     data::{self, Tpm2bAuth, TpmAlgId, TpmEccCurve, TpmRc, TpmRh, TpmtPublic},
@@ -34,14 +26,18 @@ use tracing::debug;
 pub mod arg_parser;
 pub mod cli;
 pub mod command;
+pub mod command_io;
 pub mod crypto;
 pub mod device;
+pub mod error;
 pub mod formats;
 pub mod pretty_printer;
 
 pub use self::arg_parser::parse_cli;
+pub use self::command_io::CommandIo;
 pub use self::crypto::*;
 pub use self::device::*;
+pub use self::error::TpmError;
 pub use self::pretty_printer::PrettyTrace;
 
 #[derive(Parser)]
@@ -50,7 +46,7 @@ pub struct PcrSelectionParser;
 
 pub(crate) fn parse_hex_u32(s: &str) -> Result<u32, TpmError> {
     let s = s.strip_prefix("0x").unwrap_or(s);
-    u32::from_str_radix(s, 16).map_err(|e| TpmError::InvalidHandle(e.to_string()))
+    u32::from_str_radix(s, 16).map_err(TpmError::from)
 }
 
 pub(crate) fn parse_persistent_handle(s: &str) -> Result<TpmPersistent, TpmError> {
@@ -58,8 +54,7 @@ pub(crate) fn parse_persistent_handle(s: &str) -> Result<TpmPersistent, TpmError
 }
 
 pub(crate) fn parse_tpm_rc(s: &str) -> Result<TpmRc, TpmError> {
-    let raw_rc: u32 =
-        parse_hex_u32(s).map_err(|_| TpmError::Execution(format!("invalid hex u32: {s}")))?;
+    let raw_rc: u32 = parse_hex_u32(s)?;
     Ok(TpmRc::try_from(raw_rc)?)
 }
 
@@ -325,15 +320,14 @@ pub fn from_json_str<T>(json_str: &str, expected_type: &str) -> Result<T, TpmErr
 where
     T: for<'a> serde::Deserialize<'a>,
 {
-    let envelope: Envelope =
-        serde_json::from_str(json_str).map_err(|e| TpmError::Json(e.to_string()))?;
+    let envelope: Envelope = serde_json::from_str(json_str)?;
     if envelope.object_type != expected_type {
-        return Err(TpmError::Json(format!(
+        return Err(TpmError::Execution(format!(
             "invalid object type: expected '{}', got '{}'",
             expected_type, envelope.object_type
         )));
     }
-    serde_json::from_value(envelope.data).map_err(|e| TpmError::Json(e.to_string()))
+    serde_json::from_value(envelope.data).map_err(TpmError::from)
 }
 
 /// Serializes a TPM data data and writes it to a file.
@@ -371,85 +365,6 @@ where
     Ok(obj)
 }
 
-/// Manages the streaming I/O for a command in the JSON Lines pipeline.
-pub struct CommandIo<'a, W: Write> {
-    writer: W,
-    input_objects: Vec<cli::Object>,
-    output_objects: Vec<cli::Object>,
-    pub session: Option<&'a AuthSession>,
-    pub log_format: cli::LogFormat,
-}
-
-impl<'a, W: Write> CommandIo<'a, W> {
-    /// Creates a new command context for the pipeline.
-    ///
-    /// # Errors
-    ///
-    /// Returns a `TpmError` if reading from the input stream fails.
-    pub fn new<R: Read>(
-        reader: R,
-        writer: W,
-        session: Option<&'a AuthSession>,
-        log_format: cli::LogFormat,
-    ) -> Result<Self, TpmError> {
-        let mut input_objects = Vec::new();
-        let buf_reader = BufReader::new(reader);
-        for line in buf_reader.lines() {
-            let line = line?;
-            if !line.trim().is_empty() {
-                input_objects.push(serde_json::from_str(&line)?);
-            }
-        }
-        Ok(Self {
-            writer,
-            input_objects,
-            output_objects: Vec::new(),
-            session,
-            log_format,
-        })
-    }
-
-    /// Finds and removes the first object from the input pipeline that matches a predicate.
-    ///
-    /// # Errors
-    ///
-    /// Returns a `TpmError` if no matching object is found.
-    pub fn consume_object<F>(&mut self, predicate: F) -> Result<cli::Object, TpmError>
-    where
-        F: FnMut(&cli::Object) -> bool,
-    {
-        let pos = self
-            .input_objects
-            .iter()
-            .position(predicate)
-            .ok_or_else(|| {
-                TpmError::Execution("required object not found in input pipeline".to_string())
-            })?;
-        Ok(self.input_objects.remove(pos))
-    }
-
-    /// Adds an object to be written to the output stream upon finalization.
-    pub fn push_object(&mut self, obj: cli::Object) {
-        self.output_objects.push(obj);
-    }
-
-    /// Finalizes the command, writing all new and unconsumed objects to the output stream.
-    ///
-    /// # Errors
-    ///
-    /// Returns a `TpmError` if JSON serialization or I/O fails.
-    pub fn finalize(mut self) -> Result<(), TpmError> {
-        let mut final_objects = self.input_objects;
-        final_objects.append(&mut self.output_objects);
-
-        for obj in final_objects {
-            let json_str = serde_json::to_string(&obj)?;
-            writeln!(self.writer, "{json_str}")?;
-        }
-        Ok(())
-    }
-}
-
 /// Pops an object from the stack and deserializes it into `ObjectData`.
 ///
 /// # Errors
@@ -471,7 +386,7 @@ pub fn pop_object_data<W: Write>(io: &mut CommandIo<W>) -> Result<ObjectData, Tp
     };
 
     let envelope: Envelope = serde_json::from_value(envelope_value)?;
-    serde_json::from_value(envelope.data).map_err(|e| TpmError::Json(e.to_string()))
+    serde_json::from_value(envelope.data).map_err(Into::into)
 }
 
 /// Parses a parent handle from a hex string in the loaded object data.
@@ -481,7 +396,7 @@ pub fn pop_object_data<W: Write>(io: &mut CommandIo<W>) -> Result<ObjectData, Tp
 /// Returns a `TpmError::Parse` if the hex string is invalid.
 pub fn parse_parent_handle_from_json(object_data: &ObjectData) -> Result<TpmTransient, TpmError> {
     u32::from_str_radix(object_data.parent.trim_start_matches("0x"), 16)
-        .map_err(|e| TpmError::Parse(e.to_string()))
+        .map_err(Into::into)
         .map(TpmTransient)
 }
 
@@ -558,7 +473,7 @@ where
 /// Returns a `TpmError` if the prefix is invalid or I/O fails.
 pub fn input_to_bytes(s: &str) -> Result<Vec<u8>, TpmError> {
     if let Some(data_str) = s.strip_prefix("data:") {
-        hex::decode(data_str).map_err(|e| TpmError::Parse(e.to_string()))
+        hex::decode(data_str).map_err(Into::into)
     } else if let Some(path_str) = s.strip_prefix("path:") {
         fs::read(path_str).map_err(|e| TpmError::File(path_str.to_string(), e))
     } else {
@@ -573,7 +488,7 @@ pub fn input_to_bytes(s: &str) -> Result<Vec<u8>, TpmError> {
 /// Returns a `TpmError` if the prefix is invalid, I/O fails, or the data is not valid UTF-8.
 pub fn input_to_utf8(s: &str) -> Result<String, TpmError> {
     if let Some(data_str) = s.strip_prefix("data:") {
-        let bytes = hex::decode(data_str).map_err(|e| TpmError::Parse(e.to_string()))?;
+        let bytes = hex::decode(data_str)?;
         String::from_utf8(bytes).map_err(|e| TpmError::Parse(e.to_string()))
     } else if let Some(path_str) = s.strip_prefix("path:") {
         fs::read_to_string(path_str).map_err(|e| TpmError::File(path_str.to_string(), e))
@@ -663,26 +578,16 @@ pub fn load_session(session_arg: Option<&str>) -> Result<Option<AuthSession>, Tp
     let json_str = if session_str.trim().starts_with('{') {
         session_str
     } else {
-        fs::read_to_string(&session_str).map_err(|e| TpmError::File(session_str.to_string(), e))?
+        fs::read_to_string(&session_str).map_err(|e| TpmError::File(session_str, e))?
     };
 
     let data: SessionData = from_json_str(&json_str, "session")?;
 
     Ok(Some(AuthSession {
         handle: TpmSession(data.handle),
-        nonce_tpm: data::Tpm2bNonce::try_from(
-            base64_engine
-                .decode(data.nonce_tpm)
-                .map_err(|e| TpmError::Parse(e.to_string()))?
-                .as_slice(),
-        )?,
+        nonce_tpm: data::Tpm2bNonce::try_from(base64_engine.decode(data.nonce_tpm)?.as_slice())?,
         attributes: data::TpmaSession::from_bits_truncate(data.attributes),
-        hmac_key: data::Tpm2bAuth::try_from(
-            base64_engine
-                .decode(data.hmac_key)
-                .map_err(|e| TpmError::Parse(e.to_string()))?
-                .as_slice(),
-        )?,
+        hmac_key: data::Tpm2bAuth::try_from(base64_engine.decode(data.hmac_key)?.as_slice())?,
         auth_hash: data::TpmAlgId::try_from(data.auth_hash)
             .map_err(|()| TpmError::Parse("invalid auth_hash in session data".to_string()))?,
     }))
@@ -750,69 +655,6 @@ where
     }
 }
 
-#[derive(Debug)]
-pub enum TpmError {
-    Build(TpmErrorKind),
-    Execution(String),
-    File(String, IoError),
-    InvalidHandle(String),
-    Io(ErrorKind),
-    Json(String),
-    Parse(String),
-    PcrSelection(String),
-    TpmRc(TpmRc),
-    UnexpectedResponse(String),
-}
-
-impl Error for TpmError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        if let TpmError::File(_, err) = self {
-            Some(err)
-        } else {
-            None
-        }
-    }
-}
-
-impl From<IoError> for TpmError {
-    fn from(err: IoError) -> Self {
-        TpmError::Io(err.kind())
-    }
-}
-
-impl From<TpmErrorKind> for TpmError {
-    fn from(err: TpmErrorKind) -> Self {
-        TpmError::Build(err)
-    }
-}
-
-impl From<indicatif::style::TemplateError> for TpmError {
-    fn from(err: indicatif::style::TemplateError) -> Self {
-        TpmError::Execution(format!("Spinner template error: {err}"))
-    }
-}
-
-impl fmt::Display for TpmError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            TpmError::Build(err) => write!(f, "error=build, details='{err}'"),
-            TpmError::Execution(reason) => write!(f, "error=cli, reason='{reason}'"),
-            TpmError::File(path, err) => write!(f, "error=io, path={path}, details='{err}'"),
-            TpmError::Io(kind) => write!(f, "error=io, kind={kind:?}"),
-            TpmError::InvalidHandle(handle) => {
-                write!(f, "error=cli, reason='invalid handle: {handle}'")
-            }
-            TpmError::Json(reason) => write!(f, "error=json, reason='{reason}'"),
-            TpmError::Parse(reason) => write!(f, "error=parse, reason='{reason}'"),
-            TpmError::PcrSelection(reason) => write!(f, "error=pcr, reason='{reason}'"),
-            TpmError::TpmRc(rc) => write!(f, "error=tpm, rc='{rc}'"),
-            TpmError::UnexpectedResponse(reason) => {
-                write!(f, "error=cli, reason='unexpected response type: {reason}'")
-            }
-        }
-    }
-}
-
 /// A helper to build a `TpmBuild` type into a `Vec<u8>`.
 pub(crate) fn build_to_vec<T: TpmBuild>(obj: &T) -> Result<Vec<u8>, TpmError> {
     let mut buf = [0u8; TPM_MAX_COMMAND_SIZE];
@@ -822,18 +664,6 @@ pub(crate) fn build_to_vec<T: TpmBuild>(obj: &T) -> Result<Vec<u8>, TpmError> {
         writer.len()
     };
     Ok(buf[..len].to_vec())
-}
-
-impl From<pkcs8::der::Error> for TpmError {
-    fn from(err: pkcs8::der::Error) -> Self {
-        TpmError::Execution(err.to_string())
-    }
-}
-
-impl From<serde_json::Error> for TpmError {
-    fn from(err: serde_json::Error) -> Self {
-        TpmError::Json(err.to_string())
-    }
 }
 
 /// Gets the number of PCRs from the TPM.
@@ -898,13 +728,7 @@ pub(crate) fn parse_pcr_selection(
         let mut pcr_select_bytes = vec![0u8; pcr_select_size];
 
         for pcr_index_pair in pcr_list_pair.into_inner() {
-            let pcr_index: usize =
-                pcr_index_pair
-                    .as_str()
-                    .parse()
-                    .map_err(|e: ParseIntError| {
-                        TpmError::PcrSelection(format!("invalid pcr index: {e}"))
-                    })?;
+            let pcr_index: usize = pcr_index_pair.as_str().parse()?;
 
             if pcr_index >= pcr_count {
                 return Err(TpmError::PcrSelection(format!(

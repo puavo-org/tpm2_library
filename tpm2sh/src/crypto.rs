@@ -34,6 +34,7 @@ use rand::{thread_rng, RngCore};
 use rsa::{traits::PublicKeyParts, Oaep, RsaPrivateKey, RsaPublicKey};
 use sha1::Sha1;
 use sha2::{Digest, Sha256, Sha384, Sha512};
+use std::str::Utf8Error;
 use tpm2_protocol::{
     data::{
         Tpm2b, Tpm2bDigest, Tpm2bEccParameter, Tpm2bEncryptedSecret, Tpm2bPrivate,
@@ -105,11 +106,10 @@ impl PrivateKey {
     pub fn from_pem_file(path: &std::path::Path) -> Result<Self, TpmError> {
         let pem_bytes =
             std::fs::read(path).map_err(|e| TpmError::File(path.display().to_string(), e))?;
-        let pem_str = std::str::from_utf8(&pem_bytes)
-            .map_err(|e| TpmError::Parse(format!("UTF-8 error: {e}")))?;
+        let pem_str =
+            std::str::from_utf8(&pem_bytes).map_err(|e| TpmError::Parse(e.to_string()))?;
 
-        let pem_block =
-            pem::parse(pem_str).map_err(|e| TpmError::Parse(format!("PEM parse error: {e}")))?;
+        let pem_block = pem::parse(pem_str)?;
 
         if pem_block.tag() != "PRIVATE KEY" {
             return Err(TpmError::Parse(format!(
@@ -120,8 +120,7 @@ impl PrivateKey {
 
         let contents = pem_block.contents().to_vec();
 
-        PrivateKeyInfo::from_der(&contents)
-            .map_err(|e| TpmError::Parse(format!("DER parse error: {e}")))?;
+        PrivateKeyInfo::from_der(&contents).map_err(|e| TpmError::Parse(e.to_string()))?;
 
         Ok(Self {
             private_key_info_der: contents,
@@ -134,8 +133,8 @@ impl PrivateKey {
     ///
     /// Returns `TpmError`.
     pub fn to_tpmt_public(&self, hash_alg: TpmAlgId) -> Result<TpmtPublic, TpmError> {
-        let private_key_info = PrivateKeyInfo::from_der(&self.private_key_info_der)
-            .map_err(|e| TpmError::Parse(format!("DER parse error: {e}")))?;
+        let private_key_info =
+            PrivateKeyInfo::from_der(&self.private_key_info_der).map_err(TpmError::from)?;
 
         let oid = private_key_info.algorithm.oid;
         let object_type = match oid {
@@ -150,8 +149,7 @@ impl PrivateKey {
 
         match object_type {
             TpmAlgId::Rsa => {
-                let rsa_key = RsaPrivateKey::from_pkcs8_der(&self.private_key_info_der)
-                    .map_err(|e| TpmError::Parse(format!("RSA parse error: {e}")))?;
+                let rsa_key = RsaPrivateKey::from_pkcs8_der(&self.private_key_info_der)?;
 
                 let modulus_bytes = rsa_key.n().to_bytes_be();
                 let key_bits = u16::try_from(modulus_bytes.len() * 8)
@@ -190,8 +188,7 @@ impl PrivateKey {
                 })
             }
             TpmAlgId::Ecc => {
-                let secret_key = SecretKey::from_pkcs8_der(&self.private_key_info_der)
-                    .map_err(|e| TpmError::Parse(format!("ECC key parse error: {e}")))?;
+                let secret_key = SecretKey::from_pkcs8_der(&self.private_key_info_der)?;
 
                 let encoded_point = secret_key.public_key().to_encoded_point(false);
                 let pub_bytes = encoded_point.as_bytes();
@@ -242,18 +239,16 @@ impl PrivateKey {
     ///
     /// Returns a `TpmError::Parse` if the internal DER data is invalid.
     pub fn get_private_blob(&self) -> Result<&[u8], TpmError> {
-        let private_key_info = PrivateKeyInfo::from_der(&self.private_key_info_der)
-            .map_err(|e| TpmError::Parse(format!("DER parse error: {e}")))?;
+        let private_key_info = PrivateKeyInfo::from_der(&self.private_key_info_der)?;
         Ok(private_key_info.private_key)
     }
 }
 
 /// Convert ECC curve OID from DER `AnyRef` to TPM curve enum.
 fn ec_oid_to_tpm_curve(any: &AnyRef) -> Result<TpmEccCurve, TpmError> {
-    let der_bytes = any
-        .to_der()
-        .map_err(|e| TpmError::Parse(format!("DER error: {e}")))?;
-    let oid = ObjectIdentifier::decode(&mut der::SliceReader::new(&der_bytes)?)
+    let der_bytes = any.to_der()?;
+    let mut reader = der::SliceReader::new(&der_bytes)?;
+    let oid = ObjectIdentifier::decode(&mut reader)
         .map_err(|_| TpmError::Parse("Invalid DER in ECC curve parameters".to_string()))?;
 
     match oid {
@@ -292,8 +287,7 @@ impl TpmKey {
         let asn1 = TpmKeyAsn1 {
             oid: ObjectIdentifier::from_arcs(self.oid.iter().copied())
                 .map_err(|e| TpmError::Parse(format!("OID encode error: {e:?}")))?,
-            parent: u32::from_str_radix(self.parent.trim_start_matches("0x"), 16)
-                .map_err(|e| TpmError::Parse(e.to_string()))?,
+            parent: u32::from_str_radix(self.parent.trim_start_matches("0x"), 16)?,
             pub_key: OctetString::new(self.pub_key.clone())?,
             priv_key: OctetString::new(self.priv_key.clone())?,
         };
@@ -308,7 +302,7 @@ impl TpmKey {
     ///
     /// Returns `TpmError` if the PEM bytes cannot be parsed.
     pub fn from_pem(pem_bytes: &[u8]) -> Result<Self, TpmError> {
-        let pem = pem::parse(pem_bytes).map_err(|e| TpmError::Parse(e.to_string()))?;
+        let pem = pem::parse(pem_bytes)?;
         if pem.tag() != "TPM2 KEY" {
             return Err(TpmError::Parse("invalid PEM tag".to_string()));
         }
@@ -321,8 +315,7 @@ impl TpmKey {
     ///
     /// Returns `TpmError` if the DER bytes cannot be parsed into a valid `TpmKeyAsn1` data.
     pub fn from_der(der_bytes: &[u8]) -> Result<Self, TpmError> {
-        let asn1 = TpmKeyAsn1::from_der(der_bytes)
-            .map_err(|e| TpmError::Parse(format!("DER decode error: {e}")))?;
+        let asn1 = TpmKeyAsn1::from_der(der_bytes)?;
 
         Ok(TpmKey {
             oid: asn1.oid.arcs().collect(),
@@ -733,4 +726,10 @@ pub fn create_import_blob(
         in_sym_seed,
         encryption_key,
     ))
+}
+
+impl From<Utf8Error> for TpmError {
+    fn from(err: Utf8Error) -> Self {
+        TpmError::Parse(err.to_string())
+    }
 }
