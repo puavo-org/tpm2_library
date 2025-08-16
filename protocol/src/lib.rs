@@ -67,6 +67,8 @@ pub enum TpmErrorKind {
     InvalidValue,
     /// A size or count in the buffer is larger than the maximum allowed value
     ValueTooLarge,
+    /// An operation would exceed the fixed capacity of a container
+    CapacityExceeded,
     /// A command requires an authorization session but none was provided
     AuthMissing,
     /// An unexpected internal error
@@ -104,6 +106,7 @@ impl fmt::Display for TpmErrorKind {
                     "A size or count is larger than the maximum allowed value"
                 )
             }
+            Self::CapacityExceeded => write!(f, "An operation would exceed a container's capacity"),
             Self::AuthMissing => write!(f, "Command requires authorization but none was provided"),
             Self::InternalError => write!(f, "An unexpected internal error occurred"),
         }
@@ -431,11 +434,11 @@ impl<T: Copy + Default, const CAPACITY: usize> TpmList<T, CAPACITY> {
     ///
     /// # Errors
     ///
-    /// Returns a `TpmErrorKind::ValueTooLarge` error if the list is already at
+    /// Returns a `TpmErrorKind::CapacityExceeded` error if the list is already at
     /// full capacity.
     pub fn try_push(&mut self, item: T) -> Result<(), TpmErrorKind> {
         if self.len as usize >= CAPACITY {
-            return Err(TpmErrorKind::ValueTooLarge);
+            return Err(TpmErrorKind::CapacityExceeded);
         }
         let index = self.len as usize;
         self.items[index] = item;

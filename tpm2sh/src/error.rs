@@ -18,6 +18,8 @@ pub enum TpmError {
     Parse(String),
     ParseInt(ParseIntError),
     PcrSelection(String),
+    Pem(pem::PemError),
+    Pkcs8(pkcs8::Error),
     TpmRc(TpmRc),
     UnexpectedResponse(String),
 }
@@ -31,6 +33,8 @@ impl Error for TpmError {
             TpmError::Hex(err) => Some(err),
             TpmError::Json(err) => Some(err),
             TpmError::ParseInt(err) => Some(err),
+            TpmError::Pem(err) => Some(err),
+            TpmError::Pkcs8(err) => Some(err),
             _ => None,
         }
     }
@@ -39,23 +43,23 @@ impl Error for TpmError {
 impl fmt::Display for TpmError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            TpmError::Base64(err) => write!(f, "error=base64, details='{err}'"),
-            TpmError::Build(err) => write!(f, "error=build, details='{err}'"),
-            TpmError::Der(err) => write!(f, "error=der, details='{err}'"),
-            TpmError::Execution(reason) => write!(f, "error=cli, reason='{reason}'"),
-            TpmError::File(path, err) => write!(f, "error=io, path={path}, details='{err}'"),
-            TpmError::Hex(err) => write!(f, "error=hex, details='{err}'"),
-            TpmError::InvalidHandle(handle) => {
-                write!(f, "error=cli, reason='invalid handle: {handle}'")
-            }
-            TpmError::Io(err) => write!(f, "error=io, details='{err}'"),
-            TpmError::Json(err) => write!(f, "error=json, details='{err}'"),
-            TpmError::Parse(reason) => write!(f, "error=parse, reason='{reason}'"),
-            TpmError::ParseInt(err) => write!(f, "error=parse, details='{err}'"),
-            TpmError::PcrSelection(reason) => write!(f, "error=pcr, reason='{reason}'"),
-            TpmError::TpmRc(rc) => write!(f, "error=tpm, rc='{rc}'"),
+            TpmError::Base64(err) => write!(f, "Base64 decoding failed: {err}"),
+            TpmError::Build(err) => write!(f, "Failed to build TPM structure: {err}"),
+            TpmError::Der(err) => write!(f, "DER encoding/decoding failed: {err}"),
+            TpmError::Execution(reason) => write!(f, "Execution failed: {reason}"),
+            TpmError::File(path, err) => write!(f, "File operation failed on '{path}': {err}"),
+            TpmError::Hex(err) => write!(f, "Hex decoding failed: {err}"),
+            TpmError::InvalidHandle(handle) => write!(f, "Invalid handle: {handle}"),
+            TpmError::Io(err) => write!(f, "I/O error: {err}"),
+            TpmError::Json(err) => write!(f, "JSON serialization/deserialization failed: {err}"),
+            TpmError::Parse(reason) => write!(f, "Parsing failed: {reason}"),
+            TpmError::ParseInt(err) => write!(f, "Integer parsing failed: {err}"),
+            TpmError::PcrSelection(reason) => write!(f, "Invalid PCR selection: {reason}"),
+            TpmError::Pem(err) => write!(f, "PEM parsing failed: {err}"),
+            TpmError::Pkcs8(err) => write!(f, "PKCS#8 parsing failed: {err}"),
+            TpmError::TpmRc(rc) => write!(f, "TPM returned an error: {rc}"),
             TpmError::UnexpectedResponse(reason) => {
-                write!(f, "error=cli, reason='unexpected response type: {reason}'")
+                write!(f, "Unexpected response type from TPM: {reason}")
             }
         }
     }
@@ -111,12 +115,12 @@ impl From<serde_json::Error> for TpmError {
 
 impl From<pkcs8::Error> for TpmError {
     fn from(err: pkcs8::Error) -> Self {
-        TpmError::Parse(err.to_string())
+        TpmError::Pkcs8(err)
     }
 }
 
 impl From<pem::PemError> for TpmError {
     fn from(err: pem::PemError) -> Self {
-        TpmError::Parse(err.to_string())
+        TpmError::Pem(err)
     }
 }

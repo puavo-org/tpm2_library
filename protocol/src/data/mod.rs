@@ -211,7 +211,7 @@ impl TpmRc {
     ///
     /// # Errors
     ///
-    /// Returns a `TpmErrorKind::InternalError` if the response code does not correspond
+    /// Returns a `TpmErrorKind::InvalidDiscriminant` if the response code does not correspond
     /// to a known base error code.
     pub fn base(self) -> Result<TpmRcBase, TpmErrorKind> {
         let value = self.0;
@@ -220,7 +220,10 @@ impl TpmRc {
         } else {
             value
         };
-        TpmRcBase::try_from(base_code).map_err(|()| TpmErrorKind::InternalError)
+        TpmRcBase::try_from(base_code).map_err(|()| TpmErrorKind::InvalidDiscriminant {
+            type_name: "TpmRcBase",
+            value: u64::from(base_code),
+        })
     }
 
     #[must_use]
