@@ -44,6 +44,7 @@ tpm2b!(Tpm2bPublicKeyRsa, MAX_RSA_KEY_BYTES);
 tpm2b!(Tpm2bSensitiveData, MAX_SENSITIVE_DATA);
 tpm2b!(Tpm2bSymKey, MAX_SYM_KEY_BYTES);
 tpm2b!(Tpm2bData, MAX_SENSITIVE_DATA);
+tpm2b!(Tpm2bTimeout, 8);
 
 tpm2b_struct!(
     #[derive(Debug, PartialEq, Eq, Clone, Default)]
@@ -182,6 +183,7 @@ tpm_enum! {
         (SequenceUpdate, 0x0000_015C, "TPM_CC_SequenceUpdate"),
         (Sign, 0x0000_015D, "TPM_CC_Sign"),
         (Unseal, 0x0000_015E, "TPM_CC_Unseal"),
+        (PolicySigned, 0x0000_0160, "TPM_CC_PolicySigned"),
         (ContextLoad, 0x0000_0161, "TPM_CC_ContextLoad"),
         (ContextSave, 0x0000_0162, "TPM_CC_ContextSave"),
         (EcdhKeyGen, 0x0000_0163, "TPM_CC_ECDH_KeyGen"),
@@ -191,7 +193,10 @@ tpm_enum! {
         (NvReadPublic, 0x0000_0169, "TPM_CC_NV_ReadPublic"),
         (PolicyAuthValue, 0x0000_016B, "TPM_CC_PolicyAuthValue"),
         (PolicyCommandCode, 0x0000_016C, "TPM_CC_PolicyCommandCode"),
+        (PolicyCpHash, 0x0000_016E, "TPM_CC_PolicyCpHash"),
+        (PolicyLocality, 0x0000_016F, "TPM_CC_PolicyLocality"),
         (PolicyOR, 0x0000_0171, "TPM_CC_PolicyOR"),
+        (PolicyTicket, 0x0000_0172, "TPM_CC_PolicyTicket"),
         (ReadPublic, 0x0000_0173, "TPM_CC_ReadPublic"),
         (RsaEncrypt, 0x0000_0174, "TPM_CC_RSA_Encrypt"),
         (StartAuthSession, 0x0000_0176, "TPM_CC_StartAuthSession"),
@@ -207,6 +212,7 @@ tpm_enum! {
         (NvCertify, 0x0000_0184, "TPM_CC_NV_Certify"),
         (EventSequenceComplete, 0x0000_0185, "TPM_CC_EventSequenceComplete"),
         (HashSequenceStart, 0x0000_0186, "TPM_CC_HashSequenceStart"),
+        (PolicyPhysicalPresence, 0x0000_0187, "TPM_CC_PolicyPhysicalPresence"),
         (PolicyGetDigest, 0x0000_0189, "TPM_CC_PolicyGetDigest"),
         (PolicyPassword, 0x0000_018C, "TPM_CC_PolicyPassword"),
         (EncryptDecrypt2, 0x0000_0193, "TPM_CC_EncryptDecrypt2"),
