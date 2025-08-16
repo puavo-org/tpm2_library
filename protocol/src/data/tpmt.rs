@@ -309,7 +309,7 @@ tpm_tagged_struct! {
 impl Default for TpmtHa {
     fn default() -> Self {
         Self {
-            hash_alg: TpmAlgId::Sha256,
+            hash_alg: TpmAlgId::Null,
             digest: TpmuHa::default(),
         }
     }
