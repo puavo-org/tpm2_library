@@ -9,7 +9,7 @@ use crate::{
         Tpm2bPrivate, Tpm2bPublic, Tpm2bSensitiveCreate, TpmAlgId, TpmCap, TpmCc, TpmRc, TpmRh,
         TpmSe, TpmSt, TpmSu, TpmiYesNo, TpmlDigest, TpmlDigestValues, TpmlPcrSelection,
         TpmsAuthCommand, TpmsAuthResponse, TpmsCapabilityData, TpmsContext, TpmtSignature,
-        TpmtSymDef, TpmtSymDefObject, TpmtTkCreation, TpmtTkHashcheck,
+        TpmtSymDef, TpmtSymDefObject, TpmtTkCreation, TpmtTkHashcheck, TpmtTkVerified,
     },
     tpm_dispatch, tpm_response, tpm_struct, TpmBuild, TpmErrorKind, TpmList, TpmParse,
     TpmPersistent, TpmResult, TpmSession, TpmSized, TpmTransient, TpmWriter,
@@ -1456,6 +1456,55 @@ tpm_response!(
     }
 );
 
+tpm_struct!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmSignCommand,
+    TpmCc::Sign,
+    false,
+    true,
+    1,
+    {
+        pub digest: Tpm2bDigest,
+        pub in_scheme: TpmtSignature,
+        pub validation: TpmtTkHashcheck,
+    }
+);
+
+tpm_response!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmSignResponse,
+    TpmCc::Sign,
+    false,
+    true,
+    {
+        pub signature: TpmtSignature,
+    }
+);
+
+tpm_struct!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmVerifySignatureCommand,
+    TpmCc::VerifySignature,
+    true,
+    false,
+    1,
+    {
+        pub digest: Tpm2bDigest,
+        pub signature: TpmtSignature,
+    }
+);
+
+tpm_response!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmVerifySignatureResponse,
+    TpmCc::VerifySignature,
+    true,
+    false,
+    {
+        pub validation: TpmtTkVerified,
+    }
+);
+
 tpm_dispatch! {
     (TpmNvUndefineSpaceSpecialCommand, TpmNvUndefineSpaceSpecialResponse, NvUndefineSpaceSpecial),
     (TpmEvictControlCommand, TpmEvictControlResponse, EvictControl),
@@ -1486,6 +1535,7 @@ tpm_dispatch! {
     (TpmImportCommand, TpmImportResponse, Import),
     (TpmLoadCommand, TpmLoadResponse, Load),
     (TpmQuoteCommand, TpmQuoteResponse, Quote),
+    (TpmSignCommand, TpmSignResponse, Sign),
     (TpmUnsealCommand, TpmUnsealResponse, Unseal),
     (TpmContextLoadCommand, TpmContextLoadResponse, ContextLoad),
     (TpmContextSaveCommand, TpmContextSaveResponse, ContextSave),
@@ -1496,6 +1546,7 @@ tpm_dispatch! {
     (TpmPolicyOrCommand, TpmPolicyOrResponse, PolicyOr),
     (TpmReadPublicCommand, TpmReadPublicResponse, ReadPublic),
     (TpmStartAuthSessionCommand, TpmStartAuthSessionResponse, StartAuthSession),
+    (TpmVerifySignatureCommand, TpmVerifySignatureResponse, VerifySignature),
     (TpmGetCapabilityCommand, TpmGetCapabilityResponse, GetCapability),
     (TpmHashCommand, TpmHashResponse, Hash),
     (TpmPcrReadCommand, TpmPcrReadResponse, PcrRead),
