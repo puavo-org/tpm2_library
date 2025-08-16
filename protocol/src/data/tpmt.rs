@@ -82,7 +82,7 @@ impl Default for TpmtPublic {
     fn default() -> Self {
         Self {
             object_type: TpmAlgId::Null,
-            name_alg: TpmAlgId::Sha256,
+            name_alg: TpmAlgId::Null,
             object_attributes: TpmaObject::empty(),
             auth_policy: Tpm2bDigest::default(),
             parameters: TpmuPublicParms::Null,
