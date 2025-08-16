@@ -490,6 +490,9 @@ impl<'a, T: TpmParse<'a> + Copy + Default, const CAPACITY: usize> TpmParse<'a>
 
         let mut list = Self::new();
         for i in 0..count_usize {
+            if buf.is_empty() {
+                return Err(TpmErrorKind::Boundary);
+            }
             let (item, rest) = T::parse(buf)?;
             list.items[i] = item;
             buf = rest;

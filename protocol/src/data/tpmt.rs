@@ -9,8 +9,8 @@ use super::{
     Tpm2bAuth, Tpm2bDigest, TpmAlgId, TpmRh, TpmSt, TpmaObject,
 };
 use crate::{
-    tpm_struct, TpmBuild, TpmErrorKind, TpmParse, TpmParseTagged, TpmResult, TpmSized, TpmTagged,
-    TpmWriter, TPM_MAX_COMMAND_SIZE,
+    tpm_struct, tpm_tagged_struct, TpmBuild, TpmErrorKind, TpmParse, TpmParseTagged, TpmResult,
+    TpmSized, TpmTagged, TpmWriter, TPM_MAX_COMMAND_SIZE,
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -273,63 +273,27 @@ tpm_struct! {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Default)]
-pub struct TpmtHa {
-    pub hash_alg: TpmAlgId,
-    pub digest: TpmuHa,
-}
-
-impl TpmSized for TpmtHa {
-    const SIZE: usize = TpmAlgId::SIZE + TpmuHa::SIZE;
-    fn len(&self) -> usize {
-        self.hash_alg.len() + self.digest.len()
+tpm_tagged_struct! {
+    #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+    pub struct TpmtHa {
+        pub hash_alg: TpmAlgId,
+        pub digest: TpmuHa,
     }
 }
 
-impl TpmBuild for TpmtHa {
-    fn build(&self, writer: &mut TpmWriter) -> TpmResult<()> {
-        self.hash_alg.build(writer)?;
-        self.digest.build(writer)
+impl Default for TpmtHa {
+    fn default() -> Self {
+        Self {
+            hash_alg: TpmAlgId::Sha256,
+            digest: TpmuHa::default(),
+        }
     }
 }
 
-impl<'a> TpmParse<'a> for TpmtHa {
-    fn parse(buf: &'a [u8]) -> TpmResult<(Self, &'a [u8])> {
-        let (hash_alg, buf) = TpmAlgId::parse(buf)?;
-        let (digest, buf) = TpmuHa::parse_tagged(hash_alg, buf)?;
-        Ok((Self { hash_alg, digest }, buf))
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct TpmtSignature {
-    pub sig_alg: TpmAlgId,
-    pub signature: TpmuSignature,
-}
-
-impl TpmTagged for TpmtSignature {
-    type Tag = TpmAlgId;
-    type Value = TpmuSignature;
-}
-
-impl TpmSized for TpmtSignature {
-    const SIZE: usize = TpmAlgId::SIZE + TpmuSignature::SIZE;
-    fn len(&self) -> usize {
-        self.sig_alg.len() + self.signature.len()
-    }
-}
-
-impl TpmBuild for TpmtSignature {
-    fn build(&self, writer: &mut TpmWriter) -> TpmResult<()> {
-        self.sig_alg.build(writer)?;
-        self.signature.build(writer)
-    }
-}
-
-impl<'a> TpmParse<'a> for TpmtSignature {
-    fn parse(buf: &'a [u8]) -> TpmResult<(Self, &'a [u8])> {
-        let (sig_alg, buf) = TpmAlgId::parse(buf)?;
-        let (signature, buf) = TpmuSignature::parse_tagged(sig_alg, buf)?;
-        Ok((Self { sig_alg, signature }, buf))
+tpm_tagged_struct! {
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    pub struct TpmtSignature {
+        pub sig_alg: TpmAlgId,
+        pub signature: TpmuSignature,
     }
 }
