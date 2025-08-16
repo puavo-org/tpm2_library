@@ -4,8 +4,11 @@
 use crate::{
     data::{
         Tpm2bDigest, Tpm2bEccParameter, Tpm2bPublicKeyRsa, Tpm2bSensitiveData, Tpm2bSymKey,
-        TpmAlgId, TpmCap, TpmEccCurve, TpmlAlgProperty, TpmlHandle, TpmlPcrSelection, TpmsEccPoint,
-        TpmsKeyedhashParms, TpmsSymcipherParms, TpmtKdfScheme,
+        TpmAlgId, TpmCap, TpmEccCurve, TpmlAlgProperty, TpmlHandle, TpmlPcrSelection,
+        TpmsCertifyInfo, TpmsCommandAuditInfo, TpmsCreationInfo, TpmsEccPoint, TpmsKeyedhashParms,
+        TpmsNvCertifyInfo, TpmsNvDigestCertifyInfo, TpmsQuoteInfo, TpmsSessionAuditInfo,
+        TpmsSignatureEcc, TpmsSignatureRsa, TpmsSymcipherParms, TpmsTimeAttestInfo, TpmtHa,
+        TpmtKdfScheme,
     },
     tpm_hash_size, TpmBuild, TpmErrorKind, TpmParse, TpmParseTagged, TpmResult, TpmSized,
     TpmTagged, TpmWriter, TPM_MAX_COMMAND_SIZE,
@@ -544,6 +547,176 @@ impl TpmBuild for TpmuSymMode {
         match self {
             Self::Aes(val) | Self::Sm4(val) | Self::Camellia(val) => val.build(writer),
             Self::Xor | Self::Null => Ok(()),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum TpmuSignature {
+    Rsassa(TpmsSignatureRsa),
+    Rsapss(TpmsSignatureRsa),
+    Ecdsa(TpmsSignatureEcc),
+    Ecdaa(TpmsSignatureEcc),
+    Sm2(TpmsSignatureEcc),
+    Ecschnorr(TpmsSignatureEcc),
+    Hmac(TpmtHa),
+    Null,
+}
+
+impl TpmTagged for TpmuSignature {
+    type Tag = TpmAlgId;
+    type Value = ();
+}
+
+impl TpmSized for TpmuSignature {
+    const SIZE: usize = TPM_MAX_COMMAND_SIZE;
+    fn len(&self) -> usize {
+        match self {
+            Self::Rsassa(s) | Self::Rsapss(s) => s.len(),
+            Self::Ecdsa(s) | Self::Ecdaa(s) | Self::Sm2(s) | Self::Ecschnorr(s) => s.len(),
+            Self::Hmac(s) => s.len(),
+            Self::Null => 0,
+        }
+    }
+}
+
+impl TpmBuild for TpmuSignature {
+    fn build(&self, writer: &mut TpmWriter) -> TpmResult<()> {
+        match self {
+            Self::Rsassa(s) | Self::Rsapss(s) => s.build(writer),
+            Self::Ecdsa(s) | Self::Ecdaa(s) | Self::Sm2(s) | Self::Ecschnorr(s) => s.build(writer),
+            Self::Hmac(s) => s.build(writer),
+            Self::Null => Ok(()),
+        }
+    }
+}
+
+impl<'a> TpmParseTagged<'a> for TpmuSignature {
+    fn parse_tagged(tag: TpmAlgId, buf: &'a [u8]) -> TpmResult<(Self, &'a [u8])> {
+        match tag {
+            TpmAlgId::Rsassa => {
+                let (val, buf) = TpmsSignatureRsa::parse(buf)?;
+                Ok((Self::Rsassa(val), buf))
+            }
+            TpmAlgId::Rsapss => {
+                let (val, buf) = TpmsSignatureRsa::parse(buf)?;
+                Ok((Self::Rsapss(val), buf))
+            }
+            TpmAlgId::Ecdsa => {
+                let (val, buf) = TpmsSignatureEcc::parse(buf)?;
+                Ok((Self::Ecdsa(val), buf))
+            }
+            TpmAlgId::Ecdaa => {
+                let (val, buf) = TpmsSignatureEcc::parse(buf)?;
+                Ok((Self::Ecdaa(val), buf))
+            }
+            TpmAlgId::Sm2 => {
+                let (val, buf) = TpmsSignatureEcc::parse(buf)?;
+                Ok((Self::Sm2(val), buf))
+            }
+            TpmAlgId::Ecschnorr => {
+                let (val, buf) = TpmsSignatureEcc::parse(buf)?;
+                Ok((Self::Ecschnorr(val), buf))
+            }
+            TpmAlgId::Hmac => {
+                let (val, buf) = TpmtHa::parse(buf)?;
+                Ok((Self::Hmac(val), buf))
+            }
+            TpmAlgId::Null => Ok((Self::Null, buf)),
+            _ => Err(TpmErrorKind::InvalidValue),
+        }
+    }
+}
+
+#[allow(clippy::large_enum_variant)]
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum TpmuAttest {
+    Certify(TpmsCertifyInfo),
+    Creation(TpmsCreationInfo),
+    Quote(TpmsQuoteInfo),
+    CommandAudit(TpmsCommandAuditInfo),
+    SessionAudit(TpmsSessionAuditInfo),
+    Time(TpmsTimeAttestInfo),
+    Nv(TpmsNvCertifyInfo),
+    NvDigest(TpmsNvDigestCertifyInfo),
+}
+
+impl TpmTagged for TpmuAttest {
+    type Tag = crate::data::TpmSt;
+    type Value = ();
+}
+
+impl TpmSized for TpmuAttest {
+    const SIZE: usize = TPM_MAX_COMMAND_SIZE;
+    fn len(&self) -> usize {
+        match self {
+            Self::Certify(i) => i.len(),
+            Self::Creation(i) => i.len(),
+            Self::Quote(i) => i.len(),
+            Self::CommandAudit(i) => i.len(),
+            Self::SessionAudit(i) => i.len(),
+            Self::Time(i) => i.len(),
+            Self::Nv(i) => i.len(),
+            Self::NvDigest(i) => i.len(),
+        }
+    }
+}
+
+impl TpmBuild for TpmuAttest {
+    fn build(&self, writer: &mut TpmWriter) -> TpmResult<()> {
+        match self {
+            Self::Certify(i) => i.build(writer),
+            Self::Creation(i) => i.build(writer),
+            Self::Quote(i) => i.build(writer),
+            Self::CommandAudit(i) => i.build(writer),
+            Self::SessionAudit(i) => i.build(writer),
+            Self::Time(i) => i.build(writer),
+            Self::Nv(i) => i.build(writer),
+            Self::NvDigest(i) => i.build(writer),
+        }
+    }
+}
+
+impl<'a> TpmParseTagged<'a> for TpmuAttest {
+    fn parse_tagged(tag: crate::data::TpmSt, buf: &'a [u8]) -> TpmResult<(Self, &'a [u8])> {
+        match tag {
+            crate::data::TpmSt::AttestCertify => {
+                let (val, buf) = TpmsCertifyInfo::parse(buf)?;
+                Ok((Self::Certify(val), buf))
+            }
+            crate::data::TpmSt::AttestCreation => {
+                let (val, buf) = TpmsCreationInfo::parse(buf)?;
+                Ok((Self::Creation(val), buf))
+            }
+            crate::data::TpmSt::AttestQuote => {
+                let (val, buf) = TpmsQuoteInfo::parse(buf)?;
+                Ok((Self::Quote(val), buf))
+            }
+            crate::data::TpmSt::AttestCommandAudit => {
+                let (val, buf) = TpmsCommandAuditInfo::parse(buf)?;
+                Ok((Self::CommandAudit(val), buf))
+            }
+            crate::data::TpmSt::AttestSessionAudit => {
+                let (val, buf) = TpmsSessionAuditInfo::parse(buf)?;
+                Ok((Self::SessionAudit(val), buf))
+            }
+            crate::data::TpmSt::AttestTime => {
+                let (val, buf) = TpmsTimeAttestInfo::parse(buf)?;
+                Ok((Self::Time(val), buf))
+            }
+            crate::data::TpmSt::AttestNv => {
+                let (val, buf) = TpmsNvCertifyInfo::parse(buf)?;
+                Ok((Self::Nv(val), buf))
+            }
+            crate::data::TpmSt::AttestNvDigest => {
+                let (val, buf) = TpmsNvDigestCertifyInfo::parse(buf)?;
+                Ok((Self::NvDigest(val), buf))
+            }
+            _ => Err(TpmErrorKind::InvalidTag {
+                type_name: "TpmuAttest",
+                expected: 0,
+                got: tag as u16,
+            }),
         }
     }
 }

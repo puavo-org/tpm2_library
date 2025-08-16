@@ -3,9 +3,10 @@
 
 use crate::{
     data::{
-        Tpm2bAuth, Tpm2bData, Tpm2bDigest, Tpm2bEccParameter, Tpm2bName, Tpm2bNonce,
-        Tpm2bSensitiveData, TpmAlgId, TpmCap, TpmRh, TpmaAlgorithm, TpmaLocality, TpmaNv,
-        TpmaSession, TpmiYesNo, TpmlPcrSelection, TpmtScheme, TpmtSymDefObject, TpmuCapabilities,
+        Tpm2bAuth, Tpm2bData, Tpm2bDigest, Tpm2bEccParameter, Tpm2bMaxNvBuffer, Tpm2bName,
+        Tpm2bNonce, Tpm2bSensitiveData, TpmAlgId, TpmCap, TpmRh, TpmSt, TpmaAlgorithm,
+        TpmaLocality, TpmaNv, TpmaSession, TpmiYesNo, TpmlPcrSelection, TpmtScheme,
+        TpmtSymDefObject, TpmuCapabilities,
     },
     tpm_struct, TpmBuffer, TpmBuild, TpmErrorKind, TpmParse, TpmParseTagged, TpmResult, TpmSized,
     TpmTagged, TpmWriter,
@@ -203,5 +204,167 @@ tpm_struct! {
     pub struct TpmsTimeInfo {
         pub time: u64,
         pub clock_info: TpmsClockInfo,
+    }
+}
+
+tpm_struct! {
+    #[derive(Debug, PartialEq, Eq, Clone, Default, Copy)]
+    pub struct TpmsSignatureRsa {
+        pub hash: TpmAlgId,
+        pub sig: crate::data::Tpm2bPublicKeyRsa,
+    }
+}
+
+tpm_struct! {
+    #[derive(Debug, PartialEq, Eq, Clone, Default, Copy)]
+    pub struct TpmsSignatureEcc {
+        pub hash: TpmAlgId,
+        pub signature_r: Tpm2bEccParameter,
+        pub signature_s: Tpm2bEccParameter,
+    }
+}
+
+tpm_struct! {
+    #[derive(Debug, PartialEq, Eq, Clone, Default)]
+    pub struct TpmsTimeAttestInfo {
+        pub time: TpmsTimeInfo,
+        pub firmware_version: u64,
+    }
+}
+
+tpm_struct! {
+    #[derive(Debug, PartialEq, Eq, Clone, Default)]
+    pub struct TpmsCertifyInfo {
+        pub name: Tpm2bName,
+        pub qualified_name: Tpm2bName,
+    }
+}
+
+tpm_struct! {
+    #[derive(Debug, PartialEq, Eq, Clone, Default)]
+    pub struct TpmsQuoteInfo {
+        pub pcr_select: TpmlPcrSelection,
+        pub pcr_digest: Tpm2bDigest,
+    }
+}
+
+tpm_struct! {
+    #[derive(Debug, PartialEq, Eq, Clone, Default)]
+    pub struct TpmsCommandAuditInfo {
+        pub audit_counter: u64,
+        pub digest_alg: TpmAlgId,
+        pub audit_digest: Tpm2bDigest,
+        pub command_digest: Tpm2bDigest,
+    }
+}
+
+tpm_struct! {
+    #[derive(Debug, PartialEq, Eq, Clone, Default, Copy)]
+    pub struct TpmsSessionAuditInfo {
+        pub exclusive_session: TpmiYesNo,
+        pub session_digest: Tpm2bDigest,
+    }
+}
+
+tpm_struct! {
+    #[derive(Debug, PartialEq, Eq, Clone, Default)]
+    pub struct TpmsCreationInfo {
+        pub object_name: Tpm2bName,
+        pub creation_hash: Tpm2bDigest,
+    }
+}
+
+tpm_struct! {
+    #[derive(Debug, PartialEq, Eq, Clone, Default)]
+    pub struct TpmsNvCertifyInfo {
+        pub index_name: Tpm2bName,
+        pub offset: u16,
+        pub nv_contents: Tpm2bMaxNvBuffer,
+    }
+}
+
+tpm_struct! {
+    #[derive(Debug, PartialEq, Eq, Clone, Default)]
+    pub struct TpmsNvDigestCertifyInfo {
+        pub index_name: Tpm2bName,
+        pub nv_digest: Tpm2bDigest,
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct TpmsAttest {
+    pub magic: u32,
+    pub attest_type: TpmSt,
+    pub qualified_signer: Tpm2bName,
+    pub extra_data: Tpm2bData,
+    pub clock_info: TpmsClockInfo,
+    pub firmware_version: u64,
+    pub attested: crate::data::TpmuAttest,
+}
+
+impl TpmTagged for TpmsAttest {
+    type Tag = TpmSt;
+    type Value = crate::data::TpmuAttest;
+}
+
+impl TpmSized for TpmsAttest {
+    const SIZE: usize = size_of::<u32>()
+        + TpmSt::SIZE
+        + Tpm2bName::SIZE
+        + Tpm2bData::SIZE
+        + TpmsClockInfo::SIZE
+        + size_of::<u64>()
+        + crate::data::TpmuAttest::SIZE;
+    fn len(&self) -> usize {
+        size_of::<u32>()
+            + self.attest_type.len()
+            + self.qualified_signer.len()
+            + self.extra_data.len()
+            + self.clock_info.len()
+            + size_of::<u64>()
+            + self.attested.len()
+    }
+}
+
+impl TpmBuild for TpmsAttest {
+    fn build(&self, writer: &mut TpmWriter) -> TpmResult<()> {
+        0xff54_4347_u32.build(writer)?;
+        self.attest_type.build(writer)?;
+        self.qualified_signer.build(writer)?;
+        self.extra_data.build(writer)?;
+        self.clock_info.build(writer)?;
+        self.firmware_version.build(writer)?;
+        self.attested.build(writer)
+    }
+}
+
+impl<'a> TpmParse<'a> for TpmsAttest {
+    fn parse(buf: &'a [u8]) -> TpmResult<(Self, &'a [u8])> {
+        let (magic, buf) = u32::parse(buf)?;
+        if magic != 0xff54_4347 {
+            return Err(TpmErrorKind::InvalidMagic {
+                expected: 0xff54_4347,
+                got: magic,
+            });
+        }
+        let (attest_type, buf) = TpmSt::parse(buf)?;
+        let (qualified_signer, buf) = Tpm2bName::parse(buf)?;
+        let (extra_data, buf) = Tpm2bData::parse(buf)?;
+        let (clock_info, buf) = TpmsClockInfo::parse(buf)?;
+        let (firmware_version, buf) = u64::parse(buf)?;
+        let (attested, buf) = crate::data::TpmuAttest::parse_tagged(attest_type, buf)?;
+
+        Ok((
+            Self {
+                magic,
+                attest_type,
+                qualified_signer,
+                extra_data,
+                clock_info,
+                firmware_version,
+                attested,
+            },
+            buf,
+        ))
     }
 }

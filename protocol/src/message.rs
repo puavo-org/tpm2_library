@@ -4,11 +4,12 @@
 
 use crate::{
     data::{
-        Tpm2b, Tpm2bAuth, Tpm2bCreationData, Tpm2bData, Tpm2bDigest, Tpm2bEncryptedSecret,
-        Tpm2bMaxBuffer, Tpm2bName, Tpm2bPrivate, Tpm2bPublic, Tpm2bSensitiveCreate, TpmAlgId,
-        TpmCap, TpmCc, TpmRc, TpmRh, TpmSe, TpmSt, TpmiYesNo, TpmlDigest, TpmlDigestValues,
-        TpmlPcrSelection, TpmsAuthCommand, TpmsAuthResponse, TpmsCapabilityData, TpmsContext,
-        TpmtSymDef, TpmtSymDefObject, TpmtTkCreation, TpmtTkHashcheck,
+        Tpm2b, Tpm2bAttest, Tpm2bAuth, Tpm2bCreationData, Tpm2bData, Tpm2bDigest,
+        Tpm2bEncryptedSecret, Tpm2bMaxBuffer, Tpm2bMaxNvBuffer, Tpm2bName, Tpm2bNvPublic,
+        Tpm2bPrivate, Tpm2bPublic, Tpm2bSensitiveCreate, TpmAlgId, TpmCap, TpmCc, TpmRc, TpmRh,
+        TpmSe, TpmSt, TpmiYesNo, TpmlDigest, TpmlDigestValues, TpmlPcrSelection, TpmsAuthCommand,
+        TpmsAuthResponse, TpmsCapabilityData, TpmsContext, TpmtSignature, TpmtSymDef,
+        TpmtSymDefObject, TpmtTkCreation, TpmtTkHashcheck,
     },
     tpm_dispatch, tpm_response, tpm_struct, TpmBuild, TpmErrorKind, TpmList, TpmParse,
     TpmPersistent, TpmResult, TpmSession, TpmSized, TpmTransient, TpmWriter,
@@ -373,22 +374,22 @@ tpm_struct!(
 );
 
 macro_rules! tpm_create {
-    ($name:ident, $cc:expr) => {
-        tpm_struct!(
-            #[derive(Debug, Default, PartialEq, Eq, Clone)]
-            $name,
-            $cc,
-            false,
-            true,
-            1,
-            {
-                pub in_sensitive: Tpm2bSensitiveCreate,
-                pub in_public: Tpm2bPublic,
-                pub outside_info: Tpm2b,
-                pub creation_pcr: TpmlPcrSelection,
-            }
-        );
-    };
+	($name:ident, $cc:expr) => {
+		tpm_struct!(
+			#[derive(Debug, Default, PartialEq, Eq, Clone)]
+			$name,
+			$cc,
+			false,
+			true,
+			1,
+			{
+				pub in_sensitive: Tpm2bSensitiveCreate,
+				pub in_public: Tpm2bPublic,
+				pub outside_info: Tpm2b,
+				pub creation_pcr: TpmlPcrSelection,
+			}
+		);
+	};
 }
 
 tpm_create!(TpmCreateCommand, TpmCc::Create);
@@ -950,11 +951,331 @@ tpm_response!(
     }
 );
 
+tpm_struct!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmNvDefineSpaceCommand,
+    TpmCc::NvDefineSpace,
+    false,
+    true,
+    1,
+    {
+        pub auth: Tpm2bAuth,
+        pub public_info: Tpm2bNvPublic,
+    }
+);
+
+tpm_struct!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmNvDefineSpaceResponse,
+    TpmCc::NvDefineSpace,
+    false,
+    true,
+    0,
+    {}
+);
+
+tpm_struct!(
+    #[derive(Debug, PartialEq, Eq, Copy, Clone)]
+    TpmNvUndefineSpaceCommand,
+    TpmCc::NvUndefineSpace,
+    false,
+    true,
+    2,
+    {}
+);
+
+tpm_struct!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmNvUndefineSpaceResponse,
+    TpmCc::NvUndefineSpace,
+    false,
+    true,
+    0,
+    {}
+);
+
+tpm_struct!(
+    #[derive(Debug, PartialEq, Eq, Copy, Clone)]
+    TpmNvUndefineSpaceSpecialCommand,
+    TpmCc::NvUndefineSpaceSpecial,
+    false,
+    true,
+    2,
+    {}
+);
+
+tpm_struct!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmNvUndefineSpaceSpecialResponse,
+    TpmCc::NvUndefineSpaceSpecial,
+    false,
+    true,
+    0,
+    {}
+);
+
+tpm_struct!(
+    #[derive(Debug, PartialEq, Eq, Copy, Clone)]
+    TpmNvReadPublicCommand,
+    TpmCc::NvReadPublic,
+    true,
+    false,
+    1,
+    {}
+);
+
+tpm_struct!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmNvReadPublicResponse,
+    TpmCc::NvReadPublic,
+    true,
+    false,
+    0,
+    {
+        pub nv_public: Tpm2bNvPublic,
+        pub nv_name: Tpm2bName,
+    }
+);
+
+tpm_struct!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmNvWriteCommand,
+    TpmCc::NvWrite,
+    false,
+    true,
+    2,
+    {
+        pub data: Tpm2bMaxNvBuffer,
+        pub offset: u16,
+    }
+);
+
+tpm_struct!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmNvWriteResponse,
+    TpmCc::NvWrite,
+    false,
+    true,
+    0,
+    {}
+);
+
+tpm_struct!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmNvIncrementCommand,
+    TpmCc::NvIncrement,
+    false,
+    true,
+    2,
+    {}
+);
+
+tpm_struct!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmNvIncrementResponse,
+    TpmCc::NvIncrement,
+    false,
+    true,
+    0,
+    {}
+);
+
+tpm_struct!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmNvExtendCommand,
+    TpmCc::NvExtend,
+    false,
+    true,
+    2,
+    {
+        pub data: Tpm2bMaxNvBuffer,
+    }
+);
+
+tpm_struct!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmNvExtendResponse,
+    TpmCc::NvExtend,
+    false,
+    true,
+    0,
+    {}
+);
+
+tpm_struct!(
+    #[derive(Debug, PartialEq, Eq, Copy, Clone)]
+    TpmNvSetBitsCommand,
+    TpmCc::NvSetBits,
+    false,
+    true,
+    2,
+    {
+        pub bits: u64,
+    }
+);
+
+tpm_struct!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmNvSetBitsResponse,
+    TpmCc::NvSetBits,
+    false,
+    true,
+    0,
+    {}
+);
+
+tpm_struct!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmNvWriteLockCommand,
+    TpmCc::NvWriteLock,
+    false,
+    true,
+    2,
+    {}
+);
+
+tpm_struct!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmNvWriteLockResponse,
+    TpmCc::NvWriteLock,
+    false,
+    true,
+    0,
+    {}
+);
+
+tpm_struct!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmNvGlobalWriteLockCommand,
+    TpmCc::NvGlobalWriteLock,
+    false,
+    true,
+    1,
+    {}
+);
+
+tpm_struct!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmNvGlobalWriteLockResponse,
+    TpmCc::NvGlobalWriteLock,
+    false,
+    true,
+    0,
+    {}
+);
+
+tpm_struct!(
+    #[derive(Debug, PartialEq, Eq, Copy, Clone)]
+    TpmNvReadCommand,
+    TpmCc::NvRead,
+    false,
+    true,
+    2,
+    {
+        pub size: u16,
+        pub offset: u16,
+    }
+);
+
+tpm_struct!(
+    #[derive(Debug, Default, PartialEq, Eq, Clone)]
+    TpmNvReadResponse,
+    TpmCc::NvRead,
+    false,
+    true,
+    0,
+    {
+        pub data: Tpm2bMaxNvBuffer,
+    }
+);
+
+tpm_struct!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmNvReadLockCommand,
+    TpmCc::NvReadLock,
+    false,
+    true,
+    2,
+    {}
+);
+
+tpm_struct!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmNvReadLockResponse,
+    TpmCc::NvReadLock,
+    false,
+    true,
+    0,
+    {}
+);
+
+tpm_struct!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmNvChangeAuthCommand,
+    TpmCc::NvChangeAuth,
+    false,
+    true,
+    1,
+    {
+        pub new_auth: Tpm2bAuth,
+    }
+);
+
+tpm_struct!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmNvChangeAuthResponse,
+    TpmCc::NvChangeAuth,
+    false,
+    true,
+    0,
+    {}
+);
+
+tpm_struct!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmNvCertifyCommand,
+    TpmCc::NvCertify,
+    false,
+    true,
+    3,
+    {
+        pub qualifying_data: Tpm2bData,
+        pub in_scheme: TpmtSignature,
+        pub size: u16,
+        pub offset: u16,
+    }
+);
+
+tpm_struct!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmNvCertifyResponse,
+    TpmCc::NvCertify,
+    false,
+    true,
+    0,
+    {
+        pub certify_info: Tpm2bAttest,
+        pub signature: TpmtSignature,
+    }
+);
+
 tpm_dispatch! {
+    (TpmNvUndefineSpaceSpecialCommand, TpmNvUndefineSpaceSpecialResponse, NvUndefineSpaceSpecial),
     (TpmEvictControlCommand, TpmEvictControlResponse, EvictControl),
+    (TpmNvUndefineSpaceCommand, TpmNvUndefineSpaceResponse, NvUndefineSpace),
+    (TpmNvDefineSpaceCommand, TpmNvDefineSpaceResponse, NvDefineSpace),
     (TpmCreatePrimaryCommand, TpmCreatePrimaryResponse, CreatePrimary),
+    (TpmNvGlobalWriteLockCommand, TpmNvGlobalWriteLockResponse, NvGlobalWriteLock),
+    (TpmNvIncrementCommand, TpmNvIncrementResponse, NvIncrement),
+    (TpmNvSetBitsCommand, TpmNvSetBitsResponse, NvSetBits),
+    (TpmNvExtendCommand, TpmNvExtendResponse, NvExtend),
+    (TpmNvWriteCommand, TpmNvWriteResponse, NvWrite),
+    (TpmNvWriteLockCommand, TpmNvWriteLockResponse, NvWriteLock),
     (TpmDictionaryAttackLockResetCommand, TpmDictionaryAttackLockResetResponse, DictionaryAttackLockReset),
+    (TpmNvChangeAuthCommand, TpmNvChangeAuthResponse, NvChangeAuth),
     (TpmPcrEventCommand, TpmPcrEventResponse, PcrEvent),
+    (TpmNvReadCommand, TpmNvReadResponse, NvRead),
+    (TpmNvReadLockCommand, TpmNvReadLockResponse, NvReadLock),
     (TpmObjectChangeAuthCommand, TpmObjectChangeAuthResponse, ObjectChangeAuth),
     (TpmPolicySecretCommand, TpmPolicySecretResponse, PolicySecret),
     (TpmCreateCommand, TpmCreateResponse, Create),
@@ -964,6 +1285,7 @@ tpm_dispatch! {
     (TpmContextLoadCommand, TpmContextLoadResponse, ContextLoad),
     (TpmContextSaveCommand, TpmContextSaveResponse, ContextSave),
     (TpmFlushContextCommand, TpmFlushContextResponse, FlushContext),
+    (TpmNvReadPublicCommand, TpmNvReadPublicResponse, NvReadPublic),
     (TpmPolicyAuthValueCommand, TpmPolicyAuthValueResponse, PolicyAuthValue),
     (TpmPolicyCommandCodeCommand, TpmPolicyCommandCodeResponse, PolicyCommandCode),
     (TpmPolicyOrCommand, TpmPolicyOrResponse, PolicyOr),
@@ -974,6 +1296,7 @@ tpm_dispatch! {
     (TpmPcrReadCommand, TpmPcrReadResponse, PcrRead),
     (TpmPolicyPcrCommand, TpmPolicyPcrResponse, PolicyPcr),
     (TpmPolicyRestartCommand, TpmPolicyRestartResponse, PolicyRestart),
+    (TpmNvCertifyCommand, TpmNvCertifyResponse, NvCertify),
     (TpmPolicyGetDigestCommand, TpmPolicyGetDigestResponse, PolicyGetDigest),
     (TpmPolicyPasswordCommand, TpmPolicyPasswordResponse, PolicyPassword),
     (TpmVendorTcgTestCommand, TpmVendorTcgTestResponse, VendorTcgTest),

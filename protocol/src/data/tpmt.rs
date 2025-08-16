@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2025 Opinsys Oy
 
-use crate::{
-    data::{
-        Tpm2bAuth, Tpm2bDigest, TpmAlgId, TpmRh, TpmSt, TpmaObject, TpmuHa, TpmuPublicId,
-        TpmuPublicParms, TpmuSensitiveComposite, TpmuSymKeyBits, TpmuSymMode,
+use super::{
+    tpmu::{
+        TpmuHa, TpmuPublicId, TpmuPublicParms, TpmuSensitiveComposite, TpmuSignature,
+        TpmuSymKeyBits, TpmuSymMode,
     },
+    Tpm2bAuth, Tpm2bDigest, TpmAlgId, TpmRh, TpmSt, TpmaObject,
+};
+use crate::{
     tpm_struct, TpmBuild, TpmErrorKind, TpmParse, TpmParseTagged, TpmResult, TpmSized, TpmTagged,
     TpmWriter, TPM_MAX_COMMAND_SIZE,
 };
@@ -295,5 +298,38 @@ impl<'a> TpmParse<'a> for TpmtHa {
         let (hash_alg, buf) = TpmAlgId::parse(buf)?;
         let (digest, buf) = TpmuHa::parse_tagged(hash_alg, buf)?;
         Ok((Self { hash_alg, digest }, buf))
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct TpmtSignature {
+    pub sig_alg: TpmAlgId,
+    pub signature: TpmuSignature,
+}
+
+impl TpmTagged for TpmtSignature {
+    type Tag = TpmAlgId;
+    type Value = TpmuSignature;
+}
+
+impl TpmSized for TpmtSignature {
+    const SIZE: usize = TpmAlgId::SIZE + TpmuSignature::SIZE;
+    fn len(&self) -> usize {
+        self.sig_alg.len() + self.signature.len()
+    }
+}
+
+impl TpmBuild for TpmtSignature {
+    fn build(&self, writer: &mut TpmWriter) -> TpmResult<()> {
+        self.sig_alg.build(writer)?;
+        self.signature.build(writer)
+    }
+}
+
+impl<'a> TpmParse<'a> for TpmtSignature {
+    fn parse(buf: &'a [u8]) -> TpmResult<(Self, &'a [u8])> {
+        let (sig_alg, buf) = TpmAlgId::parse(buf)?;
+        let (signature, buf) = TpmuSignature::parse_tagged(sig_alg, buf)?;
+        Ok((Self { sig_alg, signature }, buf))
     }
 }

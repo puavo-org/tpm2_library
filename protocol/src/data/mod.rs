@@ -26,6 +26,7 @@ pub const MAX_SYM_KEY_BYTES: usize = 32;
 pub const MAX_RSA_KEY_BYTES: usize = 512;
 pub const MAX_SENSITIVE_DATA: usize = 256;
 pub const MAX_BUFFER_SIZE: usize = 1024;
+pub const MAX_NV_BUFFER_SIZE: usize = 1024;
 pub const MAX_PRIVATE_SIZE: usize = 1408;
 
 tpm2b!(Tpm2b, TPM_MAX_COMMAND_SIZE);
@@ -34,6 +35,7 @@ tpm2b!(Tpm2bDigest, MAX_DIGEST_SIZE);
 tpm2b!(Tpm2bEccParameter, MAX_ECC_KEY_BYTES);
 tpm2b!(Tpm2bEncryptedSecret, MAX_ECC_KEY_BYTES);
 tpm2b!(Tpm2bMaxBuffer, MAX_BUFFER_SIZE);
+tpm2b!(Tpm2bMaxNvBuffer, MAX_NV_BUFFER_SIZE);
 tpm2b!(Tpm2bName, { MAX_DIGEST_SIZE + 2 });
 tpm2b!(Tpm2bNonce, MAX_DIGEST_SIZE);
 tpm2b!(Tpm2bPrivate, MAX_PRIVATE_SIZE);
@@ -57,6 +59,16 @@ tpm2b_struct!(
     #[derive(Debug, PartialEq, Eq, Clone, Default)]
     Tpm2bCreationData,
     TpmsCreationData
+);
+tpm2b_struct!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    Tpm2bAttest,
+    TpmsAttest
+);
+tpm2b_struct!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    Tpm2bNvPublic,
+    TpmsNvPublic
 );
 
 tpm_enum! {
@@ -114,10 +126,22 @@ tpm_enum! {
 tpm_enum! {
     #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone)]
     pub enum TpmCc(u32) {
+        (NvUndefineSpaceSpecial, 0x0000_011F, "TPM_CC_NV_UndefineSpaceSpecial"),
         (EvictControl, 0x0000_0120, "TPM_CC_EvictControl"),
+        (NvUndefineSpace, 0x0000_0122, "TPM_CC_NV_UndefineSpace"),
+        (NvDefineSpace, 0x0000_012A, "TPM_CC_NV_DefineSpace"),
         (CreatePrimary, 0x0000_0131, "TPM_CC_CreatePrimary"),
+        (NvGlobalWriteLock, 0x0000_0132, "TPM_CC_NV_GlobalWriteLock"),
+        (NvIncrement, 0x0000_0134, "TPM_CC_NV_Increment"),
+        (NvSetBits, 0x0000_0135, "TPM_CC_NV_SetBits"),
+        (NvExtend, 0x0000_0136, "TPM_CC_NV_Extend"),
+        (NvWrite, 0x0000_0137, "TPM_CC_NV_Write"),
+        (NvWriteLock, 0x0000_0138, "TPM_CC_NV_WriteLock"),
         (DictionaryAttackLockReset, 0x0000_0139, "TPM_CC_DictionaryAttackLockReset"),
+        (NvChangeAuth, 0x0000_013B, "TPM_CC_NV_ChangeAuth"),
         (PcrEvent, 0x0000_013C, "TPM_CC_PCR_Event"),
+        (NvRead, 0x0000_014E, "TPM_CC_NV_Read"),
+        (NvReadLock, 0x0000_014F, "TPM_CC_NV_ReadLock"),
         (ObjectChangeAuth, 0x0000_0150, "TPM_CC_ObjectChangeAuth"),
         (PolicySecret, 0x0000_0151, "TPM_CC_PolicySecret"),
         (Create, 0x0000_0153, "TPM_CC_Create"),
@@ -127,6 +151,7 @@ tpm_enum! {
         (ContextLoad, 0x0000_0161, "TPM_CC_ContextLoad"),
         (ContextSave, 0x0000_0162, "TPM_CC_ContextSave"),
         (FlushContext, 0x0000_0165, "TPM_CC_FlushContext"),
+        (NvReadPublic, 0x0000_0169, "TPM_CC_NV_ReadPublic"),
         (PolicyAuthValue, 0x0000_016B, "TPM_CC_PolicyAuthValue"),
         (PolicyCommandCode, 0x0000_016C, "TPM_CC_PolicyCommandCode"),
         (PolicyOR, 0x0000_0171, "TPM_CC_PolicyOR"),
@@ -137,8 +162,11 @@ tpm_enum! {
         (PcrRead, 0x0000_017E, "TPM_CC_PCR_Read"),
         (PolicyPcr, 0x0000_017F, "TPM_CC_PolicyPCR"),
         (PolicyRestart, 0x0000_0180, "TPM_CC_PolicyRestart"),
+        (NvCertify, 0x0000_0184, "TPM_CC_NV_Certify"),
         (PolicyGetDigest, 0x0000_0189, "TPM_CC_PolicyGetDigest"),
         (PolicyPassword, 0x0000_018C, "TPM_CC_PolicyPassword"),
+        (NvDefineSpace2, 0x0000_019D, "TPM_CC_NV_DefineSpace2"),
+        (NvReadPublic2, 0x0000_019E, "TPM_CC_NV_ReadPublic2"),
         (VendorTcgTest, 0x2000_0000, "TPM_CC_Vendor_TCG_Test"),
     }
 }
@@ -329,8 +357,14 @@ tpm_enum! {
         (Null, 0x8000, "TPM_ST_NULL"),
         (NoSessions, 0x8001, "TPM_ST_NO_SESSIONS"),
         (Sessions, 0x8002, "TPM_ST_SESSIONS"),
+        (AttestNv, 0x8014, "TPM_ST_ATTEST_NV"),
+        (AttestCommandAudit, 0x8015, "TPM_ST_ATTEST_COMMAND_AUDIT"),
+        (AttestSessionAudit, 0x8016, "TPM_ST_ATTEST_SESSION_AUDIT"),
         (AttestCertify, 0x8017, "TPM_ST_ATTEST_CERTIFY"),
+        (AttestQuote, 0x8018, "TPM_ST_ATTEST_QUOTE"),
+        (AttestTime, 0x8019, "TPM_ST_ATTEST_TIME"),
         (AttestCreation, 0x801A, "TPM_ST_ATTEST_CREATION"),
+        (AttestNvDigest, 0x801C, "TPM_ST_ATTEST_NV_DIGEST"),
         (Creation, 0x8021, "TPM_ST_CREATION"),
         (Verified, 0x8022, "TPM_ST_VERIFIED"),
         (AuthSecret, 0x8023, "TPM_ST_AUTH_SECRET"),
