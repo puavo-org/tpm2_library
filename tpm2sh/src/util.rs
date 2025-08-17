@@ -4,6 +4,7 @@
 
 use crate::{cli, CommandIo, TpmDevice, TpmError};
 use json::JsonValue;
+use serde::de::Error as SerdeError;
 use serde::{Deserialize, Serialize};
 use std::{fs, io::Write};
 use tpm2_protocol::{
@@ -122,17 +123,44 @@ where
 pub fn pop_object_data<W: Write>(io: &mut CommandIo<W>) -> Result<ObjectData, TpmError> {
     let obj = io.consume_object(|obj| {
         if let cli::Object::Context(v) = obj {
-            if let Ok(env) = serde_json::from_value::<Envelope>(v.clone()) {
-                return env.object_type == "object";
+            if let Ok(env) = json::parse(&v.to_string()) {
+                return env["type"] == "object";
             }
         }
         false
     })?;
-    let crate::cli::Object::Context(envelope_value) = obj else {
+    let cli::Object::Context(envelope_value) = obj else {
         unreachable!()
     };
-    let envelope: Envelope = serde_json::from_value(envelope_value)?;
-    serde_json::from_value(envelope.data).map_err(Into::into)
+
+    let envelope_json = json::parse(&envelope_value.to_string())
+        .map_err(|e| TpmError::Json(SerdeError::custom(e.to_string())))?;
+
+    let data = &envelope_json["data"];
+
+    let object_data = ObjectData {
+        oid: data["oid"]
+            .as_str()
+            .ok_or_else(|| TpmError::Parse("'oid' field is not a string".to_string()))?
+            .to_string(),
+        empty_auth: data["empty_auth"]
+            .as_bool()
+            .ok_or_else(|| TpmError::Parse("'empty_auth' field is not a boolean".to_string()))?,
+        parent: data["parent"]
+            .as_str()
+            .ok_or_else(|| TpmError::Parse("'parent' field is not a string".to_string()))?
+            .to_string(),
+        public: data["public"]
+            .as_str()
+            .ok_or_else(|| TpmError::Parse("'public' field is not a string".to_string()))?
+            .to_string(),
+        private: data["private"]
+            .as_str()
+            .ok_or_else(|| TpmError::Parse("'private' field is not a string".to_string()))?
+            .to_string(),
+    };
+
+    Ok(object_data)
 }
 
 /// Parses a parent handle from a hex string in the loaded object data.
@@ -142,7 +170,7 @@ pub fn pop_object_data<W: Write>(io: &mut CommandIo<W>) -> Result<ObjectData, Tp
 /// Returns a `TpmError::Parse` if the hex string is invalid.
 pub fn parse_parent_handle_from_json(object_data: &ObjectData) -> Result<TpmTransient, TpmError> {
     u32::from_str_radix(object_data.parent.trim_start_matches("0x"), 16)
-        .map_err(Into::into)
+        .map_err(TpmError::from)
         .map(TpmTransient)
 }
 
@@ -153,7 +181,7 @@ pub fn parse_parent_handle_from_json(object_data: &ObjectData) -> Result<TpmTran
 /// Returns a `TpmError` if the prefix is invalid or I/O fails.
 pub fn input_to_bytes(s: &str) -> Result<Vec<u8>, TpmError> {
     if let Some(data_str) = s.strip_prefix("data:") {
-        hex::decode(data_str).map_err(Into::into)
+        hex::decode(data_str).map_err(TpmError::from)
     } else if let Some(path_str) = s.strip_prefix("path:") {
         fs::read(path_str).map_err(|e| TpmError::File(path_str.to_string(), e))
     } else {
