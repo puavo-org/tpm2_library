@@ -1,8 +1,8 @@
-// SPDX-License-Identifier: GPL-3-0-or-later
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2025 Opinsys Oy
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 
-use crate::{build_to_vec, TpmError, TpmErrorKind};
+use crate::{build_to_vec, TpmError};
 use aes::Aes128;
 use cfb_mode::Encryptor;
 use cipher::{generic_array::GenericArray, BlockEncryptMut, KeyIvInit};
@@ -41,7 +41,7 @@ use tpm2_protocol::{
         Tpm2bPublicKeyRsa, TpmAlgId, TpmCc, TpmEccCurve, TpmaObject, TpmsAuthCommand, TpmsEccPoint,
         TpmtKdfScheme, TpmtPublic, TpmtScheme, TpmtSymDefObject, TpmuPublicId, TpmuPublicParms,
     },
-    TpmBuild, TpmWriter, TPM_MAX_COMMAND_SIZE,
+    TpmBuild, TpmErrorKind, TpmWriter, TPM_MAX_COMMAND_SIZE,
 };
 
 pub const ID_IMPORTABLE_KEY: ObjectIdentifier = ObjectIdentifier::new_unwrap("2.23.133.1.4");
@@ -159,7 +159,7 @@ impl PrivateKey {
                     let e_bytes = rsa_key.e().to_bytes_be();
                     if e_bytes.len() > 4 {
                         return Err(TpmError::Parse(
-							"RSA public exponent is larger than 32 bits and is not supported for import."
+						"RSA public exponent is larger than 32 bits and is not supported for import."
 								.to_string(),
 						));
                     }
