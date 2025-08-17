@@ -19,7 +19,7 @@ use tpm2_protocol::{
         TpmImportCommand, TpmLoadCommand, TpmPcrEventCommand, TpmPcrReadCommand,
         TpmPcrReadResponse, TpmPolicyGetDigestCommand, TpmPolicyOrCommand, TpmPolicyPcrCommand,
         TpmPolicySecretCommand, TpmReadPublicCommand, TpmResponseBody, TpmStartAuthSessionCommand,
-        TpmUnsealCommand,
+        TpmStartAuthSessionResponse, TpmUnsealCommand,
     },
     TpmBuffer, TpmList, TpmPersistent, TpmSession, TpmTransient,
 };
@@ -387,6 +387,7 @@ impl PrettyTrace for TpmResponseBody {
         match self {
             Self::GetCapability(resp) => resp.pretty_trace(name, indent),
             Self::PcrRead(resp) => resp.pretty_trace(name, indent),
+            Self::StartAuthSession(resp) => resp.pretty_trace(name, indent),
             _ => {
                 let prefix = " ".repeat(indent * INDENT);
                 trace!(target: "cli::device", "{prefix}{name}: {:?} (unimplemented pretty trace)", self);
@@ -394,3 +395,5 @@ impl PrettyTrace for TpmResponseBody {
         }
     }
 }
+
+pretty_trace_struct!(TpmStartAuthSessionResponse, session_handle => "sessionHandle", nonce_tpm => "nonceTpm");
