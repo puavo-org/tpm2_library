@@ -318,6 +318,7 @@ impl PrettyTrace for TpmuSymKeyBits {
             Self::Aes(v) => v.pretty_trace(&format!("{name} (aes)"), indent),
             Self::Sm4(v) => v.pretty_trace(&format!("{name} (sm4)"), indent),
             Self::Camellia(v) => v.pretty_trace(&format!("{name} (camellia)"), indent),
+            Self::Xor(v) => v.pretty_trace(&format!("{name} (xor)"), indent),
             Self::Null => trace!(target: "cli::device", "{prefix}{name}: null"),
         }
     }
@@ -330,7 +331,8 @@ impl PrettyTrace for TpmuSymMode {
             Self::Aes(v) => v.pretty_trace(&format!("{name} (aes)"), indent),
             Self::Sm4(v) => v.pretty_trace(&format!("{name} (sm4)"), indent),
             Self::Camellia(v) => v.pretty_trace(&format!("{name} (camellia)"), indent),
-            Self::Xor | Self::Null => trace!(target: "cli::device", "{prefix}{name}: {:?}" , self),
+            Self::Xor(v) => v.pretty_trace(&format!("{name} (xor)"), indent),
+            Self::Null => trace!(target: "cli::device", "{prefix}{name}: null"),
         }
     }
 }

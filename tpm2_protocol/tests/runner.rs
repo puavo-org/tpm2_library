@@ -9,7 +9,8 @@ use std::{convert::TryFrom, io::IsTerminal, string::ToString, vec::Vec};
 use tpm2_protocol::{
     data::{
         Tpm2bAuth, Tpm2bDigest, Tpm2bMaxBuffer, Tpm2bNonce, TpmAlgId, TpmCap, TpmCc, TpmRc,
-        TpmRcBase, TpmRcIndex, TpmRh, TpmaSession, TpmlPcrSelection,
+        TpmRcBase, TpmRcIndex, TpmRh, TpmaSession, TpmlPcrSelection, TpmtSymDef, TpmuSymKeyBits,
+        TpmuSymMode,
     },
     message::{
         tpm_build_command, tpm_build_response, tpm_parse_command, tpm_parse_response,
@@ -527,6 +528,33 @@ fn test_response_macro_parse_correctness() {
     assert!(tail.is_empty(), "tail data");
 }
 
+fn test_parse_build_tpmt_sym_def_xor() {
+    let original_sym_def = TpmtSymDef {
+        algorithm: TpmAlgId::Xor,
+        key_bits: TpmuSymKeyBits::Xor(TpmAlgId::Sha256),
+        mode: TpmuSymMode::Xor(TpmAlgId::Null),
+    };
+
+    let mut buf = [0u8; 1024];
+    let len = {
+        let mut writer = TpmWriter::new(&mut buf);
+        original_sym_def.build(&mut writer).unwrap();
+        writer.len()
+    };
+    let built_bytes = &buf[..len];
+
+    let (parsed_sym_def, remainder) = TpmtSymDef::parse(built_bytes).unwrap();
+
+    assert_eq!(
+        parsed_sym_def, original_sym_def,
+        "Parsed TpmtSymDef does not match original"
+    );
+    assert!(
+        remainder.is_empty(),
+        "Buffer not fully consumed after parsing TpmtSymDef"
+    );
+}
+
 fn print_ok() {
     if std::io::stderr().is_terminal() {
         println!("\x1B[32mOK\x1B[0m");
@@ -580,6 +608,10 @@ fn run_all_tests() -> usize {
         (
             "test_response_macro_parse_correctness",
             test_response_macro_parse_correctness,
+        ),
+        (
+            "test_parse_build_tpmt_sym_def_xor",
+            test_parse_build_tpmt_sym_def_xor,
         ),
     ];
 

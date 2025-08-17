@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2025 Opinsys Oy
+// Copyright (c) 2024-2025 Jarkko Sakkinen
 
 use crate::{
     data::{
@@ -440,6 +441,7 @@ pub enum TpmuSymKeyBits {
     Aes(u16),
     Sm4(u16),
     Camellia(u16),
+    Xor(TpmAlgId),
     Null,
 }
 
@@ -459,6 +461,7 @@ impl TpmSized for TpmuSymKeyBits {
     fn len(&self) -> usize {
         match self {
             Self::Aes(val) | Self::Sm4(val) | Self::Camellia(val) => val.len(),
+            Self::Xor(val) => val.len(),
             Self::Null => 0,
         }
     }
@@ -479,6 +482,10 @@ impl<'a> TpmParseTagged<'a> for TpmuSymKeyBits {
                 let (val, buf) = u16::parse(buf)?;
                 Ok((Self::Camellia(val), buf))
             }
+            TpmAlgId::Xor => {
+                let (val, buf) = TpmAlgId::parse(buf)?;
+                Ok((Self::Xor(val), buf))
+            }
             TpmAlgId::Null => Ok((Self::Null, buf)),
             _ => Err(TpmErrorKind::InvalidValue),
         }
@@ -489,6 +496,7 @@ impl TpmBuild for TpmuSymKeyBits {
     fn build(&self, writer: &mut TpmWriter) -> TpmResult<()> {
         match self {
             Self::Aes(val) | Self::Sm4(val) | Self::Camellia(val) => val.build(writer),
+            Self::Xor(val) => val.build(writer),
             Self::Null => Ok(()),
         }
     }
@@ -499,7 +507,7 @@ pub enum TpmuSymMode {
     Aes(TpmAlgId),
     Sm4(TpmAlgId),
     Camellia(TpmAlgId),
-    Xor,
+    Xor(TpmAlgId),
     Null,
 }
 
@@ -518,8 +526,8 @@ impl TpmSized for TpmuSymMode {
     const SIZE: usize = core::mem::size_of::<u16>();
     fn len(&self) -> usize {
         match self {
-            Self::Aes(val) | Self::Sm4(val) | Self::Camellia(val) => val.len(),
-            Self::Xor | Self::Null => 0,
+            Self::Aes(val) | Self::Sm4(val) | Self::Camellia(val) | Self::Xor(val) => val.len(),
+            Self::Null => 0,
         }
     }
 }
@@ -539,7 +547,10 @@ impl<'a> TpmParseTagged<'a> for TpmuSymMode {
                 let (val, buf) = TpmAlgId::parse(buf)?;
                 Ok((Self::Camellia(val), buf))
             }
-            TpmAlgId::Xor => Ok((Self::Xor, buf)),
+            TpmAlgId::Xor => {
+                let (val, buf) = TpmAlgId::parse(buf)?;
+                Ok((Self::Xor(val), buf))
+            }
             TpmAlgId::Null => Ok((Self::Null, buf)),
             _ => Err(TpmErrorKind::InvalidValue),
         }
@@ -549,8 +560,10 @@ impl<'a> TpmParseTagged<'a> for TpmuSymMode {
 impl TpmBuild for TpmuSymMode {
     fn build(&self, writer: &mut TpmWriter) -> TpmResult<()> {
         match self {
-            Self::Aes(val) | Self::Sm4(val) | Self::Camellia(val) => val.build(writer),
-            Self::Xor | Self::Null => Ok(()),
+            Self::Aes(val) | Self::Sm4(val) | Self::Camellia(val) | Self::Xor(val) => {
+                val.build(writer)
+            }
+            Self::Null => Ok(()),
         }
     }
 }
