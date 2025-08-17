@@ -32,7 +32,7 @@ pub mod message;
 pub mod parameters;
 
 use crate::data::TpmAlgId;
-use core::{convert::TryFrom, fmt, mem::size_of, result::Result};
+use core::{any::Any, convert::TryFrom, fmt, mem::size_of, result::Result};
 
 pub use buffer::TpmBuffer;
 pub use list::TpmList;
@@ -208,14 +208,52 @@ pub trait TpmParse: Sized + TpmSized {
     fn parse(buf: &[u8]) -> TpmResult<(Self, &[u8])>;
 }
 
-/// A unifying trait for TPM objects that are both serializable and deserializable.
-pub trait TpmObject: TpmParse + TpmBuild {}
-impl<T: TpmParse + TpmBuild> TpmObject for T {}
+#[allow(clippy::len_without_is_empty)]
+pub trait TpmObject: Any + fmt::Debug {
+    /// Builds the object into the given writer.
+    ///
+    /// # Errors
+    ///
+    /// * `TpmErrorKind::ValueTooLarge` if the object contains a value that cannot be built.
+    /// * `TpmErrorKind::Boundary` if the writer runs out of space.
+    fn build(&self, writer: &mut TpmWriter) -> TpmResult<()>;
+    /// Returns the exact serialized size of the object.
+    fn len(&self) -> usize;
+    /// Returns the object as a `&dyn Any` for downcasting.
+    fn as_any(&self) -> &dyn Any;
+    /// Performs a dynamic equality check against another `TpmObject`.
+    fn dyn_eq(&self, other: &dyn TpmObject) -> bool;
+}
+
+impl<T> TpmObject for T
+where
+    T: TpmBuild + TpmParse + PartialEq + Any + fmt::Debug,
+{
+    fn build(&self, writer: &mut TpmWriter) -> TpmResult<()> {
+        TpmBuild::build(self, writer)
+    }
+
+    fn len(&self) -> usize {
+        TpmSized::len(self)
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn dyn_eq(&self, other: &dyn TpmObject) -> bool {
+        if let Some(other) = other.as_any().downcast_ref::<T>() {
+            self == other
+        } else {
+            false
+        }
+    }
+}
 
 /// Types that are composed of a tag and a value e.g., a union.
 pub trait TpmTagged {
     /// The type of the tag/discriminant.
-    type Tag: TpmObject + Copy;
+    type Tag: TpmParse + TpmBuild + Copy;
     /// The type of the value/union.
     type Value;
 }
@@ -232,7 +270,7 @@ pub trait TpmParseTagged: Sized {
     fn parse_tagged(tag: <Self as TpmTagged>::Tag, buf: &[u8]) -> TpmResult<(Self, &[u8])>
     where
         Self: TpmTagged,
-        <Self as TpmTagged>::Tag: TpmObject;
+        <Self as TpmTagged>::Tag: TpmParse + TpmBuild;
 }
 
 impl TpmSized for u8 {
@@ -296,9 +334,8 @@ tpm_integer!(u64);
 ///
 /// * `TpmErrorKind::ValueTooLarge` if the data slice is too large to fit in a `u16` length.
 pub fn build_tpm2b(writer: &mut TpmWriter, data: &[u8]) -> TpmResult<()> {
-    u16::try_from(data.len())
-        .map_err(|_| TpmErrorKind::ValueTooLarge)?
-        .build(writer)?;
+    let len_u16 = u16::try_from(data.len()).map_err(|_| TpmErrorKind::ValueTooLarge)?;
+    TpmBuild::build(&len_u16, writer)?;
     writer.write_bytes(data)
 }
 

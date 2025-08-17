@@ -2,7 +2,7 @@
 // Copyright (c) 2025 Opinsys Oy
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 
-use crate::{TpmBuild, TpmErrorKind, TpmObject, TpmParse, TpmResult, TpmSized};
+use crate::{TpmBuild, TpmErrorKind, TpmParse, TpmResult, TpmSized};
 use core::{mem::size_of, ops::Deref};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -66,15 +66,15 @@ impl<T: TpmSized + Copy + Default, const CAPACITY: usize> TpmSized for TpmList<T
 
 impl<T: TpmBuild + Copy + Default, const CAPACITY: usize> TpmBuild for TpmList<T, CAPACITY> {
     fn build(&self, writer: &mut crate::TpmWriter) -> TpmResult<()> {
-        self.len.build(writer)?;
+        TpmBuild::build(&self.len, writer)?;
         for item in &**self {
-            item.build(writer)?;
+            TpmBuild::build(item, writer)?;
         }
         Ok(())
     }
 }
 
-impl<T: TpmObject + Copy + Default, const CAPACITY: usize> TpmParse for TpmList<T, CAPACITY> {
+impl<T: TpmParse + Copy + Default, const CAPACITY: usize> TpmParse for TpmList<T, CAPACITY> {
     fn parse(buf: &[u8]) -> TpmResult<(Self, &[u8])> {
         let (count, mut buf) = u32::parse(buf)?;
         let count_usize = count as usize;

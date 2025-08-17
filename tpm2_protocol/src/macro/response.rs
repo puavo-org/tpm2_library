@@ -32,8 +32,8 @@ macro_rules! tpm_response {
         impl $crate::TpmSized for $name {
             const SIZE: usize = 0 $(+ <$handle_type>::SIZE)* $(+ <$param_type>::SIZE)*;
             fn len(&self) -> usize {
-                let params_len: usize = 0 $(+ self.$param_field.len())*;
-                let handles_len: usize = 0 $(+ self.$handle_field.len())*;
+                let params_len: usize = 0 $(+ $crate::TpmSized::len(&self.$param_field))*;
+                let handles_len: usize = 0 $(+ $crate::TpmSized::len(&self.$handle_field))*;
                 let parameter_area_size_field_len: usize = core::mem::size_of::<u32>();
                 handles_len + parameter_area_size_field_len + params_len
             }
@@ -41,13 +41,13 @@ macro_rules! tpm_response {
 
         impl $crate::TpmBuild for $name {
             fn build(&self, writer: &mut $crate::TpmWriter) -> $crate::TpmResult<()> {
-                let params_len: usize = 0 $(+ self.$param_field.len())*;
+                let params_len: usize = 0 $(+ $crate::TpmSized::len(&self.$param_field))*;
                 let params_len_u32 = u32::try_from(params_len)
                     .map_err(|_| $crate::TpmErrorKind::ValueTooLarge)?;
 
-                $(self.$handle_field.build(writer)?;)*
-                params_len_u32.build(writer)?;
-                $(self.$param_field.build(writer)?;)*
+                $($crate::TpmBuild::build(&self.$handle_field, writer)?;)*
+                $crate::TpmBuild::build(&params_len_u32, writer)?;
+                $($crate::TpmBuild::build(&self.$param_field, writer)?;)*
 
                 Ok(())
             }

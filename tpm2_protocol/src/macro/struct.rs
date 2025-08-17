@@ -46,14 +46,14 @@ macro_rules! tpm_struct {
         impl $crate::TpmSized for $name {
             const SIZE: usize = 0 $(+ <$field_type>::SIZE)*;
             fn len(&self) -> usize {
-                0 $(+ self.$field_name.len())*
+                0 $(+ $crate::TpmSized::len(&self.$field_name))*
             }
         }
 
         impl $crate::TpmBuild for $name {
             #[allow(unused_variables)]
             fn build(&self, writer: &mut $crate::TpmWriter) -> $crate::TpmResult<()> {
-                $(self.$field_name.build(writer)?;)*
+                $( $crate::TpmBuild::build(&self.$field_name, writer)?; )*
                 Ok(())
             }
         }
@@ -95,14 +95,14 @@ macro_rules! tpm_tagged_struct {
         impl $crate::TpmSized for $name {
             const SIZE: usize = <$tag_ty>::SIZE + <$value_ty>::SIZE;
             fn len(&self) -> usize {
-                self.$tag_field.len() + self.$value_field.len()
+                $crate::TpmSized::len(&self.$tag_field) + $crate::TpmSized::len(&self.$value_field)
             }
         }
 
         impl $crate::TpmBuild for $name {
             fn build(&self, writer: &mut $crate::TpmWriter) -> $crate::TpmResult<()> {
-                self.$tag_field.build(writer)?;
-                self.$value_field.build(writer)
+                $crate::TpmBuild::build(&self.$tag_field, writer)?;
+                $crate::TpmBuild::build(&self.$value_field, writer)
             }
         }
 

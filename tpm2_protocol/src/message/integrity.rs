@@ -9,7 +9,7 @@ use crate::{
         Tpm2b, Tpm2bDigest, TpmAlgId, TpmCc, TpmRh, TpmiYesNo, TpmlDigest, TpmlDigestValues,
         TpmlPcrSelection,
     },
-    tpm_response, tpm_struct, TpmSized,
+    tpm_response, tpm_struct,
 };
 use core::{convert::TryFrom, fmt::Debug};
 

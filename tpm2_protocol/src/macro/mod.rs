@@ -72,7 +72,7 @@ macro_rules! tpm_bitflags {
 
         impl $crate::TpmBuild for $name {
             fn build(&self, writer: &mut $crate::TpmWriter) -> $crate::TpmResult<()> {
-                self.0.build(writer)
+                $crate::TpmBuild::build(&self.0, writer)
             }
         }
 
@@ -115,7 +115,7 @@ macro_rules! tpm_bool {
 
         impl $crate::TpmBuild for $name {
             fn build(&self, writer: &mut $crate::TpmWriter) -> $crate::TpmResult<()> {
-                u8::from(self.0).build(writer)
+                $crate::TpmBuild::build(&u8::from(self.0), writer)
             }
         }
 
@@ -296,7 +296,7 @@ macro_rules! tpm_enum {
 
         impl $crate::TpmBuild for $name {
             fn build(&self, writer: &mut $crate::TpmWriter) -> $crate::TpmResult<()> {
-                (*self as $repr).build(writer)
+                $crate::TpmBuild::build(&(*self as $repr), writer)
             }
         }
 
@@ -336,7 +336,7 @@ macro_rules! tpm_handle {
 
         impl $crate::TpmBuild for $name {
             fn build(&self, writer: &mut $crate::TpmWriter) -> $crate::TpmResult<()> {
-                self.0.build(writer)
+                $crate::TpmBuild::build(&self.0, writer)
             }
         }
 
@@ -394,17 +394,17 @@ macro_rules! tpm2b_struct {
         impl $crate::TpmSized for $wrapper_ty {
             const SIZE: usize = core::mem::size_of::<u16>() + <$inner_ty>::SIZE;
             fn len(&self) -> usize {
-                core::mem::size_of::<u16>() + self.inner.len()
+                core::mem::size_of::<u16>() + $crate::TpmSized::len(&self.inner)
             }
         }
 
         impl $crate::TpmBuild for $wrapper_ty {
             fn build(&self, writer: &mut $crate::TpmWriter) -> $crate::TpmResult<()> {
-                let inner_len = self.inner.len();
+                let inner_len = $crate::TpmSized::len(&self.inner);
                 u16::try_from(inner_len)
                     .map_err(|_| $crate::TpmErrorKind::ValueTooLarge)?
                     .build(writer)?;
-                self.inner.build(writer)
+                $crate::TpmBuild::build(&self.inner, writer)
             }
         }
 

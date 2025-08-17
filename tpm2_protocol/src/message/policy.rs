@@ -9,7 +9,7 @@ use crate::{
         Tpm2b, Tpm2bDigest, Tpm2bName, Tpm2bNonce, Tpm2bTimeout, TpmAlgId, TpmCc, TpmaLocality,
         TpmlDigest, TpmlPcrSelection, TpmtSignature, TpmtTkAuth,
     },
-    tpm_response, tpm_struct, TpmSized,
+    tpm_response, tpm_struct,
 };
 use core::fmt::Debug;
 

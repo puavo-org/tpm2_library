@@ -12,8 +12,8 @@ use crate::{
         TpmsCapabilityData, TpmsContext, TpmtRsaDecrypt, TpmtSignature, TpmtSymDef,
         TpmtSymDefObject, TpmtTkCreation, TpmtTkHashcheck, TpmtTkVerified,
     },
-    tpm_dispatch, tpm_response, tpm_struct, TpmList, TpmObject, TpmParse, TpmPersistent,
-    TpmSession, TpmSized, TpmTransient,
+    tpm_dispatch, tpm_response, tpm_struct, TpmBuild, TpmList, TpmParse, TpmPersistent, TpmSession,
+    TpmSized, TpmTransient,
 };
 use core::fmt::Debug;
 
@@ -44,7 +44,7 @@ pub type TpmAuthCommands = TpmList<TpmsAuthCommand, MAX_SESSIONS>;
 pub type TpmAuthResponses = TpmList<TpmsAuthResponse, MAX_SESSIONS>;
 
 /// A trait for TPM commands and responses that provides header information.
-pub trait TpmHeader: TpmObject + Debug {
+pub trait TpmHeader: TpmBuild + TpmParse + Debug {
     const COMMAND: TpmCc;
     const NO_SESSIONS: bool;
     const WITH_SESSIONS: bool;
@@ -267,12 +267,12 @@ impl TpmHeader for TpmPolicyGetDigestResponse {
 impl crate::TpmSized for TpmPolicyGetDigestResponse {
     const SIZE: usize = <Tpm2bDigest>::SIZE;
     fn len(&self) -> usize {
-        self.policy_digest.len()
+        TpmSized::len(&self.policy_digest)
     }
 }
 impl crate::TpmBuild for TpmPolicyGetDigestResponse {
     fn build(&self, writer: &mut crate::TpmWriter) -> crate::TpmResult<()> {
-        self.policy_digest.build(writer)
+        TpmBuild::build(&self.policy_digest, writer)
     }
 }
 impl crate::TpmParse for TpmPolicyGetDigestResponse {

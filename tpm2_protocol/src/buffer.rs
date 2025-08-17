@@ -70,7 +70,7 @@ impl<const CAPACITY: usize> TryFrom<&[u8]> for TpmBuffer<CAPACITY> {
         }
         let mut buffer = Self::new();
         buffer.bytes[..slice.len()].copy_from_slice(slice);
-        buffer.len = slice.len() as u16;
+        buffer.len = u16::try_from(slice.len())?;
         Ok(buffer)
     }
 }

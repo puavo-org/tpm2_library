@@ -2,7 +2,7 @@
 // Copyright (c) 2025 Opinsys Oy
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 
-use crate::{TpmErrorKind, TpmObject, TpmParse, TpmResult};
+use crate::{TpmErrorKind, TpmParse, TpmResult};
 
 /// A helper for parsing data from a TPM parameter buffer, which is
 /// prefixed with a u32 size.
@@ -41,7 +41,7 @@ impl<'a> TpmParameters<'a> {
     /// # Errors
     ///
     /// Returns any error encountered during the parsing of the inner type `T`.
-    pub fn parse<T: TpmObject>(&mut self) -> TpmResult<T> {
+    pub fn parse<T: TpmParse>(&mut self) -> TpmResult<T> {
         let (value, rest) = T::parse(self.buf)?;
         self.buf = rest;
         Ok(value)
