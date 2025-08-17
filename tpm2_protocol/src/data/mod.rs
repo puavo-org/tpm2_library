@@ -2,23 +2,20 @@
 // Copyright (c) 2025 Opinsys Oy
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 
+pub mod tpm_rc;
 pub mod tpma;
 pub mod tpms;
 pub mod tpmt;
 pub mod tpmu;
 
+pub use tpm_rc::*;
 pub use tpma::*;
 pub use tpms::*;
 pub use tpmt::*;
 pub use tpmu::*;
 
-use crate::{
-    tpm2b, tpm2b_struct, tpm_bool, tpm_enum, tpml, TpmErrorKind, TpmSized, TPM_MAX_COMMAND_SIZE,
-};
-use core::{
-    convert::TryFrom,
-    fmt::{self, Debug, Display, Formatter},
-};
+use crate::{tpm2b, tpm2b_struct, tpm_bool, tpm_enum, tpml, TpmSized, TPM_MAX_COMMAND_SIZE};
+use core::{convert::TryFrom, fmt::Debug};
 
 pub const MAX_DIGEST_SIZE: usize = 64;
 pub const MAX_ECC_KEY_BYTES: usize = 66;
@@ -235,7 +232,7 @@ tpm_enum! {
 }
 
 tpm_enum! {
-    #[derive(Debug, PartialEq, Eq, Clone, Copy, Default)]
+    #[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
     pub enum TpmEccCurve(u16) {
         #[default]
         (None, 0x0000, "TPM_ECC_NONE"),
@@ -244,168 +241,6 @@ tpm_enum! {
         (NistP256, 0x0003, "TPM_ECC_NIST_P256"),
         (NistP384, 0x0004, "TPM_ECC_NIST_P384"),
         (NistP521, 0x0005, "TPM_ECC_NIST_P521"),
-    }
-}
-
-pub const TPM_RC_VER1: u32 = 0x0100;
-pub const TPM_RC_FMT1: u32 = 0x0080;
-pub const TPM_RC_WARN: u32 = 0x0900;
-pub const TPM_RC_P_BIT: u32 = 1 << 6;
-pub const TPM_RC_N_SHIFT: u32 = 8;
-pub const TPM_RC_FMT1_ERROR_MASK: u32 = 0x003F;
-
-#[derive(Debug, PartialEq, Eq, Copy, Clone)]
-pub enum TpmRcIndex {
-    Parameter(u8),
-    Handle(u8),
-    Session(u8),
-}
-
-impl Display for TpmRcIndex {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Parameter(i) => write!(f, "parameter[{i}]"),
-            Self::Handle(i) => write!(f, "handle[{i}]"),
-            Self::Session(i) => write!(f, "session[{i}]"),
-        }
-    }
-}
-
-tpm_enum! {
-    #[derive(Debug, PartialEq, Eq, Copy, Clone)]
-    #[allow(clippy::upper_case_acronyms)]
-    pub enum TpmRcBase(u32) {
-        (Success, 0x0000, "TPM_RC_SUCCESS"),
-        (BadTag, 0x001E, "TPM_RC_BAD_TAG"),
-        (Initialize, TPM_RC_VER1, "TPM_RC_INITIALIZE"),
-        (Failure, TPM_RC_VER1 | 0x001, "TPM_RC_FAILURE"),
-        (AuthMissing, TPM_RC_VER1 | 0x025, "TPM_RC_AUTH_MISSING"),
-        (CommandSize, TPM_RC_VER1 | 0x042, "TPM_RC_COMMAND_SIZE"),
-        (Sensitive, TPM_RC_VER1 | 0x055, "TPM_RC_SENSITIVE"),
-        (Asymmetric, TPM_RC_FMT1 | 0x001, "TPM_RC_ASYMMETRIC"),
-        (Attributes, TPM_RC_FMT1 | 0x002, "TPM_RC_ATTRIBUTES"),
-        (Value, TPM_RC_FMT1 | 0x004, "TPM_RC_VALUE"),
-        (Handle, TPM_RC_FMT1 | 0x00B, "TPM_RC_HANDLE"),
-        (AuthFail, TPM_RC_FMT1 | 0x00E, "TPM_RC_AUTH_FAIL"),
-        (BadAuth, TPM_RC_FMT1 | 0x022, "TPM_RC_BAD_AUTH"),
-        (Curve, TPM_RC_FMT1 | 0x026, "TPM_RC_CURVE"),
-        (ContextGap, TPM_RC_WARN | 0x001, "TPM_RC_CONTEXT_GAP"),
-        (NvUnavailable, TPM_RC_WARN | 0x023, "TPM_RC_NV_UNAVAILABLE"),
-    }
-}
-
-#[must_use]
-#[derive(Debug, PartialEq, Eq, Copy, Clone)]
-pub struct TpmRc(u32);
-
-impl TpmRc {
-    /// Returns the base error code, stripping any handle, parameter, or session index.
-    ///
-    /// # Errors
-    ///
-    /// Returns a `TpmErrorKind::InvalidDiscriminant` if the response code does not correspond
-    /// to a known base error code.
-    pub fn base(self) -> Result<TpmRcBase, TpmErrorKind> {
-        let value = self.0;
-        let base_code = if (value & TPM_RC_FMT1) != 0 {
-            TPM_RC_FMT1 | (value & TPM_RC_FMT1_ERROR_MASK)
-        } else {
-            value
-        };
-        TpmRcBase::try_from(base_code).map_err(|()| TpmErrorKind::InvalidDiscriminant {
-            type_name: "TpmRcBase",
-            value: u64::from(base_code),
-        })
-    }
-
-    #[must_use]
-    pub fn index(self) -> Option<TpmRcIndex> {
-        let value = self.0;
-        if (value & TPM_RC_FMT1) == 0 {
-            return None;
-        }
-        let is_parameter = (value & TPM_RC_P_BIT) != 0;
-        let n = ((value >> TPM_RC_N_SHIFT) & 0b1111) as u8;
-        if n == 0 {
-            return None;
-        }
-        if is_parameter {
-            Some(TpmRcIndex::Parameter(n))
-        } else if n <= 7 {
-            Some(TpmRcIndex::Handle(n))
-        } else {
-            Some(TpmRcIndex::Session(n - 8))
-        }
-    }
-
-    #[must_use]
-    pub fn value(self) -> u32 {
-        self.0
-    }
-    #[must_use]
-    pub fn is_warning(self) -> bool {
-        (self.0 & TPM_RC_WARN) == TPM_RC_WARN
-    }
-    #[must_use]
-    pub fn is_error(self) -> bool {
-        !self.is_warning() && self.0 != 0
-    }
-}
-
-impl crate::TpmSized for TpmRc {
-    const SIZE: usize = core::mem::size_of::<u32>();
-    fn len(&self) -> usize {
-        Self::SIZE
-    }
-}
-
-impl crate::TpmBuild for TpmRc {
-    fn build(&self, writer: &mut crate::TpmWriter) -> crate::TpmResult<()> {
-        self.0.build(writer)
-    }
-}
-
-impl<'a> crate::TpmParse<'a> for TpmRc {
-    fn parse(buf: &'a [u8]) -> crate::TpmResult<(Self, &'a [u8])> {
-        let (val, remainder) = u32::parse(buf)?;
-        let rc = Self::try_from(val)?;
-        Ok((rc, remainder))
-    }
-}
-
-impl TryFrom<u32> for TpmRc {
-    type Error = TpmErrorKind;
-    fn try_from(value: u32) -> Result<Self, Self::Error> {
-        let base_code = if (value & TPM_RC_FMT1) != 0 {
-            TPM_RC_FMT1 | (value & TPM_RC_FMT1_ERROR_MASK)
-        } else {
-            value
-        };
-        TpmRcBase::try_from(base_code).map_err(|()| TpmErrorKind::InvalidDiscriminant {
-            type_name: "TpmRcBase",
-            value: u64::from(base_code),
-        })?;
-        Ok(Self(value))
-    }
-}
-
-impl From<TpmRcBase> for TpmRc {
-    fn from(value: TpmRcBase) -> Self {
-        Self(value as u32)
-    }
-}
-
-impl Display for TpmRc {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        if let Ok(base) = self.base() {
-            if let Some(index) = self.index() {
-                write!(f, "[{base}, {index}]")
-            } else {
-                write!(f, "{base}")
-            }
-        } else {
-            write!(f, "TPM_RC_UNKNOWN(0x{:08X})", self.0)
-        }
     }
 }
 
