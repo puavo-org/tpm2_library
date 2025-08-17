@@ -179,7 +179,7 @@ pub trait TpmSized {
     }
 }
 
-pub trait TpmBuild {
+pub trait TpmBuild: TpmSized {
     /// Builds the object into the given writer.
     ///
     /// # Errors
@@ -189,7 +189,7 @@ pub trait TpmBuild {
     fn build(&self, writer: &mut TpmWriter) -> TpmResult<()>;
 }
 
-pub trait TpmParse<'a>: Sized {
+pub trait TpmParse<'a>: Sized + TpmSized {
     /// Parses an object from the given buffer.
     ///
     /// Returns the parsed type and the remaining portion of the buffer.
@@ -201,10 +201,14 @@ pub trait TpmParse<'a>: Sized {
     fn parse(buf: &'a [u8]) -> TpmResult<(Self, &'a [u8])>;
 }
 
+/// A unifying trait for TPM objects that are both serializable and deserializable.
+pub trait TpmObject<'a>: TpmParse<'a> + TpmBuild {}
+impl<'a, T: TpmParse<'a> + TpmBuild> TpmObject<'a> for T {}
+
 /// Types that are composed of a tag and a value e.g., a union.
 pub trait TpmTagged {
     /// The type of the tag/discriminant.
-    type Tag: TpmBuild + TpmParse<'static> + Copy;
+    type Tag: for<'a> TpmObject<'a> + Copy;
     /// The type of the value/union.
     type Value;
 }
@@ -221,7 +225,7 @@ pub trait TpmParseTagged<'a>: Sized {
     fn parse_tagged(tag: <Self as TpmTagged>::Tag, buf: &'a [u8]) -> TpmResult<(Self, &'a [u8])>
     where
         Self: TpmTagged,
-        <Self as TpmTagged>::Tag: TpmParse<'a>;
+        <Self as TpmTagged>::Tag: for<'b> TpmObject<'b>;
 }
 
 impl TpmSized for u8 {
@@ -478,7 +482,7 @@ impl<T: TpmBuild + Copy + Default, const CAPACITY: usize> TpmBuild for TpmList<T
     }
 }
 
-impl<'a, T: TpmParse<'a> + Copy + Default, const CAPACITY: usize> TpmParse<'a>
+impl<'a, T: TpmObject<'a> + Copy + Default, const CAPACITY: usize> TpmParse<'a>
     for TpmList<T, CAPACITY>
 {
     fn parse(buf: &'a [u8]) -> TpmResult<(Self, &'a [u8])> {
@@ -537,7 +541,7 @@ impl<'a> TpmParameters<'a> {
     /// # Errors
     ///
     /// Returns any error encountered during the parsing of the inner type `T`.
-    pub fn parse<T: TpmParse<'a>>(&mut self) -> TpmResult<T> {
+    pub fn parse<T: TpmObject<'a>>(&mut self) -> TpmResult<T> {
         let (value, rest) = T::parse(self.buf)?;
         self.buf = rest;
         Ok(value)
