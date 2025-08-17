@@ -7,10 +7,12 @@ use crate::{
     from_json_str, get_pcr_count, parse_pcr_selection, AuthSession, Command, CommandIo, Envelope,
     SessionData, TpmDevice, TpmError,
 };
+use json;
 use lexopt::prelude::*;
 use pest::iterators::{Pair, Pairs};
 use pest::Parser;
 use pest_derive::Parser;
+use serde_json;
 use std::io::{self, Write};
 use tpm2_protocol::{
     data::{Tpm2b, Tpm2bDigest, TpmAlgId, TpmRh, TpmlDigest, TpmtSymDefObject},
@@ -166,8 +168,8 @@ impl<W: Write> PolicyExecutor<'_, '_, W> {
 
             let digest_hex = bank.get(pcr_index_str).ok_or_else(|| {
                 TpmError::Execution(format!(
-					"pcr index '{pcr_index_str}' not found in bank '{bank_name}' in pipeline object"
-				))
+                    "pcr index '{pcr_index_str}' not found in bank '{bank_name}' in pipeline object"
+                ))
             })?;
 
             if self.partial {
@@ -392,7 +394,9 @@ impl Command for Policy {
             unreachable!();
         };
 
-        let mut session_data: SessionData = from_json_str(&envelope_value.to_string(), "session")?;
+        let json_value = from_json_str(&envelope_value.to_string(), "session")?;
+        let data_str = json::stringify(json_value);
+        let mut session_data: SessionData = serde_json::from_str(&data_str)?;
 
         let ast = parse_policy_expression(&self.expression)
             .map_err(|e| TpmError::Parse(format!("failed to parse policy expression: {e}")))?;

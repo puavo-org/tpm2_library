@@ -8,7 +8,9 @@ use crate::{
     from_json_str, Command, Envelope, ObjectData, TpmDevice, TpmError, TpmKey,
 };
 use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
+use json;
 use lexopt::prelude::*;
+use serde_json;
 use std::{
     fs::File,
     io::{self, Read, Write},
@@ -34,7 +36,10 @@ const OPTIONS: &[CommandLineOption] = &[
 
 /// Parses a JSON string into an intermediate `TpmKey` representation.
 fn json_to_tpm_key(json_str: &str) -> Result<TpmKey, TpmError> {
-    let data: ObjectData = from_json_str(json_str, "object")?;
+    let json_value = from_json_str(json_str, "object")?;
+    let data_str = json::stringify(json_value);
+    let data: ObjectData = serde_json::from_str(&data_str)?;
+
     Ok(TpmKey {
         oid: data
             .oid

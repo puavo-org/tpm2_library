@@ -3,6 +3,7 @@
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 
 use crate::{cli, CommandIo, TpmDevice, TpmError};
+use json::JsonValue;
 use serde::{Deserialize, Serialize};
 use std::{fs, io::Write};
 use tpm2_protocol::{
@@ -64,18 +65,17 @@ pub struct ContextData {
 ///
 /// Returns a `TpmError::Json` if deserialization fails or if the object type
 /// in the envelope does not match `expected_type`.
-pub fn from_json_str<T>(json_str: &str, expected_type: &str) -> Result<T, TpmError>
-where
-    T: for<'a> serde::Deserialize<'a>,
-{
-    let envelope: Envelope = serde_json::from_str(json_str)?;
-    if envelope.object_type != expected_type {
+pub fn from_json_str(json_str: &str, expected_type: &str) -> Result<JsonValue, TpmError> {
+    let parsed = json::parse(json_str).map_err(|e| TpmError::Parse(e.to_string()))?;
+    let obj_type = parsed["type"]
+        .as_str()
+        .ok_or_else(|| TpmError::Parse("'type' field is not a string".to_string()))?;
+    if obj_type != expected_type {
         return Err(TpmError::Execution(format!(
-            "invalid object type: expected '{}', got '{}'",
-            expected_type, envelope.object_type
+            "invalid object type: expected '{expected_type}', got '{obj_type}'"
         )));
     }
-    serde_json::from_value(envelope.data).map_err(TpmError::from)
+    Ok(parsed["data"].clone())
 }
 
 /// Serializes a TPM data data and writes it to a file.
@@ -128,11 +128,9 @@ pub fn pop_object_data<W: Write>(io: &mut CommandIo<W>) -> Result<ObjectData, Tp
         }
         false
     })?;
-
     let crate::cli::Object::Context(envelope_value) = obj else {
         unreachable!()
     };
-
     let envelope: Envelope = serde_json::from_value(envelope_value)?;
     serde_json::from_value(envelope.data).map_err(Into::into)
 }
