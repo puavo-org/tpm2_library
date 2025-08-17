@@ -328,3 +328,25 @@ pub(crate) fn build_to_vec<T: TpmBuild>(obj: &T) -> Result<Vec<u8>, TpmError> {
     };
     Ok(buf[..len].to_vec())
 }
+
+/// Helper to consume the parent object from the pipeline and return its handle.
+///
+/// It looks for a `Handle` or `Persistent` object in the input stream,
+/// loads it if necessary, and returns the transient handle.
+///
+/// # Errors
+///
+/// Returns an error if a suitable parent object cannot be found or if there's an issue loading it.
+pub fn consume_and_get_parent_handle<W: Write>(
+    io: &mut CommandIo<W>,
+    chip: &mut TpmDevice,
+    log_format: cli::LogFormat,
+) -> Result<TpmTransient, TpmError> {
+    let parent_obj = io.consume_object(|obj| {
+        matches!(
+            obj,
+            cli::Object::Handle(_) | cli::Object::Persistent(_) | cli::Object::Context(_)
+        ) && !matches!(obj, cli::Object::Pcrs(_))
+    })?;
+    object_to_handle(chip, &parent_obj, log_format)
+}

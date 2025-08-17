@@ -6,16 +6,15 @@ use crate::{
     arg_parser::{format_subcommand_help, CommandLineOption},
     build_to_vec,
     cli::{self, Commands, Import, Object},
-    create_import_blob, get_auth_sessions, object_to_handle, read_public, Command, CommandIo,
-    Envelope, ObjectData, PrivateKey, TpmDevice, TpmError, ID_IMPORTABLE_KEY,
+    create_import_blob, get_auth_sessions, read_public,
+    util::consume_and_get_parent_handle,
+    Command, CommandIo, Envelope, ObjectData, PrivateKey, TpmDevice, TpmError, ID_IMPORTABLE_KEY,
 };
 use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
 use lexopt::prelude::*;
 use std::io;
-use tpm2_protocol::{
-    data::{Tpm2bPublic, TpmAlgId, TpmtSymDef, TpmuSymKeyBits, TpmuSymMode},
-    message::TpmImportCommand,
-};
+use tpm2_protocol::data::{Tpm2bPublic, TpmAlgId, TpmtSymDef, TpmuSymKeyBits, TpmuSymMode};
+use tpm2_protocol::message::TpmImportCommand;
 
 const ABOUT: &str = "Imports an external key";
 const USAGE: &str = "tpm2sh import [OPTIONS]";
@@ -61,8 +60,7 @@ impl Command for Import {
     fn run(&self, chip: &mut TpmDevice, log_format: cli::LogFormat) -> Result<(), TpmError> {
         let mut io = CommandIo::new(io::stdin(), io::stdout(), log_format)?;
 
-        let parent_obj = io.consume_object(|obj| !matches!(obj, Object::Pcrs(_)))?;
-        let parent_handle = object_to_handle(chip, &parent_obj, log_format)?;
+        let parent_handle = consume_and_get_parent_handle(&mut io, chip, log_format)?;
 
         let (parent_public, parent_name) = read_public(chip, parent_handle, log_format)?;
         let parent_name_alg = parent_public.name_alg;
