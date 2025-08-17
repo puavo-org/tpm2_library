@@ -5,6 +5,7 @@
 use crate::{cli, pretty_printer::PrettyTrace, TpmError};
 use indicatif::{ProgressBar, ProgressStyle};
 use std::{
+    collections::HashSet,
     fs::{File, OpenOptions},
     io::{self, IsTerminal, Read, Write},
     path::Path,
@@ -230,5 +231,58 @@ impl TpmDevice {
             }
         }
         Ok(all_caps)
+    }
+
+    /// Retrieves all algorithms supported by the TPM.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `TpmError` if the `get_capability` call to the TPM device fails.
+    pub fn get_all_algorithms(
+        &mut self,
+        log_format: cli::LogFormat,
+    ) -> Result<HashSet<data::TpmAlgId>, TpmError> {
+        let cap_data_vec =
+            self.get_capability(data::TpmCap::Algs, 0, TPM_CAP_PROPERTY_MAX, log_format)?;
+        let algs: HashSet<data::TpmAlgId> = cap_data_vec
+            .into_iter()
+            .flat_map(|cap_data| {
+                if let TpmuCapabilities::Algs(p) = cap_data.data {
+                    p.iter().map(|prop| prop.alg).collect::<Vec<_>>()
+                } else {
+                    Vec::new()
+                }
+            })
+            .collect();
+        Ok(algs)
+    }
+
+    /// Retrieves all handles of a specific type from the TPM.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `TpmError` if the `get_capability` call to the TPM device fails.
+    pub fn get_all_handles(
+        &mut self,
+        handle_type: data::TpmRh,
+        log_format: cli::LogFormat,
+    ) -> Result<Vec<u32>, TpmError> {
+        let cap_data_vec = self.get_capability(
+            data::TpmCap::Handles,
+            handle_type as u32,
+            TPM_CAP_PROPERTY_MAX,
+            log_format,
+        )?;
+        let handles: Vec<u32> = cap_data_vec
+            .into_iter()
+            .flat_map(|cap_data| {
+                if let TpmuCapabilities::Handles(handles) = cap_data.data {
+                    handles.iter().copied().collect()
+                } else {
+                    Vec::new()
+                }
+            })
+            .collect();
+        Ok(handles)
     }
 }

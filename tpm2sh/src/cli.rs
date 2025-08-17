@@ -5,7 +5,7 @@
 use crate::{formats::PcrOutput, Alg, Command, TpmError};
 use std::str::FromStr;
 use tpm2_protocol::{
-    data::{TpmCap, TpmRc, TpmRh, TpmuCapabilities},
+    data::{TpmRc, TpmRh},
     TpmPersistent, TpmTransient,
 };
 
@@ -373,24 +373,8 @@ pub struct Policy {
 /// Returns a `TpmError` if the `get_capability` call to the TPM device fails.
 pub fn get_handles(
     device: &mut crate::TpmDevice,
-    handle: TpmRh,
+    handle_type: TpmRh,
     log_format: LogFormat,
 ) -> Result<Vec<u32>, TpmError> {
-    let cap_data_vec = device.get_capability(
-        TpmCap::Handles,
-        handle as u32,
-        crate::TPM_CAP_PROPERTY_MAX,
-        log_format,
-    )?;
-    let handles: Vec<u32> = cap_data_vec
-        .into_iter()
-        .flat_map(|cap_data| {
-            if let TpmuCapabilities::Handles(handles) = cap_data.data {
-                handles.iter().copied().collect()
-            } else {
-                Vec::new()
-            }
-        })
-        .collect();
-    Ok(handles)
+    device.get_all_handles(handle_type, log_format)
 }
