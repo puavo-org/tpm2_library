@@ -47,7 +47,7 @@ rsa = { version = "0.9", features = ["sha1", "sha2"] }
 sha1 = "0.10"
 sha2 = "0.10"
 thiserror = "2.0"
-tpm2-protocol = { path = "../tpm2_protocol" }
+tpm2-protocol = { path = "../tpm2_protocol", version = "0.6.1" }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
