@@ -2,7 +2,7 @@
 name = "tpm2sh"
 description = "TPM 2.0 shell"
 version = { workspace = true }
-license = "MIT OR Apache-2.0"
+license = "GPL-3.0-or-later"
 homepage = { workspace = true }
 repository = { workspace = true }
 edition = { workspace = true }

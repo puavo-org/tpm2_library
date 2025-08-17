@@ -3,12 +3,12 @@
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 
 use crate::{TpmBuild, TpmErrorKind, TpmParse, TpmResult, TpmSized};
-use core::{mem::size_of, ops::Deref};
+use core::{convert::TryFrom, mem::size_of, ops::Deref};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TpmList<T: Copy + Default, const CAPACITY: usize> {
     items: [T; CAPACITY],
-    len: u32,
+    len: usize,
 }
 
 impl<T: Copy + Default, const CAPACITY: usize> TpmList<T, CAPACITY> {
@@ -33,11 +33,10 @@ impl<T: Copy + Default, const CAPACITY: usize> TpmList<T, CAPACITY> {
     /// Returns a `TpmErrorKind::CapacityExceeded` error if the list is already at
     /// full capacity.
     pub fn try_push(&mut self, item: T) -> Result<(), TpmErrorKind> {
-        if self.len as usize >= CAPACITY {
+        if self.len >= CAPACITY {
             return Err(TpmErrorKind::CapacityExceeded);
         }
-        let index = self.len as usize;
-        self.items[index] = item;
+        self.items[self.len] = item;
         self.len += 1;
         Ok(())
     }
@@ -47,7 +46,7 @@ impl<T: Copy + Default, const CAPACITY: usize> Deref for TpmList<T, CAPACITY> {
     type Target = [T];
 
     fn deref(&self) -> &Self::Target {
-        &self.items[..self.len as usize]
+        &self.items[..self.len]
     }
 }
 
@@ -66,7 +65,8 @@ impl<T: TpmSized + Copy + Default, const CAPACITY: usize> TpmSized for TpmList<T
 
 impl<T: TpmBuild + Copy + Default, const CAPACITY: usize> TpmBuild for TpmList<T, CAPACITY> {
     fn build(&self, writer: &mut crate::TpmWriter) -> TpmResult<()> {
-        TpmBuild::build(&self.len, writer)?;
+        let len_u32 = u32::try_from(self.len).map_err(|_| TpmErrorKind::ValueTooLarge)?;
+        TpmBuild::build(&len_u32, writer)?;
         for item in &**self {
             TpmBuild::build(item, writer)?;
         }
@@ -76,14 +76,14 @@ impl<T: TpmBuild + Copy + Default, const CAPACITY: usize> TpmBuild for TpmList<T
 
 impl<T: TpmParse + Copy + Default, const CAPACITY: usize> TpmParse for TpmList<T, CAPACITY> {
     fn parse(buf: &[u8]) -> TpmResult<(Self, &[u8])> {
-        let (count, mut buf) = u32::parse(buf)?;
-        let count_usize = count as usize;
-        if count_usize > CAPACITY {
+        let (count_u32, mut buf) = u32::parse(buf)?;
+        let count = count_u32 as usize;
+        if count > CAPACITY {
             return Err(TpmErrorKind::ValueTooLarge);
         }
 
         let mut list = Self::new();
-        for _ in 0..count_usize {
+        for _ in 0..count {
             let (item, rest) = T::parse(buf)?;
             list.try_push(item)
                 .map_err(|_| TpmErrorKind::InternalError)?;

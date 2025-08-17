@@ -8,7 +8,7 @@ use core::{convert::TryFrom, fmt::Debug, mem::size_of, ops::Deref};
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct TpmBuffer<const CAPACITY: usize> {
     bytes: [u8; CAPACITY],
-    len: u16,
+    len: usize,
 }
 
 impl<const CAPACITY: usize> TpmBuffer<CAPACITY> {
@@ -25,7 +25,7 @@ impl<const CAPACITY: usize> Deref for TpmBuffer<CAPACITY> {
     type Target = [u8];
 
     fn deref(&self) -> &Self::Target {
-        &self.bytes[..self.len as usize]
+        &self.bytes[..self.len]
     }
 }
 
@@ -38,7 +38,7 @@ impl<const CAPACITY: usize> Default for TpmBuffer<CAPACITY> {
 impl<const CAPACITY: usize> TpmSized for TpmBuffer<CAPACITY> {
     const SIZE: usize = size_of::<u16>() + CAPACITY;
     fn len(&self) -> usize {
-        size_of::<u16>() + self.len as usize
+        size_of::<u16>() + self.len
     }
 }
 
@@ -51,12 +51,7 @@ impl<const CAPACITY: usize> TpmBuild for TpmBuffer<CAPACITY> {
 impl<const CAPACITY: usize> TpmParse for TpmBuffer<CAPACITY> {
     fn parse(buf: &[u8]) -> TpmResult<(Self, &[u8])> {
         let (bytes, remainder) = parse_tpm2b(buf)?;
-        if bytes.len() > CAPACITY {
-            return Err(TpmErrorKind::ValueTooLarge);
-        }
-        let mut buffer = Self::new();
-        buffer.bytes[..bytes.len()].copy_from_slice(bytes);
-        buffer.len = u16::try_from(bytes.len()).map_err(|_| TpmErrorKind::ValueTooLarge)?;
+        let buffer = Self::try_from(bytes)?;
         Ok((buffer, remainder))
     }
 }
@@ -70,14 +65,14 @@ impl<const CAPACITY: usize> TryFrom<&[u8]> for TpmBuffer<CAPACITY> {
         }
         let mut buffer = Self::new();
         buffer.bytes[..slice.len()].copy_from_slice(slice);
-        buffer.len = u16::try_from(slice.len())?;
+        buffer.len = slice.len();
         Ok(buffer)
     }
 }
 
 impl<const CAPACITY: usize> AsRef<[u8]> for TpmBuffer<CAPACITY> {
     fn as_ref(&self) -> &[u8] {
-        &self.bytes[..self.len as usize]
+        &self.bytes[..self.len]
     }
 }
 
@@ -87,6 +82,7 @@ impl<const CAPACITY: usize> Debug for TpmBuffer<CAPACITY> {
         for byte in &**self {
             write!(f, "{byte:02x}")?;
         }
+
         write!(f, ")")
     }
 }
