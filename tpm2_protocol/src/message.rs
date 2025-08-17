@@ -270,7 +270,7 @@ pub fn tpm_parse_command(buf: &[u8]) -> TpmResult<(TpmHandles, TpmCommandBody, T
 /// * `TpmErrorKind::InvalidTag` if the tag in the buffer does not match expected
 /// * `TpmErrorKind::InvalidDiscriminant` if the buffer contains an unsupported command code
 /// * `TpmErrorKind::TrailingData` if the response has after spurious data left
-pub fn tpm_parse_response(cc: TpmCc, buf: &[u8]) -> TpmResult<TpmParseResult> {
+pub fn tpm_parse_response(cc: TpmCc, buf: &[u8]) -> TpmResult<TpmParseResult<'_>> {
     if buf.len() < TPM_HEADER_SIZE {
         return Err(TpmErrorKind::Boundary);
     }
