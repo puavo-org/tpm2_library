@@ -1,0 +1,92 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// Copyright (c) 2025 Opinsys Oy
+// Copyright (c) 2024-2025 Jarkko Sakkinen
+
+use crate::{build_tpm2b, parse_tpm2b, TpmBuild, TpmErrorKind, TpmParse, TpmResult, TpmSized};
+use core::{convert::TryFrom, fmt::Debug, mem::size_of, ops::Deref};
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub struct TpmBuffer<const CAPACITY: usize> {
+    bytes: [u8; CAPACITY],
+    len: u16,
+}
+
+impl<const CAPACITY: usize> TpmBuffer<CAPACITY> {
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
+            bytes: [0; CAPACITY],
+            len: 0,
+        }
+    }
+}
+
+impl<const CAPACITY: usize> Deref for TpmBuffer<CAPACITY> {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        &self.bytes[..self.len as usize]
+    }
+}
+
+impl<const CAPACITY: usize> Default for TpmBuffer<CAPACITY> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<const CAPACITY: usize> TpmSized for TpmBuffer<CAPACITY> {
+    const SIZE: usize = size_of::<u16>() + CAPACITY;
+    fn len(&self) -> usize {
+        size_of::<u16>() + self.len as usize
+    }
+}
+
+impl<const CAPACITY: usize> TpmBuild for TpmBuffer<CAPACITY> {
+    fn build(&self, writer: &mut crate::TpmWriter) -> TpmResult<()> {
+        build_tpm2b(writer, self)
+    }
+}
+
+impl<'a, const CAPACITY: usize> TpmParse<'a> for TpmBuffer<CAPACITY> {
+    fn parse(buf: &'a [u8]) -> TpmResult<(Self, &'a [u8])> {
+        let (bytes, remainder) = parse_tpm2b(buf)?;
+        if bytes.len() > CAPACITY {
+            return Err(TpmErrorKind::ValueTooLarge);
+        }
+        let mut buffer = Self::new();
+        buffer.bytes[..bytes.len()].copy_from_slice(bytes);
+        buffer.len = u16::try_from(bytes.len()).map_err(|_| TpmErrorKind::ValueTooLarge)?;
+        Ok((buffer, remainder))
+    }
+}
+
+impl<const CAPACITY: usize> TryFrom<&[u8]> for TpmBuffer<CAPACITY> {
+    type Error = TpmErrorKind;
+
+    fn try_from(slice: &[u8]) -> Result<Self, Self::Error> {
+        if slice.len() > CAPACITY {
+            return Err(TpmErrorKind::ValueTooLarge);
+        }
+        let mut buffer = Self::new();
+        buffer.bytes[..slice.len()].copy_from_slice(slice);
+        buffer.len = u16::try_from(slice.len()).map_err(|_| TpmErrorKind::ValueTooLarge)?;
+        Ok(buffer)
+    }
+}
+
+impl<const CAPACITY: usize> AsRef<[u8]> for TpmBuffer<CAPACITY> {
+    fn as_ref(&self) -> &[u8] {
+        &self.bytes[..self.len as usize]
+    }
+}
+
+impl<const CAPACITY: usize> Debug for TpmBuffer<CAPACITY> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "TpmBuffer(")?;
+        for byte in &**self {
+            write!(f, "{byte:02x}")?;
+        }
+        write!(f, ")")
+    }
+}
