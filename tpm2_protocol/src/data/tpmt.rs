@@ -53,17 +53,12 @@ impl TpmBuild for TpmtPublic {
 
 impl<'a> TpmParse<'a> for TpmtPublic {
     fn parse(buf: &'a [u8]) -> TpmResult<(Self, &'a [u8])> {
-        let (object_type, mut buf) = TpmAlgId::parse(buf)?;
-        let (name_alg, rest) = TpmAlgId::parse(buf)?;
-        buf = rest;
-        let (object_attributes, rest) = TpmaObject::parse(buf)?;
-        buf = rest;
-        let (auth_policy, rest) = Tpm2bDigest::parse(buf)?;
-        buf = rest;
-        let (parameters, rest) = TpmuPublicParms::parse_tagged(object_type, buf)?;
-        buf = rest;
-        let (unique, rest) = TpmuPublicId::parse_tagged(object_type, buf)?;
-        buf = rest;
+        let (object_type, buf) = TpmAlgId::parse(buf)?;
+        let (name_alg, buf) = TpmAlgId::parse(buf)?;
+        let (object_attributes, buf) = TpmaObject::parse(buf)?;
+        let (auth_policy, buf) = Tpm2bDigest::parse(buf)?;
+        let (parameters, buf) = TpmuPublicParms::parse_tagged(object_type, buf)?;
+        let (unique, buf) = TpmuPublicId::parse_tagged(object_type, buf)?;
 
         let public_area = Self {
             object_type,

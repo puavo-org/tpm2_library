@@ -97,30 +97,34 @@ impl<'a> TpmParseTagged<'a> for TpmuHa {
 
         let (digest_bytes, buf) = buf.split_at(digest_size);
 
-        macro_rules! match_hash_alg_to_digest_variant {
-            ($tag:expr, $bytes:expr) => {
-                match $tag {
-                    TpmAlgId::Sha1 => {
-                        Self::Sha1($bytes.try_into().map_err(|_| TpmErrorKind::InternalError)?)
-                    }
-                    TpmAlgId::Sha256 => {
-                        Self::Sha256($bytes.try_into().map_err(|_| TpmErrorKind::InternalError)?)
-                    }
-                    TpmAlgId::Sha384 => {
-                        Self::Sha384($bytes.try_into().map_err(|_| TpmErrorKind::InternalError)?)
-                    }
-                    TpmAlgId::Sha512 => {
-                        Self::Sha512($bytes.try_into().map_err(|_| TpmErrorKind::InternalError)?)
-                    }
-                    TpmAlgId::Sm3_256 => {
-                        Self::Sm3_256($bytes.try_into().map_err(|_| TpmErrorKind::InternalError)?)
-                    }
-                    _ => return Err(TpmErrorKind::InvalidValue),
-                }
-            };
-        }
-
-        let digest = match_hash_alg_to_digest_variant!(tag, digest_bytes);
+        let digest = match tag {
+            TpmAlgId::Sha1 => Self::Sha1(
+                digest_bytes
+                    .try_into()
+                    .map_err(|_| TpmErrorKind::InternalError)?,
+            ),
+            TpmAlgId::Sha256 => Self::Sha256(
+                digest_bytes
+                    .try_into()
+                    .map_err(|_| TpmErrorKind::InternalError)?,
+            ),
+            TpmAlgId::Sha384 => Self::Sha384(
+                digest_bytes
+                    .try_into()
+                    .map_err(|_| TpmErrorKind::InternalError)?,
+            ),
+            TpmAlgId::Sha512 => Self::Sha512(
+                digest_bytes
+                    .try_into()
+                    .map_err(|_| TpmErrorKind::InternalError)?,
+            ),
+            TpmAlgId::Sm3_256 => Self::Sm3_256(
+                digest_bytes
+                    .try_into()
+                    .map_err(|_| TpmErrorKind::InternalError)?,
+            ),
+            _ => return Err(TpmErrorKind::InvalidValue),
+        };
 
         Ok((digest, buf))
     }

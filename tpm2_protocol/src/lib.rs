@@ -31,18 +31,18 @@ pub mod message;
 use crate::data::TpmAlgId;
 use core::{convert::TryFrom, fmt, mem::size_of, ops::Deref, result::Result};
 
-tpm_handle!(
+tpm_handle! {
     #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
     TpmTransient
-);
-tpm_handle!(
+}
+tpm_handle! {
     #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
     TpmSession
-);
-tpm_handle!(
+}
+tpm_handle! {
     #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
     TpmPersistent
-);
+}
 
 /// The maximum size of a TPM command or response buffer.
 pub const TPM_MAX_COMMAND_SIZE: usize = 4096;
@@ -489,15 +489,12 @@ impl<'a, T: TpmParse<'a> + Copy + Default, const CAPACITY: usize> TpmParse<'a>
         }
 
         let mut list = Self::new();
-        for i in 0..count_usize {
-            if buf.is_empty() {
-                return Err(TpmErrorKind::Boundary);
-            }
+        for _ in 0..count_usize {
             let (item, rest) = T::parse(buf)?;
-            list.items[i] = item;
+            list.try_push(item)
+                .map_err(|_| TpmErrorKind::InternalError)?;
             buf = rest;
         }
-        list.len = count;
 
         Ok((list, buf))
     }
