@@ -139,9 +139,9 @@ pub fn save_key_context(
     let envelope = Envelope {
         version: 1,
         object_type: "context".to_string(),
-        data: serde_json::to_value(data)?,
+        data: data.to_json(),
     };
-    serde_json::to_string_pretty(&envelope).map_err(Into::into)
+    Ok(envelope.to_json().pretty(2))
 }
 
 impl Command for CreatePrimary {

@@ -3,12 +3,6 @@
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 
 use crate::{formats::PcrOutput, Alg, Command, TpmError};
-use serde::{
-    de::{self, Deserializer, MapAccess, Visitor},
-    ser::{SerializeMap, Serializer},
-    Deserialize, Serialize,
-};
-use std::fmt;
 use std::str::FromStr;
 use tpm2_protocol::{
     data::{TpmCap, TpmRc, TpmRh, TpmuCapabilities},
@@ -19,84 +13,61 @@ use tpm2_protocol::{
 pub enum Object {
     Handle(TpmTransient),
     Persistent(TpmPersistent),
-    Context(serde_json::Value),
+    Context(json::JsonValue),
     Pcrs(PcrOutput),
 }
 
-impl Serialize for Object {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut map = serializer.serialize_map(Some(1))?;
+impl Object {
+    #[must_use]
+    pub fn to_json(&self) -> json::JsonValue {
         match self {
-            Object::Handle(h) => {
-                map.serialize_entry("handle", &format!("{:#010x}", u32::from(*h)))?;
-            }
+            Object::Handle(h) => json::object! { "handle": format!("{:#010x}", u32::from(*h)) },
             Object::Persistent(p) => {
-                map.serialize_entry("persistent", &format!("{:#010x}", u32::from(*p)))?;
+                json::object! { "persistent": format!("{:#010x}", u32::from(*p)) }
             }
-            Object::Context(c) => {
-                map.serialize_entry("context", c)?;
-            }
-            Object::Pcrs(p) => {
-                map.serialize_entry("pcrs", p)?;
-            }
+            Object::Context(c) => json::object! { "context": c.clone() },
+            Object::Pcrs(p) => json::object! { "pcrs": p.to_json() },
         }
-        map.end()
-    }
-}
-
-struct ObjectVisitor;
-
-impl<'de> Visitor<'de> for ObjectVisitor {
-    type Value = Object;
-
-    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        formatter
-            .write_str("an object with a single key: 'handle', 'persistent', 'context', or 'pcrs'")
     }
 
-    fn visit_map<V>(self, mut map: V) -> Result<Object, V::Error>
-    where
-        V: MapAccess<'de>,
-    {
-        let (key, value): (String, serde_json::Value) = map
-            .next_entry()?
-            .ok_or_else(|| de::Error::invalid_length(0, &self))?;
+    /// Deserializes an `Object` from a `json::JsonValue`.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `TpmError::Parse` if the JSON object is malformed, has an
+    /// unknown key, or contains values of the wrong type.
+    pub fn from_json(value: &json::JsonValue) -> Result<Self, TpmError> {
+        if !value.is_object() {
+            return Err(TpmError::Parse("expected a JSON object".to_string()));
+        }
 
-        match key.as_str() {
+        let (key, value) = value
+            .entries()
+            .next()
+            .ok_or_else(|| TpmError::Parse("object is empty".to_string()))?;
+
+        match key {
             "handle" => {
-                let s: String = serde_json::from_value(value).map_err(de::Error::custom)?;
-                let handle = crate::parse_hex_u32(&s)
-                    .map(TpmTransient)
-                    .map_err(de::Error::custom)?;
+                let s = value
+                    .as_str()
+                    .ok_or_else(|| TpmError::Parse("handle value is not a string".to_string()))?;
+                let handle = crate::parse_hex_u32(s).map(TpmTransient)?;
                 Ok(Object::Handle(handle))
             }
             "persistent" => {
-                let s: String = serde_json::from_value(value).map_err(de::Error::custom)?;
-                let handle = crate::parse_persistent_handle(&s).map_err(de::Error::custom)?;
+                let s = value.as_str().ok_or_else(|| {
+                    TpmError::Parse("persistent value is not a string".to_string())
+                })?;
+                let handle = crate::parse_persistent_handle(s)?;
                 Ok(Object::Persistent(handle))
             }
-            "context" => Ok(Object::Context(value)),
+            "context" => Ok(Object::Context(value.clone())),
             "pcrs" => {
-                let pcrs = serde_json::from_value(value).map_err(de::Error::custom)?;
+                let pcrs = PcrOutput::from_json(value)?;
                 Ok(Object::Pcrs(pcrs))
             }
-            _ => Err(de::Error::unknown_field(
-                &key,
-                &["handle", "persistent", "context", "pcrs"],
-            )),
+            _ => Err(TpmError::Parse(format!("unknown object key: {key}"))),
         }
-    }
-}
-
-impl<'de> Deserialize<'de> for Object {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        deserializer.deserialize_map(ObjectVisitor)
     }
 }
 

@@ -15,7 +15,7 @@ use tpm2_protocol::message::TpmPcrReadCommand;
 
 const ABOUT: &str = "Reads PCRs";
 const USAGE: &str = "tpm2sh pcr-read <SELECTION>";
-const ARGS: &[CommandLineArgument] = &[("<SELECTION>", "e.g. 'sha256:0,1,2+sha1:0'")];
+const ARGS: &[CommandLineArgument] = &[("SELECTION", "e.g. 'sha256:0,1,2+sha1:0'")];
 const OPTIONS: &[CommandLineOption] = &[(Some("-h"), "--help", "", "Print help information")];
 
 impl Command for PcrRead {
@@ -81,7 +81,7 @@ impl Command for PcrRead {
         };
 
         let output_object = Object::Pcrs(pcr_output);
-        let json_line = serde_json::to_string(&output_object)?;
+        let json_line = output_object.to_json().dump();
         println!("{json_line}");
 
         Ok(())

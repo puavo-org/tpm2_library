@@ -2,10 +2,8 @@
 // Copyright (c) 2025 Opinsys Oy
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 
-use crate::{cli, AuthSession, SessionData, TpmError};
+use crate::{cli, from_json_str, AuthSession, SessionData, TpmError};
 use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
-use json;
-use serde_json;
 use std::io::{BufRead, BufReader, Read, Write};
 use tpm2_protocol::data::{Tpm2bAuth, Tpm2bNonce, TpmAlgId, TpmaSession};
 
@@ -34,7 +32,8 @@ impl<W: Write> CommandIo<W> {
         for line in buf_reader.lines() {
             let line = line?;
             if !line.trim().is_empty() {
-                input_objects.push(serde_json::from_str(&line)?);
+                let json_val = json::parse(&line)?;
+                input_objects.push(cli::Object::from_json(&json_val)?);
             }
         }
 
@@ -43,65 +42,22 @@ impl<W: Write> CommandIo<W> {
 
         for obj in input_objects {
             if let cli::Object::Context(val) = &obj {
-                if let Some(json_str) = val.as_str() {
-                    if let Ok(json_val) = json::parse(json_str) {
-                        if json_val["type"] == "session" {
-                            let data = &json_val["data"];
-                            let session_data = SessionData {
-                                handle: data["handle"].as_u32().ok_or_else(|| {
-                                    TpmError::Parse("session handle missing or invalid".to_string())
-                                })?,
-                                nonce_tpm: data["nonce_tpm"]
-                                    .as_str()
-                                    .ok_or_else(|| {
-                                        TpmError::Parse("nonce_tpm missing or invalid".to_string())
-                                    })?
-                                    .to_string(),
-                                attributes: data["attributes"].as_u8().ok_or_else(|| {
-                                    TpmError::Parse(
-                                        "session attributes missing or invalid".to_string(),
-                                    )
-                                })?,
-                                hmac_key: data["hmac_key"]
-                                    .as_str()
-                                    .ok_or_else(|| {
-                                        TpmError::Parse("hmac_key missing or invalid".to_string())
-                                    })?
-                                    .to_string(),
-                                auth_hash: data["auth_hash"].as_u16().ok_or_else(|| {
-                                    TpmError::Parse("auth_hash missing or invalid".to_string())
-                                })?,
-                                policy_digest: data["policy_digest"]
-                                    .as_str()
-                                    .ok_or_else(|| {
-                                        TpmError::Parse(
-                                            "policy_digest missing or invalid".to_string(),
-                                        )
-                                    })?
-                                    .to_string(),
-                            };
-                            session = Some(AuthSession {
-                                handle: session_data.handle.into(),
-                                nonce_tpm: Tpm2bNonce::try_from(
-                                    base64_engine.decode(session_data.nonce_tpm)?.as_slice(),
-                                )?,
-                                attributes: TpmaSession::from_bits_truncate(
-                                    session_data.attributes,
-                                ),
-                                hmac_key: Tpm2bAuth::try_from(
-                                    base64_engine.decode(session_data.hmac_key)?.as_slice(),
-                                )?,
-                                auth_hash: TpmAlgId::try_from(session_data.auth_hash).map_err(
-                                    |()| {
-                                        TpmError::Parse(
-                                            "invalid auth_hash in session data".to_string(),
-                                        )
-                                    },
-                                )?,
-                            });
-                            continue;
-                        }
-                    }
+                if let Ok(json_val) = from_json_str(&val.to_string(), "session") {
+                    let session_data = SessionData::from_json(&json_val)?;
+                    session = Some(AuthSession {
+                        handle: session_data.handle.into(),
+                        nonce_tpm: Tpm2bNonce::try_from(
+                            base64_engine.decode(session_data.nonce_tpm)?.as_slice(),
+                        )?,
+                        attributes: TpmaSession::from_bits_truncate(session_data.attributes),
+                        hmac_key: Tpm2bAuth::try_from(
+                            base64_engine.decode(session_data.hmac_key)?.as_slice(),
+                        )?,
+                        auth_hash: TpmAlgId::try_from(session_data.auth_hash).map_err(|()| {
+                            TpmError::Parse("invalid auth_hash in session data".to_string())
+                        })?,
+                    });
+                    continue;
                 }
             }
             new_input_objects.push(obj);
@@ -150,7 +106,7 @@ impl<W: Write> CommandIo<W> {
         final_objects.append(&mut self.output_objects);
 
         for obj in final_objects {
-            let json_str = serde_json::to_string(&obj)?;
+            let json_str = obj.to_json().dump();
             writeln!(self.writer, "{json_str}")?;
         }
         Ok(())

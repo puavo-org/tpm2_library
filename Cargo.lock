@@ -1068,8 +1068,6 @@ dependencies = [
  "regex",
  "rsa",
  "rstest",
- "serde",
- "serde_json",
  "sha1",
  "sha2",
  "tpm2-protocol",

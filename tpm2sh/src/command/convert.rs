@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3-0-or-later
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2025 Opinsys Oy
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 
@@ -8,9 +8,7 @@ use crate::{
     from_json_str, Command, Envelope, ObjectData, TpmDevice, TpmError, TpmKey,
 };
 use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
-use json;
 use lexopt::prelude::*;
-use serde_json;
 use std::{
     fs::File,
     io::{self, Read, Write},
@@ -37,8 +35,7 @@ const OPTIONS: &[CommandLineOption] = &[
 /// Parses a JSON string into an intermediate `TpmKey` representation.
 fn json_to_tpm_key(json_str: &str) -> Result<TpmKey, TpmError> {
     let json_value = from_json_str(json_str, "object")?;
-    let data_str = json::stringify(json_value);
-    let data: ObjectData = serde_json::from_str(&data_str)?;
+    let data = ObjectData::from_json(&json_value)?;
 
     Ok(TpmKey {
         oid: data
@@ -56,7 +53,7 @@ fn json_to_tpm_key(json_str: &str) -> Result<TpmKey, TpmError> {
 }
 
 /// Converts an intermediate `TpmKey` into a final enveloped JSON string.
-fn tpm_key_to_json_string(key: TpmKey) -> Result<String, TpmError> {
+fn tpm_key_to_json_string(key: TpmKey) -> String {
     let data = ObjectData {
         oid: key
             .oid
@@ -72,9 +69,9 @@ fn tpm_key_to_json_string(key: TpmKey) -> Result<String, TpmError> {
     let envelope = Envelope {
         version: 1,
         object_type: "object".to_string(),
-        data: serde_json::to_value(data)?,
+        data: data.to_json(),
     };
-    serde_json::to_string_pretty(&envelope).map_err(Into::into)
+    envelope.to_json().pretty(2)
 }
 
 fn read_all(path: Option<&str>) -> Result<Vec<u8>, TpmError> {
@@ -140,11 +137,11 @@ impl Command for Convert {
             }
             (KeyFormat::Pem, KeyFormat::Json) => {
                 let key = TpmKey::from_pem(&input)?;
-                println!("{}", tpm_key_to_json_string(key)?);
+                println!("{}", tpm_key_to_json_string(key));
             }
             (KeyFormat::Der, KeyFormat::Json) => {
                 let key = TpmKey::from_der(&input)?;
-                println!("{}", tpm_key_to_json_string(key)?);
+                println!("{}", tpm_key_to_json_string(key));
             }
             (from, to) if from == to => {
                 io::stdout().write_all(&input)?;

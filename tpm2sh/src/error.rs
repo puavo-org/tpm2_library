@@ -14,7 +14,7 @@ pub enum TpmError {
     Hex(hex::FromHexError),
     InvalidHandle(String),
     Io(IoError),
-    Json(serde_json::Error),
+    Json(json::Error),
     Lexopt(lexopt::Error),
     Parse(String),
     ParseInt(ParseIntError),
@@ -110,8 +110,8 @@ impl From<pkcs8::der::Error> for TpmError {
     }
 }
 
-impl From<serde_json::Error> for TpmError {
-    fn from(err: serde_json::Error) -> Self {
+impl From<json::Error> for TpmError {
+    fn from(err: json::Error) -> Self {
         TpmError::Json(err)
     }
 }

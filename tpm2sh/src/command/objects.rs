@@ -43,14 +43,14 @@ impl Command for Objects {
         let transient_handles = cli::get_handles(device, TpmRh::TransientFirst, log_format)?;
         for handle in transient_handles {
             let obj = cli::Object::Handle(TpmTransient(handle));
-            let json_line = serde_json::to_string(&obj)?;
+            let json_line = obj.to_json().dump();
             println!("{json_line}");
         }
 
         let persistent_handles = cli::get_handles(device, TpmRh::PersistentFirst, log_format)?;
         for handle in persistent_handles {
             let obj = cli::Object::Persistent(TpmPersistent(handle));
-            let json_line = serde_json::to_string(&obj)?;
+            let json_line = obj.to_json().dump();
             println!("{json_line}");
         }
 

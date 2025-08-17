@@ -4,8 +4,6 @@
 
 use crate::{cli, CommandIo, TpmDevice, TpmError};
 use json::JsonValue;
-use serde::de::Error as SerdeError;
-use serde::{Deserialize, Serialize};
 use std::{fs, io::Write};
 use tpm2_protocol::{
     self,
@@ -28,15 +26,25 @@ pub(crate) fn parse_tpm_rc(s: &str) -> Result<TpmRc, TpmError> {
     Ok(TpmRc::try_from(raw_rc)?)
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug)]
 pub struct Envelope {
     pub version: u32,
-    #[serde(rename = "type")]
     pub object_type: String,
-    pub data: serde_json::Value,
+    pub data: json::JsonValue,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+impl Envelope {
+    #[must_use]
+    pub fn to_json(&self) -> json::JsonValue {
+        json::object! {
+            version: self.version,
+            "type": self.object_type.clone(),
+            data: self.data.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct SessionData {
     pub handle: u32,
     pub nonce_tpm: String,
@@ -46,7 +54,53 @@ pub struct SessionData {
     pub policy_digest: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+impl SessionData {
+    #[must_use]
+    pub fn to_json(&self) -> json::JsonValue {
+        json::object! {
+            handle: self.handle,
+            nonce_tpm: self.nonce_tpm.clone(),
+            attributes: self.attributes,
+            hmac_key: self.hmac_key.clone(),
+            auth_hash: self.auth_hash,
+            policy_digest: self.policy_digest.clone(),
+        }
+    }
+
+    /// Deserializes `SessionData` from a `json::JsonValue`.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `TpmError::Parse` if the JSON object is missing required fields
+    /// or contains values of the wrong type.
+    pub fn from_json(value: &json::JsonValue) -> Result<Self, TpmError> {
+        Ok(Self {
+            handle: value["handle"]
+                .as_u32()
+                .ok_or_else(|| TpmError::Parse("missing or invalid 'handle'".to_string()))?,
+            nonce_tpm: value["nonce_tpm"]
+                .as_str()
+                .ok_or_else(|| TpmError::Parse("missing or invalid 'nonce_tpm'".to_string()))?
+                .to_string(),
+            attributes: value["attributes"]
+                .as_u8()
+                .ok_or_else(|| TpmError::Parse("missing or invalid 'attributes'".to_string()))?,
+            hmac_key: value["hmac_key"]
+                .as_str()
+                .ok_or_else(|| TpmError::Parse("missing or invalid 'hmac_key'".to_string()))?
+                .to_string(),
+            auth_hash: value["auth_hash"]
+                .as_u16()
+                .ok_or_else(|| TpmError::Parse("missing or invalid 'auth_hash'".to_string()))?,
+            policy_digest: value["policy_digest"]
+                .as_str()
+                .ok_or_else(|| TpmError::Parse("missing or invalid 'policy_digest'".to_string()))?
+                .to_string(),
+        })
+    }
+}
+
+#[derive(Debug)]
 pub struct ObjectData {
     pub oid: String,
     pub empty_auth: bool,
@@ -55,9 +109,61 @@ pub struct ObjectData {
     pub private: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+impl ObjectData {
+    #[must_use]
+    pub fn to_json(&self) -> json::JsonValue {
+        json::object! {
+            oid: self.oid.clone(),
+            empty_auth: self.empty_auth,
+            parent: self.parent.clone(),
+            public: self.public.clone(),
+            private: self.private.clone(),
+        }
+    }
+
+    /// Deserializes `ObjectData` from a `json::JsonValue`.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `TpmError::Parse` if the JSON object is missing required fields
+    /// or contains values of the wrong type.
+    pub fn from_json(value: &json::JsonValue) -> Result<Self, TpmError> {
+        Ok(Self {
+            oid: value["oid"]
+                .as_str()
+                .ok_or_else(|| TpmError::Parse("missing or invalid 'oid'".to_string()))?
+                .to_string(),
+            empty_auth: value["empty_auth"]
+                .as_bool()
+                .ok_or_else(|| TpmError::Parse("missing or invalid 'empty_auth'".to_string()))?,
+            parent: value["parent"]
+                .as_str()
+                .ok_or_else(|| TpmError::Parse("missing or invalid 'parent'".to_string()))?
+                .to_string(),
+            public: value["public"]
+                .as_str()
+                .ok_or_else(|| TpmError::Parse("missing or invalid 'public'".to_string()))?
+                .to_string(),
+            private: value["private"]
+                .as_str()
+                .ok_or_else(|| TpmError::Parse("missing or invalid 'private'".to_string()))?
+                .to_string(),
+        })
+    }
+}
+
+#[derive(Debug)]
 pub struct ContextData {
     pub context_blob: String,
+}
+
+impl ContextData {
+    #[must_use]
+    pub fn to_json(&self) -> json::JsonValue {
+        json::object! {
+            context_blob: self.context_blob.clone()
+        }
+    }
 }
 
 /// Deserializes an `Envelope`-wrapped JSON object from a string.
@@ -67,7 +173,7 @@ pub struct ContextData {
 /// Returns a `TpmError::Json` if deserialization fails or if the object type
 /// in the envelope does not match `expected_type`.
 pub fn from_json_str(json_str: &str, expected_type: &str) -> Result<JsonValue, TpmError> {
-    let parsed = json::parse(json_str).map_err(|e| TpmError::Parse(e.to_string()))?;
+    let parsed = json::parse(json_str)?;
     let obj_type = parsed["type"]
         .as_str()
         .ok_or_else(|| TpmError::Parse("'type' field is not a string".to_string()))?;
@@ -123,9 +229,7 @@ where
 pub fn pop_object_data<W: Write>(io: &mut CommandIo<W>) -> Result<ObjectData, TpmError> {
     let obj = io.consume_object(|obj| {
         if let cli::Object::Context(v) = obj {
-            if let Ok(env) = json::parse(&v.to_string()) {
-                return env["type"] == "object";
-            }
+            return v["type"].as_str() == Some("object");
         }
         false
     })?;
@@ -133,34 +237,8 @@ pub fn pop_object_data<W: Write>(io: &mut CommandIo<W>) -> Result<ObjectData, Tp
         unreachable!()
     };
 
-    let envelope_json = json::parse(&envelope_value.to_string())
-        .map_err(|e| TpmError::Json(SerdeError::custom(e.to_string())))?;
-
-    let data = &envelope_json["data"];
-
-    let object_data = ObjectData {
-        oid: data["oid"]
-            .as_str()
-            .ok_or_else(|| TpmError::Parse("'oid' field is not a string".to_string()))?
-            .to_string(),
-        empty_auth: data["empty_auth"]
-            .as_bool()
-            .ok_or_else(|| TpmError::Parse("'empty_auth' field is not a boolean".to_string()))?,
-        parent: data["parent"]
-            .as_str()
-            .ok_or_else(|| TpmError::Parse("'parent' field is not a string".to_string()))?
-            .to_string(),
-        public: data["public"]
-            .as_str()
-            .ok_or_else(|| TpmError::Parse("'public' field is not a string".to_string()))?
-            .to_string(),
-        private: data["private"]
-            .as_str()
-            .ok_or_else(|| TpmError::Parse("'private' field is not a string".to_string()))?
-            .to_string(),
-    };
-
-    Ok(object_data)
+    let data = &envelope_value["data"];
+    ObjectData::from_json(data)
 }
 
 /// Parses a parent handle from a hex string in the loaded object data.

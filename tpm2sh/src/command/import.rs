@@ -125,11 +125,14 @@ impl Command for Import {
             private: base64_engine.encode(priv_key_bytes),
         };
 
-        let new_object = Object::Context(serde_json::to_value(Envelope {
-            version: 1,
-            object_type: "object".to_string(),
-            data: serde_json::to_value(data)?,
-        })?);
+        let new_object = Object::Context(
+            Envelope {
+                version: 1,
+                object_type: "object".to_string(),
+                data: data.to_json(),
+            }
+            .to_json(),
+        );
 
         io.push_object(new_object);
         io.finalize()

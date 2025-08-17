@@ -7,12 +7,10 @@ use crate::{
     from_json_str, get_pcr_count, parse_pcr_selection, AuthSession, Command, CommandIo, Envelope,
     SessionData, TpmDevice, TpmError,
 };
-use json;
 use lexopt::prelude::*;
 use pest::iterators::{Pair, Pairs};
 use pest::Parser;
 use pest_derive::Parser;
-use serde_json;
 use std::io::{self, Write};
 use tpm2_protocol::{
     data::{Tpm2b, Tpm2bDigest, TpmAlgId, TpmRh, TpmlDigest, TpmtSymDefObject},
@@ -42,7 +40,7 @@ enum PolicyAst {
 
 const ABOUT: &str = "Builds a policy using a policy expression";
 const USAGE: &str = "tpm2sh policy [OPTIONS] <EXPRESSION>";
-const ARGS: &[CommandLineArgument] = &[("<EXPRESSION>", "e.g. 'pcr(\"sha256:0\",\\\"...\\\")'")];
+const ARGS: &[CommandLineArgument] = &[("EXPRESSION", "e.g. 'pcr(\"sha256:0\",\"...\")'")];
 const OPTIONS: &[CommandLineOption] = &[
     (None, "--auth", "<AUTH>", "Authorization value"),
     (
@@ -383,8 +381,8 @@ impl Command for Policy {
 
         let session_obj = io.consume_object(|obj| {
             if let Object::Context(val) = obj {
-                if let Ok(env) = serde_json::from_value::<Envelope>(val.clone()) {
-                    return env.object_type == "session";
+                if let Some(obj_type) = val["type"].as_str() {
+                    return obj_type == "session";
                 }
             }
             false
@@ -395,8 +393,7 @@ impl Command for Policy {
         };
 
         let json_value = from_json_str(&envelope_value.to_string(), "session")?;
-        let data_str = json::stringify(json_value);
-        let mut session_data: SessionData = serde_json::from_str(&data_str)?;
+        let mut session_data = SessionData::from_json(&json_value)?;
 
         let ast = parse_policy_expression(&self.expression)
             .map_err(|e| TpmError::Parse(format!("failed to parse policy expression: {e}")))?;
@@ -418,11 +415,14 @@ impl Command for Policy {
             get_policy_digest(chip, io.session.as_ref(), session_handle, log_format)?;
         session_data.policy_digest = hex::encode(&*final_digest);
 
-        let next_session = Object::Context(serde_json::to_value(Envelope {
-            version: 1,
-            object_type: "session".to_string(),
-            data: serde_json::to_value(session_data)?,
-        })?);
+        let next_session = Object::Context(
+            Envelope {
+                version: 1,
+                object_type: "session".to_string(),
+                data: session_data.to_json(),
+            }
+            .to_json(),
+        );
 
         io.push_object(next_session);
         io.finalize()

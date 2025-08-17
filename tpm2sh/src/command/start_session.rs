@@ -99,12 +99,12 @@ impl Command for StartSession {
         let envelope = Envelope {
             version: 1,
             object_type: "session".to_string(),
-            data: serde_json::to_value(data)?,
+            data: data.to_json(),
         };
 
-        let envelope_value = serde_json::to_value(envelope)?;
+        let envelope_value = envelope.to_json();
         let output_object = Object::Context(envelope_value);
-        let json_line = serde_json::to_string(&output_object)?;
+        let json_line = output_object.to_json().dump();
         println!("{json_line}");
 
         Ok(())
