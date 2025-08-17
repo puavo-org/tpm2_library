@@ -2,24 +2,75 @@
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 // Copyright (c) 2025 Opinsys Oy
 
-use crate::{cli, cli::PcrEvent, get_auth_sessions, AuthSession, Command, TpmDevice, TpmError};
+use crate::{
+    arg_parser::{format_subcommand_help, CommandLineArgument, CommandLineOption},
+    cli::{self, Commands, PcrEvent},
+    get_auth_sessions, parse_hex_u32, Command, TpmDevice, TpmError,
+};
+use lexopt::prelude::*;
 use tpm2_protocol::{data::Tpm2b, message::TpmPcrEventCommand};
 
+const ABOUT: &str = "Extends a PCR with an event";
+const USAGE: &str = "tpm2sh pcr-event [OPTIONS] <DATA>";
+const ARGS: &[CommandLineArgument] = &[("<DATA>", "Data to be hashed and extended")];
+const OPTIONS: &[CommandLineOption] = &[
+    (
+        None,
+        "--pcr-handle",
+        "<HANDLE>",
+        "Handle of the PCR to extend",
+    ),
+    (None, "--auth", "<AUTH>", "Authorization value"),
+    (Some("-h"), "--help", "", "Print help information"),
+];
+
 impl Command for PcrEvent {
+    fn help() {
+        println!(
+            "{}",
+            format_subcommand_help("pcr-event", ABOUT, USAGE, ARGS, OPTIONS)
+        );
+    }
+
+    fn parse(parser: &mut lexopt::Parser) -> Result<Commands, TpmError> {
+        let mut args = PcrEvent::default();
+        let mut data_arg = None;
+        while let Some(arg) = parser.next()? {
+            match arg {
+                Long("pcr-handle") => {
+                    args.pcr_handle = parse_hex_u32(&parser.value()?.string()?)?;
+                }
+                Long("auth") => args.auth.auth = Some(parser.value()?.string()?),
+                Short('h') | Long("help") => {
+                    Self::help();
+                    std::process::exit(0);
+                }
+                Value(val) if data_arg.is_none() => {
+                    data_arg = Some(val);
+                }
+                _ => return Err(TpmError::from(arg.unexpected())),
+            }
+        }
+        args.data = data_arg
+            .ok_or_else(|| {
+                TpmError::Execution("missing required positional argument <DATA>".to_string())
+            })?
+            .string()?;
+        Ok(Commands::PcrEvent(args))
+    }
+
     /// Runs `pcr-event`.
     ///
     /// # Errors
     ///
     /// Returns a `TpmError` if the execution fails
-    fn run(
-        &self,
-        chip: &mut TpmDevice,
-        session: Option<&AuthSession>,
-        log_format: cli::LogFormat,
-    ) -> Result<(), TpmError> {
-        if session.is_none() && self.auth.auth.is_none() {
+    fn run(&self, chip: &mut TpmDevice, log_format: cli::LogFormat) -> Result<(), TpmError> {
+        let io =
+            crate::command_io::CommandIo::new(std::io::stdin(), std::io::stdout(), log_format)?;
+        if io.session.is_none() && self.auth.auth.is_none() {
             return Err(TpmError::Execution(
-                "Authorization is required for pcr-event. Use --auth or --session.".to_string(),
+                "Authorization is required for pcr-event. Use --auth or pipeline session."
+                    .to_string(),
             ));
         }
 
@@ -28,7 +79,12 @@ impl Command for PcrEvent {
         let event_data = Tpm2b::try_from(self.data.as_bytes())?;
         let command = TpmPcrEventCommand { event_data };
 
-        let sessions = get_auth_sessions(&command, &handles, session, self.auth.auth.as_deref())?;
+        let sessions = get_auth_sessions(
+            &command,
+            &handles,
+            io.session.as_ref(),
+            self.auth.auth.as_deref(),
+        )?;
 
         let (resp, _) = chip.execute(&command, Some(&handles), &sessions, log_format)?;
         resp.PcrEvent()

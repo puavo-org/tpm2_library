@@ -3,10 +3,14 @@
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 
 use crate::{
-    build_to_vec, cli, get_auth_sessions, Alg, AlgInfo, AuthSession, Command, ContextData,
-    Envelope, TpmDevice, TpmError,
+    arg_parser::{format_subcommand_help, CommandLineOption},
+    build_to_vec,
+    cli::{self, Commands, CreatePrimary},
+    get_auth_sessions, parse_persistent_handle, Alg, AlgInfo, Command, ContextData, Envelope,
+    TpmDevice, TpmError,
 };
 use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
+use lexopt::prelude::*;
 use tpm2_protocol::{
     data::{
         Tpm2b, Tpm2bAuth, Tpm2bDigest, Tpm2bPublic, Tpm2bSensitiveCreate, Tpm2bSensitiveData,
@@ -17,6 +21,36 @@ use tpm2_protocol::{
     message::{TpmContextSaveCommand, TpmCreatePrimaryCommand, TpmEvictControlCommand},
     TpmBuffer, TpmTransient,
 };
+
+const ABOUT: &str = "Creates a primary key";
+const USAGE: &str = "tpm2sh create-primary [OPTIONS] --alg <ALG>";
+const OPTIONS: &[CommandLineOption] = &[
+    (
+        Some("-H"),
+        "--hierarchy",
+        "<HIERARCHY>",
+        "[default: owner, possible: owner, platform, endorsement]",
+    ),
+    (
+        None,
+        "--alg",
+        "<ALGORITHM>",
+        "Public key algorithm. Run 'algorithms' for options",
+    ),
+    (
+        None,
+        "--persistent",
+        "<HANDLE>",
+        "Store object to non-volatile memory",
+    ),
+    (
+        None,
+        "--auth",
+        "<AUTH>",
+        "Authorization value for the hierarchy",
+    ),
+    (Some("-h"), "--help", "", "Print help information"),
+];
 
 fn build_public_template(alg_desc: &Alg) -> TpmtPublic {
     let mut object_attributes = TpmaObject::USER_WITH_AUTH
@@ -110,18 +144,53 @@ pub fn save_key_context(
     serde_json::to_string_pretty(&envelope).map_err(Into::into)
 }
 
-impl Command for crate::cli::CreatePrimary {
+impl Command for CreatePrimary {
+    fn help() {
+        println!(
+            "{}",
+            format_subcommand_help("create-primary", ABOUT, USAGE, &[], OPTIONS)
+        );
+    }
+
+    fn parse(parser: &mut lexopt::Parser) -> Result<Commands, TpmError> {
+        let mut args = CreatePrimary::default();
+        let mut alg_set = false;
+        while let Some(arg) = parser.next()? {
+            match arg {
+                Short('H') | Long("hierarchy") => {
+                    args.hierarchy = parser.value()?.string()?.parse()?;
+                }
+                Long("alg") => {
+                    args.alg = parser.value()?.string()?.parse().map_err(TpmError::Parse)?;
+                    alg_set = true;
+                }
+                Long("persistent") => {
+                    args.persistent = Some(parse_persistent_handle(&parser.value()?.string()?)?);
+                }
+                Long("auth") => args.auth.auth = Some(parser.value()?.string()?),
+                Short('h') | Long("help") => {
+                    Self::help();
+                    std::process::exit(0);
+                }
+                _ => return Err(TpmError::from(arg.unexpected())),
+            }
+        }
+        if !alg_set {
+            return Err(TpmError::Execution(
+                "the following required arguments were not provided: --alg <ALGORITHM>".to_string(),
+            ));
+        }
+        Ok(Commands::CreatePrimary(args))
+    }
+
     /// Runs `create-primary`.
     ///
     /// # Errors
     ///
     /// Returns a `TpmError` if the execution fails
-    fn run(
-        &self,
-        chip: &mut TpmDevice,
-        session: Option<&AuthSession>,
-        log_format: cli::LogFormat,
-    ) -> Result<(), TpmError> {
+    fn run(&self, chip: &mut TpmDevice, log_format: cli::LogFormat) -> Result<(), TpmError> {
+        let io =
+            crate::command_io::CommandIo::new(std::io::stdin(), std::io::stdout(), log_format)?;
         let primary_handle: TpmRh = self.hierarchy.into();
         let handles = [primary_handle as u32];
         let public_template = build_public_template(&self.alg);
@@ -141,7 +210,12 @@ impl Command for crate::cli::CreatePrimary {
             creation_pcr: TpmlPcrSelection::default(),
         };
 
-        let sessions = get_auth_sessions(&cmd, &handles, session, self.auth.auth.as_deref())?;
+        let sessions = get_auth_sessions(
+            &cmd,
+            &handles,
+            io.session.as_ref(),
+            self.auth.auth.as_deref(),
+        )?;
         let (resp, _) = chip.execute(&cmd, Some(&handles), &sessions, log_format)?;
 
         let create_primary_resp = resp
@@ -152,7 +226,8 @@ impl Command for crate::cli::CreatePrimary {
         if let Some(persistent_handle) = self.persistent {
             let evict_cmd = TpmEvictControlCommand { persistent_handle };
             let evict_handles = [TpmRh::Owner as u32, object_handle.into()];
-            let evict_sessions = get_auth_sessions(&evict_cmd, &evict_handles, session, None)?;
+            let evict_sessions =
+                get_auth_sessions(&evict_cmd, &evict_handles, io.session.as_ref(), None)?;
             let (resp, _) = chip.execute(
                 &evict_cmd,
                 Some(&evict_handles),

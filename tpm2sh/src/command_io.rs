@@ -1,19 +1,21 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2025 Opinsys Oy
 
-use crate::{cli, AuthSession, TpmError};
+use crate::{cli, AuthSession, Envelope, SessionData, TpmError};
+use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
 use std::io::{BufRead, BufReader, Read, Write};
+use tpm2_protocol::data::{self};
 
 /// Manages the streaming I/O for a command in the JSON Lines pipeline.
-pub struct CommandIo<'a, W: Write> {
+pub struct CommandIo<W: Write> {
     writer: W,
     input_objects: Vec<cli::Object>,
     output_objects: Vec<cli::Object>,
-    pub session: Option<&'a AuthSession>,
+    pub session: Option<AuthSession>,
     pub log_format: cli::LogFormat,
 }
 
-impl<'a, W: Write> CommandIo<'a, W> {
+impl<W: Write> CommandIo<W> {
     /// Creates a new command context for the pipeline.
     ///
     /// # Errors
@@ -22,7 +24,6 @@ impl<'a, W: Write> CommandIo<'a, W> {
     pub fn new<R: Read>(
         reader: R,
         writer: W,
-        session: Option<&'a AuthSession>,
         log_format: cli::LogFormat,
     ) -> Result<Self, TpmError> {
         let mut input_objects = Vec::new();
@@ -33,6 +34,39 @@ impl<'a, W: Write> CommandIo<'a, W> {
                 input_objects.push(serde_json::from_str(&line)?);
             }
         }
+
+        let mut session = None;
+        let mut session_index = None;
+
+        for (i, obj) in input_objects.iter().enumerate() {
+            if let cli::Object::Context(val) = obj {
+                if let Ok(env) = serde_json::from_value::<Envelope>(val.clone()) {
+                    if env.object_type == "session" {
+                        let data: SessionData = serde_json::from_value(env.data)?;
+                        session = Some(AuthSession {
+                            handle: data.handle.into(),
+                            nonce_tpm: data::Tpm2bNonce::try_from(
+                                base64_engine.decode(data.nonce_tpm)?.as_slice(),
+                            )?,
+                            attributes: data::TpmaSession::from_bits_truncate(data.attributes),
+                            hmac_key: data::Tpm2bAuth::try_from(
+                                base64_engine.decode(data.hmac_key)?.as_slice(),
+                            )?,
+                            auth_hash: data::TpmAlgId::try_from(data.auth_hash).map_err(|()| {
+                                TpmError::Parse("invalid auth_hash in session data".to_string())
+                            })?,
+                        });
+                        session_index = Some(i);
+                        break;
+                    }
+                }
+            }
+        }
+
+        if let Some(index) = session_index {
+            input_objects.remove(index);
+        }
+
         Ok(Self {
             writer,
             input_objects,

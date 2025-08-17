@@ -123,7 +123,6 @@ impl FromStr for LogFormat {
 pub struct Cli {
     pub device: String,
     pub log_format: LogFormat,
-    pub session: Option<String>,
     pub command: Option<Commands>,
 }
 
@@ -260,29 +259,42 @@ pub enum Commands {
 }
 
 impl Command for Commands {
+    fn help()
+    where
+        Self: Sized,
+    {
+        unimplemented!();
+    }
+
+    fn parse(_parser: &mut lexopt::Parser) -> Result<Self, TpmError>
+    where
+        Self: Sized,
+    {
+        unimplemented!();
+    }
+
     fn run(
         &self,
         device: &mut crate::TpmDevice,
-        session: Option<&crate::AuthSession>,
         log_format: crate::cli::LogFormat,
     ) -> Result<(), crate::TpmError> {
         match self {
-            Self::Algorithms(args) => args.run(device, session, log_format),
-            Self::Convert(args) => args.run(device, session, log_format),
-            Self::CreatePrimary(args) => args.run(device, session, log_format),
-            Self::Delete(args) => args.run(device, session, log_format),
-            Self::Import(args) => args.run(device, session, log_format),
-            Self::Load(args) => args.run(device, session, log_format),
-            Self::Objects(args) => args.run(device, session, log_format),
-            Self::PcrEvent(args) => args.run(device, session, log_format),
-            Self::PcrRead(args) => args.run(device, session, log_format),
-            Self::Policy(args) => args.run(device, session, log_format),
-            Self::PrintError(args) => args.run(device, session, log_format),
-            Self::ResetLock(args) => args.run(device, session, log_format),
-            Self::Save(args) => args.run(device, session, log_format),
-            Self::Seal(args) => args.run(device, session, log_format),
-            Self::StartSession(args) => args.run(device, session, log_format),
-            Self::Unseal(args) => args.run(device, session, log_format),
+            Self::Algorithms(args) => args.run(device, log_format),
+            Self::Convert(args) => args.run(device, log_format),
+            Self::CreatePrimary(args) => args.run(device, log_format),
+            Self::Delete(args) => args.run(device, log_format),
+            Self::Import(args) => args.run(device, log_format),
+            Self::Load(args) => args.run(device, log_format),
+            Self::Objects(args) => args.run(device, log_format),
+            Self::PcrEvent(args) => args.run(device, log_format),
+            Self::PcrRead(args) => args.run(device, log_format),
+            Self::Policy(args) => args.run(device, log_format),
+            Self::PrintError(args) => args.run(device, log_format),
+            Self::ResetLock(args) => args.run(device, log_format),
+            Self::Save(args) => args.run(device, log_format),
+            Self::Seal(args) => args.run(device, log_format),
+            Self::StartSession(args) => args.run(device, log_format),
+            Self::Unseal(args) => args.run(device, log_format),
         }
     }
 }

@@ -1,25 +1,67 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2025 Opinsys Oy
 
-use crate::{cli, get_auth_sessions, AuthSession, Command, TpmDevice, TpmError};
+use crate::{
+    arg_parser::{format_subcommand_help, CommandLineArgument, CommandLineOption},
+    cli::{self, Commands, Delete},
+    get_auth_sessions, parse_hex_u32, Command, TpmDevice, TpmError,
+};
+use lexopt::prelude::*;
 use tpm2_protocol::{
     data::TpmRh,
     message::{TpmEvictControlCommand, TpmFlushContextCommand},
     TpmPersistent, TpmTransient,
 };
 
-impl Command for cli::Delete {
+const ABOUT: &str = "Deletes a transient or persistent object";
+const USAGE: &str = "tpm2sh delete [OPTIONS] <HANDLE>";
+const ARGS: &[CommandLineArgument] = &[("<HANDLE>", "Handle of the object to delete")];
+const OPTIONS: &[CommandLineOption] = &[
+    (None, "--auth", "<AUTH>", "Authorization value"),
+    (Some("-h"), "--help", "", "Print help information"),
+];
+
+impl Command for Delete {
+    fn help() {
+        println!(
+            "{}",
+            format_subcommand_help("delete", ABOUT, USAGE, ARGS, OPTIONS)
+        );
+    }
+
+    fn parse(parser: &mut lexopt::Parser) -> Result<Commands, TpmError> {
+        let mut args = Delete::default();
+        let mut handle_str = None;
+
+        while let Some(arg) = parser.next()? {
+            match arg {
+                Long("auth") => args.auth.auth = Some(parser.value()?.string()?),
+                Short('h') | Long("help") => {
+                    Self::help();
+                    std::process::exit(0);
+                }
+                Value(val) if handle_str.is_none() => {
+                    handle_str = Some(val);
+                }
+                _ => return Err(TpmError::from(arg.unexpected())),
+            }
+        }
+
+        let handle = handle_str.ok_or_else(|| {
+            TpmError::Execution("missing required positional argument <HANDLE>".to_string())
+        })?;
+        args.handle = parse_hex_u32(&handle.to_string_lossy())?;
+        Ok(Commands::Delete(args))
+    }
+
     /// Runs `delete`.
     ///
     /// # Errors
     ///
     /// Returns a `TpmError` if the execution fails
-    fn run(
-        &self,
-        chip: &mut TpmDevice,
-        session: Option<&AuthSession>,
-        log_format: cli::LogFormat,
-    ) -> Result<(), TpmError> {
+    fn run(&self, chip: &mut TpmDevice, log_format: cli::LogFormat) -> Result<(), TpmError> {
+        let io =
+            crate::command_io::CommandIo::new(std::io::stdin(), std::io::stdout(), log_format)?;
         let handle = self.handle;
 
         if handle >= TpmRh::PersistentFirst as u32 {
@@ -28,8 +70,12 @@ impl Command for cli::Delete {
             let handles = [auth_handle as u32, persistent_handle.into()];
             let evict_cmd = TpmEvictControlCommand { persistent_handle };
 
-            let sessions =
-                get_auth_sessions(&evict_cmd, &handles, session, self.auth.auth.as_deref())?;
+            let sessions = get_auth_sessions(
+                &evict_cmd,
+                &handles,
+                io.session.as_ref(),
+                self.auth.auth.as_deref(),
+            )?;
             let (resp, _) = chip.execute(&evict_cmd, Some(&handles), &sessions, log_format)?;
             resp.EvictControl()
                 .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;

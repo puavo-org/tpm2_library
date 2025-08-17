@@ -5,7 +5,6 @@
 #![deny(clippy::all)]
 #![deny(clippy::pedantic)]
 
-use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
 use pest::Parser as PestParser;
 use pest_derive::Parser;
 use rand::RngCore;
@@ -58,19 +57,28 @@ pub(crate) fn parse_tpm_rc(s: &str) -> Result<TpmRc, TpmError> {
     Ok(TpmRc::try_from(raw_rc)?)
 }
 
-/// The callback API for subcommands
+/// A trait for parsing and executing subcommands.
 pub trait Command {
+    /// Prints the help message for a subcommand.
+    fn help()
+    where
+        Self: Sized;
+
+    /// Parses the arguments for a subcommand.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `TpmError` on parsing failure.
+    fn parse(parser: &mut lexopt::Parser) -> Result<cli::Commands, TpmError>
+    where
+        Self: Sized;
+
     /// Runs a command.
     ///
     /// # Errors
     ///
     /// Returns a `TpmError` if the execution fails
-    fn run(
-        &self,
-        device: &mut TpmDevice,
-        session: Option<&AuthSession>,
-        log_format: cli::LogFormat,
-    ) -> Result<(), TpmError>;
+    fn run(&self, device: &mut TpmDevice, log_format: cli::LogFormat) -> Result<(), TpmError>;
 }
 
 /// Parses command-line arguments and executes the corresponding command.
@@ -79,14 +87,13 @@ pub trait Command {
 ///
 /// Returns a `TpmError` if opening the device, or executing the command fails.
 pub fn execute_cli() -> Result<(), TpmError> {
-    let Some(cli) = parse_cli(std::env::args())? else {
+    let Some(cli) = parse_cli()? else {
         return Ok(());
     };
 
     if let Some(command) = cli.command {
         let mut device = TpmDevice::new(&cli.device)?;
-        let session = load_session(cli.session.as_deref())?;
-        command.run(&mut device, session.as_ref(), cli.log_format)
+        command.run(&mut device, cli.log_format)
     } else {
         Ok(())
     }
@@ -558,39 +565,6 @@ pub struct AuthSession {
     pub attributes: data::TpmaSession,
     pub hmac_key: data::Tpm2bAuth,
     pub auth_hash: data::TpmAlgId,
-}
-
-/// Loads a session from the CLI `--session` argument or the `TPM2_SESSION` environment variable.
-///
-/// # Errors
-///
-/// Returns `TpmError` if the session source cannot be read or parsed.
-pub fn load_session(session_arg: Option<&str>) -> Result<Option<AuthSession>, TpmError> {
-    let session_str = match session_arg {
-        Some(s) => Some(s.to_string()),
-        None => std::env::var("TPM2_SESSION").ok(),
-    };
-
-    let Some(session_str) = session_str else {
-        return Ok(None);
-    };
-
-    let json_str = if session_str.trim().starts_with('{') {
-        session_str
-    } else {
-        fs::read_to_string(&session_str).map_err(|e| TpmError::File(session_str, e))?
-    };
-
-    let data: SessionData = from_json_str(&json_str, "session")?;
-
-    Ok(Some(AuthSession {
-        handle: TpmSession(data.handle),
-        nonce_tpm: data::Tpm2bNonce::try_from(base64_engine.decode(data.nonce_tpm)?.as_slice())?,
-        attributes: data::TpmaSession::from_bits_truncate(data.attributes),
-        hmac_key: data::Tpm2bAuth::try_from(base64_engine.decode(data.hmac_key)?.as_slice())?,
-        auth_hash: data::TpmAlgId::try_from(data.auth_hash)
-            .map_err(|()| TpmError::Parse("invalid auth_hash in session data".to_string()))?,
-    }))
 }
 
 /// Builds the authorization area for a password-based session.

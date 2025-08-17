@@ -49,6 +49,7 @@ sha2 = "0.10"
 tpm2-protocol = { path = "../tpm2_protocol" }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+lexopt = "0.3.1"
 
 [dev-dependencies]
 pest = { version = "2.8", features = ["pretty-print"] }

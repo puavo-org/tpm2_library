@@ -3,10 +3,13 @@
 // Copyright (c) 2025 Opinsys Oy
 
 use crate::{
-    cli, cli::Unseal, get_auth_sessions, parse_parent_handle_from_json, pop_object_data,
-    with_loaded_object, AuthSession, Command, CommandIo, TpmDevice, TpmError,
+    arg_parser::{format_subcommand_help, CommandLineOption},
+    cli::{self, Commands, Unseal},
+    get_auth_sessions, parse_parent_handle_from_json, pop_object_data, with_loaded_object, Command,
+    CommandIo, TpmDevice, TpmError,
 };
 use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
+use lexopt::prelude::*;
 use std::io::{self, Write};
 use tpm2_protocol::{
     data::{Tpm2bPrivate, Tpm2bPublic},
@@ -14,19 +17,43 @@ use tpm2_protocol::{
     TpmParse,
 };
 
+const ABOUT: &str = "Unseals a keyedhash object";
+const USAGE: &str = "tpm2sh unseal [OPTIONS]";
+const OPTIONS: &[CommandLineOption] = &[
+    (None, "--auth", "<AUTH>", "Authorization value"),
+    (Some("-h"), "--help", "", "Print help information"),
+];
+
 impl Command for Unseal {
+    fn help() {
+        println!(
+            "{}",
+            format_subcommand_help("unseal", ABOUT, USAGE, &[], OPTIONS)
+        );
+    }
+
+    fn parse(parser: &mut lexopt::Parser) -> Result<Commands, TpmError> {
+        let mut args = Unseal::default();
+        while let Some(arg) = parser.next()? {
+            match arg {
+                Long("auth") => args.auth.auth = Some(parser.value()?.string()?),
+                Short('h') | Long("help") => {
+                    Self::help();
+                    std::process::exit(0);
+                }
+                _ => return Err(TpmError::from(arg.unexpected())),
+            }
+        }
+        Ok(Commands::Unseal(args))
+    }
+
     /// Runs `unseal`.
     ///
     /// # Errors
     ///
     /// Returns a `TpmError` if the execution fails
-    fn run(
-        &self,
-        chip: &mut TpmDevice,
-        session: Option<&AuthSession>,
-        log_format: cli::LogFormat,
-    ) -> Result<(), TpmError> {
-        let mut io = CommandIo::new(io::stdin(), io::stdout(), session, log_format)?;
+    fn run(&self, chip: &mut TpmDevice, log_format: cli::LogFormat) -> Result<(), TpmError> {
+        let mut io = CommandIo::new(io::stdin(), io::stdout(), log_format)?;
         let object_data = pop_object_data(&mut io)?;
 
         let parent_handle = parse_parent_handle_from_json(&object_data)?;
@@ -45,7 +72,7 @@ impl Command for Unseal {
             chip,
             parent_handle,
             &self.auth,
-            io.session,
+            io.session.as_ref(),
             in_public,
             in_private,
             log_format,
@@ -55,7 +82,7 @@ impl Command for Unseal {
                 let sessions = get_auth_sessions(
                     &unseal_cmd,
                     &unseal_handles,
-                    io.session,
+                    io.session.as_ref(),
                     self.auth.auth.as_deref(),
                 )?;
 

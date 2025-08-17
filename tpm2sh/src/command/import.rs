@@ -3,31 +3,63 @@
 // Copyright (c) 2025 Opinsys Oy
 
 use crate::{
-    build_to_vec, cli, cli::Object, create_import_blob, get_auth_sessions, object_to_handle,
-    read_public, AuthSession, Command, CommandIo, Envelope, ObjectData, PrivateKey, TpmDevice,
-    TpmError, ID_IMPORTABLE_KEY,
+    arg_parser::{format_subcommand_help, CommandLineOption},
+    build_to_vec,
+    cli::{self, Commands, Import, Object},
+    create_import_blob, get_auth_sessions, object_to_handle, read_public, Command, CommandIo,
+    Envelope, ObjectData, PrivateKey, TpmDevice, TpmError, ID_IMPORTABLE_KEY,
 };
 use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
+use lexopt::prelude::*;
 use std::io;
 use tpm2_protocol::{
     data::{Tpm2bPublic, TpmAlgId, TpmtSymDef, TpmuSymKeyBits, TpmuSymMode},
     message::TpmImportCommand,
 };
 
-impl Command for crate::cli::Import {
+const ABOUT: &str = "Imports an external key";
+const USAGE: &str = "tpm2sh import [OPTIONS]";
+const OPTIONS: &[CommandLineOption] = &[
+    (
+        None,
+        "--auth",
+        "<AUTH>",
+        "Authorization for the parent object",
+    ),
+    (Some("-h"), "--help", "", "Print help information"),
+];
+
+impl Command for Import {
+    fn help() {
+        println!(
+            "{}",
+            format_subcommand_help("import", ABOUT, USAGE, &[], OPTIONS)
+        );
+    }
+
+    fn parse(parser: &mut lexopt::Parser) -> Result<Commands, TpmError> {
+        let mut args = Import::default();
+        while let Some(arg) = parser.next()? {
+            match arg {
+                Long("auth") => args.parent_auth.auth = Some(parser.value()?.string()?),
+                Short('h') | Long("help") => {
+                    Self::help();
+                    std::process::exit(0);
+                }
+                _ => return Err(TpmError::from(arg.unexpected())),
+            }
+        }
+        Ok(Commands::Import(args))
+    }
+
     /// Runs `import`.
     ///
     /// # Errors
     ///
     /// Returns a `TpmError`.
     #[allow(clippy::too_many_lines)]
-    fn run(
-        &self,
-        chip: &mut TpmDevice,
-        session: Option<&AuthSession>,
-        log_format: cli::LogFormat,
-    ) -> Result<(), TpmError> {
-        let mut io = CommandIo::new(io::stdin(), io::stdout(), session, log_format)?;
+    fn run(&self, chip: &mut TpmDevice, log_format: cli::LogFormat) -> Result<(), TpmError> {
+        let mut io = CommandIo::new(io::stdin(), io::stdout(), log_format)?;
 
         let parent_obj = io.consume_object(|obj| !matches!(obj, Object::Pcrs(_)))?;
         let parent_handle = object_to_handle(chip, &parent_obj, log_format)?;
@@ -73,7 +105,7 @@ impl Command for crate::cli::Import {
         let sessions = get_auth_sessions(
             &import_cmd,
             &handles,
-            io.session,
+            io.session.as_ref(),
             self.parent_auth.auth.as_deref(),
         )?;
 

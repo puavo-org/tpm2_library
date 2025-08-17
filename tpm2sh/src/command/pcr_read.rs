@@ -3,27 +3,49 @@
 // Copyright (c) 2025 Opinsys Oy
 
 use crate::{
+    arg_parser::{format_subcommand_help, CommandLineArgument, CommandLineOption},
     cli,
-    cli::{Object, PcrRead},
+    cli::{Commands, Object, PcrRead},
     formats::PcrOutput,
-    get_pcr_count, parse_pcr_selection, tpm_alg_id_to_str, AuthSession, Command, TpmDevice,
-    TpmError,
+    get_pcr_count, parse_pcr_selection, tpm_alg_id_to_str, Command, TpmDevice, TpmError,
 };
+use lexopt::prelude::*;
 use std::collections::BTreeMap;
 use tpm2_protocol::message::TpmPcrReadCommand;
 
+const ABOUT: &str = "Reads PCRs";
+const USAGE: &str = "tpm2sh pcr-read <SELECTION>";
+const ARGS: &[CommandLineArgument] = &[("<SELECTION>", "e.g. 'sha256:0,1,2+sha1:0'")];
+const OPTIONS: &[CommandLineOption] = &[(Some("-h"), "--help", "", "Print help information")];
+
 impl Command for PcrRead {
+    fn help() {
+        println!(
+            "{}",
+            format_subcommand_help("pcr-read", ABOUT, USAGE, ARGS, OPTIONS)
+        );
+    }
+
+    fn parse(parser: &mut lexopt::Parser) -> Result<Commands, TpmError> {
+        let selection = parser.value()?.string()?;
+        if let Some(arg) = parser.next()? {
+            match arg {
+                Short('h') | Long("help") => {
+                    Self::help();
+                    std::process::exit(0);
+                }
+                _ => return Err(TpmError::from(arg.unexpected())),
+            }
+        }
+        Ok(Commands::PcrRead(PcrRead { selection }))
+    }
+
     /// Runs `pcr-read`.
     ///
     /// # Errors
     ///
     /// Returns a `TpmError` if the execution fails
-    fn run(
-        &self,
-        chip: &mut TpmDevice,
-        _session: Option<&AuthSession>,
-        log_format: cli::LogFormat,
-    ) -> Result<(), TpmError> {
+    fn run(&self, chip: &mut TpmDevice, log_format: cli::LogFormat) -> Result<(), TpmError> {
         let pcr_count = get_pcr_count(chip, log_format)?;
         let pcr_selection_in = parse_pcr_selection(&self.selection, pcr_count)?;
 

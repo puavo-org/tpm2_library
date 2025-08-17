@@ -3,12 +3,14 @@
 // Copyright (c) 2025 Opinsys Oy
 
 use crate::{
+    arg_parser::{format_subcommand_help, CommandLineOption},
     build_to_vec,
-    cli::{self, Object, Seal},
-    get_auth_sessions, input_to_bytes, object_to_handle, AuthSession, Command, CommandIo, Envelope,
-    ObjectData, TpmDevice, TpmError, ID_SEALED_DATA,
+    cli::{self, Commands, Object, Seal},
+    get_auth_sessions, input_to_bytes, object_to_handle, Command, CommandIo, Envelope, ObjectData,
+    TpmDevice, TpmError, ID_SEALED_DATA,
 };
 use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
+use lexopt::prelude::*;
 use std::io;
 use tpm2_protocol::{
     data::{
@@ -19,19 +21,55 @@ use tpm2_protocol::{
     message::TpmCreateCommand,
 };
 
+const ABOUT: &str = "Seals a keyedhash object";
+const USAGE: &str = "tpm2sh seal [OPTIONS]";
+const OPTIONS: &[CommandLineOption] = &[
+    (
+        None,
+        "--parent-auth",
+        "<AUTH>",
+        "Authorization for the parent object",
+    ),
+    (
+        None,
+        "--object-auth",
+        "<AUTH>",
+        "Authorization for the new sealed object",
+    ),
+    (Some("-h"), "--help", "", "Print help information"),
+];
+
 impl Command for Seal {
+    fn help() {
+        println!(
+            "{}",
+            format_subcommand_help("seal", ABOUT, USAGE, &[], OPTIONS)
+        );
+    }
+
+    fn parse(parser: &mut lexopt::Parser) -> Result<Commands, TpmError> {
+        let mut args = Seal::default();
+        while let Some(arg) = parser.next()? {
+            match arg {
+                Long("parent-auth") => args.parent_auth.auth = Some(parser.value()?.string()?),
+                Long("object-auth") => args.object_auth.auth = Some(parser.value()?.string()?),
+                Short('h') | Long("help") => {
+                    Self::help();
+                    std::process::exit(0);
+                }
+                _ => return Err(TpmError::from(arg.unexpected())),
+            }
+        }
+        Ok(Commands::Seal(args))
+    }
+
     /// Runs `seal`.
     ///
     /// # Errors
     ///
     /// Returns a `TpmError` if the execution fails
-    fn run(
-        &self,
-        chip: &mut TpmDevice,
-        session: Option<&AuthSession>,
-        log_format: cli::LogFormat,
-    ) -> Result<(), TpmError> {
-        let mut io = CommandIo::new(io::stdin(), io::stdout(), session, log_format)?;
+    fn run(&self, chip: &mut TpmDevice, log_format: cli::LogFormat) -> Result<(), TpmError> {
+        let mut io = CommandIo::new(io::stdin(), io::stdout(), log_format)?;
 
         let parent_obj = io.consume_object(|obj| !matches!(obj, Object::Context(_)))?;
         let parent_handle = object_to_handle(chip, &parent_obj, log_format)?;
@@ -82,8 +120,12 @@ impl Command for Seal {
         };
 
         let handles = [parent_handle.into()];
-        let sessions =
-            get_auth_sessions(&cmd, &handles, io.session, self.parent_auth.auth.as_deref())?;
+        let sessions = get_auth_sessions(
+            &cmd,
+            &handles,
+            io.session.as_ref(),
+            self.parent_auth.auth.as_deref(),
+        )?;
 
         let (resp, _) = chip.execute(&cmd, Some(&handles), &sessions, log_format)?;
 

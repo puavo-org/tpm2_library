@@ -1,16 +1,36 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3-0-or-later
 // Copyright (c) 2025 Opinsys Oy
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 
 use crate::{
-    cli, cli::KeyFormat, from_json_str, AuthSession, Command, Envelope, ObjectData, TpmDevice,
-    TpmError, TpmKey,
+    arg_parser::{format_subcommand_help, CommandLineOption},
+    cli::{self, Commands, Convert, KeyFormat},
+    from_json_str, Command, Envelope, ObjectData, TpmDevice, TpmError, TpmKey,
 };
 use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
+use lexopt::prelude::*;
 use std::{
     fs::File,
     io::{self, Read, Write},
 };
+
+const ABOUT: &str = "Converts keys between ASN.1 and JSON format";
+const USAGE: &str = "tpm2sh convert [OPTIONS]";
+const OPTIONS: &[CommandLineOption] = &[
+    (
+        None,
+        "--from",
+        "<FORMAT>",
+        "Input format [default: json, possible: json, pem, der]",
+    ),
+    (
+        None,
+        "--to",
+        "<FORMAT>",
+        "Output format [default: pem, possible: json, pem, der]",
+    ),
+    (Some("-h"), "--help", "", "Print help information"),
+];
 
 /// Parses a JSON string into an intermediate `TpmKey` representation.
 fn json_to_tpm_key(json_str: &str) -> Result<TpmKey, TpmError> {
@@ -69,18 +89,36 @@ fn read_all(path: Option<&str>) -> Result<Vec<u8>, TpmError> {
     Ok(buf)
 }
 
-impl Command for crate::cli::Convert {
+impl Command for Convert {
+    fn help() {
+        println!(
+            "{}",
+            format_subcommand_help("convert", ABOUT, USAGE, &[], OPTIONS)
+        );
+    }
+
+    fn parse(parser: &mut lexopt::Parser) -> Result<Commands, TpmError> {
+        let mut args = Convert::default();
+        while let Some(arg) = parser.next()? {
+            match arg {
+                Long("from") => args.from = parser.value()?.string()?.parse()?,
+                Long("to") => args.to = parser.value()?.string()?.parse()?,
+                Short('h') | Long("help") => {
+                    Self::help();
+                    std::process::exit(0);
+                }
+                _ => return Err(TpmError::from(arg.unexpected())),
+            }
+        }
+        Ok(Commands::Convert(args))
+    }
+
     /// Runs `convert`.
     ///
     /// # Errors
     ///
     /// Returns a `TpmError` if the execution fails
-    fn run(
-        &self,
-        _device: &mut TpmDevice,
-        _session: Option<&AuthSession>,
-        _log_format: cli::LogFormat,
-    ) -> Result<(), TpmError> {
+    fn run(&self, _device: &mut TpmDevice, _log_format: cli::LogFormat) -> Result<(), TpmError> {
         let input = read_all(None)?;
         match (self.from, self.to) {
             (KeyFormat::Json, KeyFormat::Pem) => {

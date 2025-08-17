@@ -3,28 +3,66 @@
 // Copyright (c) 2025 Opinsys Oy
 
 use crate::{
-    cli::{self, Object, StartSession},
-    AuthSession, Command, Envelope, SessionData, TpmDevice, TpmError,
+    arg_parser::{format_subcommand_help, CommandLineOption},
+    cli::{self, Commands, Object, StartSession},
+    Command, Envelope, SessionData, TpmDevice, TpmError,
 };
 use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
+use lexopt::prelude::*;
 use rand::{thread_rng, RngCore};
 use tpm2_protocol::{
     data::{Tpm2b, TpmAlgId, TpmRh, TpmaSession, TpmtSymDefObject},
     message::TpmStartAuthSessionCommand,
 };
 
+const ABOUT: &str = "Starts an authorization session";
+const USAGE: &str = "tpm2sh start-session [OPTIONS]";
+const OPTIONS: &[CommandLineOption] = &[
+    (
+        None,
+        "--session-type",
+        "<TYPE>",
+        "[default: hmac, possible: hmac, policy, trial]",
+    ),
+    (
+        None,
+        "--hash-alg",
+        "<ALG>",
+        "[default: sha256, possible: sha256, sha384, sha512]",
+    ),
+    (Some("-h"), "--help", "", "Print help information"),
+];
+
 impl Command for StartSession {
+    fn help() {
+        println!(
+            "{}",
+            format_subcommand_help("start-session", ABOUT, USAGE, &[], OPTIONS)
+        );
+    }
+
+    fn parse(parser: &mut lexopt::Parser) -> Result<Commands, TpmError> {
+        let mut args = StartSession::default();
+        while let Some(arg) = parser.next()? {
+            match arg {
+                Long("session-type") => args.session_type = parser.value()?.string()?.parse()?,
+                Long("hash-alg") => args.hash_alg = parser.value()?.string()?.parse()?,
+                Short('h') | Long("help") => {
+                    Self::help();
+                    std::process::exit(0);
+                }
+                _ => return Err(TpmError::from(arg.unexpected())),
+            }
+        }
+        Ok(Commands::StartSession(args))
+    }
+
     /// Runs `start-session`.
     ///
     /// # Errors
     ///
     /// Returns a `TpmError` if the execution fails
-    fn run(
-        &self,
-        chip: &mut TpmDevice,
-        _session: Option<&AuthSession>,
-        log_format: cli::LogFormat,
-    ) -> Result<(), TpmError> {
+    fn run(&self, chip: &mut TpmDevice, log_format: cli::LogFormat) -> Result<(), TpmError> {
         let mut nonce_bytes = vec![0; 16];
         thread_rng().fill_bytes(&mut nonce_bytes);
 
@@ -46,9 +84,8 @@ impl Command for StartSession {
             .StartAuthSession()
             .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
 
-        let digest_len = tpm2_protocol::tpm_hash_size(&auth_hash).ok_or(TpmError::Execution(
-            "Unsupported hash algorithm".to_string(),
-        ))?;
+        let digest_len = tpm2_protocol::tpm_hash_size(&auth_hash)
+            .ok_or_else(|| TpmError::Execution("Unsupported hash algorithm".to_string()))?;
 
         let data = SessionData {
             handle: start_auth_session_resp.session_handle.into(),

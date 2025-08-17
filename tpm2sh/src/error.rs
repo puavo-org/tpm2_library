@@ -15,6 +15,7 @@ pub enum TpmError {
     InvalidHandle(String),
     Io(IoError),
     Json(serde_json::Error),
+    Lexopt(lexopt::Error),
     Parse(String),
     ParseInt(ParseIntError),
     PcrSelection(String),
@@ -32,6 +33,7 @@ impl Error for TpmError {
             TpmError::File(_, err) | TpmError::Io(err) => Some(err),
             TpmError::Hex(err) => Some(err),
             TpmError::Json(err) => Some(err),
+            TpmError::Lexopt(err) => Some(err),
             TpmError::ParseInt(err) => Some(err),
             TpmError::Pem(err) => Some(err),
             TpmError::Pkcs8(err) => Some(err),
@@ -52,6 +54,7 @@ impl fmt::Display for TpmError {
             TpmError::InvalidHandle(handle) => write!(f, "Invalid handle: {handle}"),
             TpmError::Io(err) => write!(f, "I/O error: {err}"),
             TpmError::Json(err) => write!(f, "JSON serialization/deserialization failed: {err}"),
+            TpmError::Lexopt(err) => write!(f, "Argument parsing failed: {err}"),
             TpmError::Parse(reason) => write!(f, "Parsing failed: {reason}"),
             TpmError::ParseInt(err) => write!(f, "Integer parsing failed: {err}"),
             TpmError::PcrSelection(reason) => write!(f, "Invalid PCR selection: {reason}"),
@@ -122,5 +125,11 @@ impl From<pkcs8::Error> for TpmError {
 impl From<pem::PemError> for TpmError {
     fn from(err: pem::PemError) -> Self {
         TpmError::Pem(err)
+    }
+}
+
+impl From<lexopt::Error> for TpmError {
+    fn from(err: lexopt::Error) -> Self {
+        TpmError::Lexopt(err)
     }
 }

@@ -2,25 +2,61 @@
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 // Copyright (c) 2025 Opinsys Oy
 
-use crate::{cli, cli::ResetLock, get_auth_sessions, AuthSession, Command, TpmDevice, TpmError};
+use crate::{
+    arg_parser::{format_subcommand_help, CommandLineOption},
+    cli::{self, Commands, ResetLock},
+    get_auth_sessions, Command, TpmDevice, TpmError,
+};
+use lexopt::prelude::*;
 use tpm2_protocol::{data::TpmRh, message::TpmDictionaryAttackLockResetCommand};
 
+const ABOUT: &str = "Resets the dictionary attack lockout timer";
+const USAGE: &str = "tpm2sh reset-lock [OPTIONS]";
+const OPTIONS: &[CommandLineOption] = &[
+    (None, "--auth", "<AUTH>", "Authorization value"),
+    (Some("-h"), "--help", "", "Print help information"),
+];
+
 impl Command for ResetLock {
+    fn help() {
+        println!(
+            "{}",
+            format_subcommand_help("reset-lock", ABOUT, USAGE, &[], OPTIONS)
+        );
+    }
+
+    fn parse(parser: &mut lexopt::Parser) -> Result<Commands, TpmError> {
+        let mut args = ResetLock::default();
+        while let Some(arg) = parser.next()? {
+            match arg {
+                Long("auth") => args.auth.auth = Some(parser.value()?.string()?),
+                Short('h') | Long("help") => {
+                    Self::help();
+                    std::process::exit(0);
+                }
+                _ => return Err(TpmError::from(arg.unexpected())),
+            }
+        }
+        Ok(Commands::ResetLock(args))
+    }
+
     /// Runs `reset-lock`.
     ///
     /// # Errors
     ///
     /// Returns a `TpmError` if the execution fails
-    fn run(
-        &self,
-        chip: &mut TpmDevice,
-        session: Option<&AuthSession>,
-        log_format: cli::LogFormat,
-    ) -> Result<(), TpmError> {
+    fn run(&self, chip: &mut TpmDevice, log_format: cli::LogFormat) -> Result<(), TpmError> {
+        let io =
+            crate::command_io::CommandIo::new(std::io::stdin(), std::io::stdout(), log_format)?;
         let command = TpmDictionaryAttackLockResetCommand {};
         let handles = [TpmRh::Lockout as u32];
 
-        let sessions = get_auth_sessions(&command, &handles, session, self.auth.auth.as_deref())?;
+        let sessions = get_auth_sessions(
+            &command,
+            &handles,
+            io.session.as_ref(),
+            self.auth.auth.as_deref(),
+        )?;
 
         let (resp, _) = chip.execute(&command, Some(&handles), &sessions, log_format)?;
         resp.DictionaryAttackLockReset()
