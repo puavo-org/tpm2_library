@@ -18,7 +18,8 @@ use tpm2_protocol::{
         TpmFlushContextCommand, TpmFlushContextResponse, TpmGetCapabilityCommand, TpmHashCommand,
         TpmPcrEventResponse, TpmPcrReadCommand, TpmPcrReadResponse,
     },
-    TpmBuild, TpmParse, TpmPersistent, TpmSession, TpmWriter, TPM_MAX_COMMAND_SIZE,
+    TpmBuffer, TpmBuild, TpmErrorKind, TpmParse, TpmPersistent, TpmSession, TpmWriter,
+    TPM_MAX_COMMAND_SIZE,
 };
 
 fn hex_to_bytes(s: &str) -> Result<Vec<u8>, &'static str> {
@@ -555,6 +556,20 @@ fn test_parse_build_tpmt_sym_def_xor() {
     );
 }
 
+fn test_buffer_slice_larger_than_u16_max() {
+    const CAPACITY: usize = 70_000;
+    const DATA_LEN: usize = 66_000;
+    let data = vec![0; DATA_LEN];
+
+    let result = TpmBuffer::<CAPACITY>::try_from(data.as_slice());
+
+    assert_eq!(
+        result,
+        Err(TpmErrorKind::ValueTooLarge),
+        "Should reject slices with lengths that do not fit in a u16"
+    );
+}
+
 fn print_ok() {
     if std::io::stderr().is_terminal() {
         println!("\x1B[32mOK\x1B[0m");
@@ -612,6 +627,10 @@ fn run_all_tests() -> usize {
         (
             "test_parse_build_tpmt_sym_def_xor",
             test_parse_build_tpmt_sym_def_xor,
+        ),
+        (
+            "test_buffer_slice_larger_than_u16_max",
+            test_buffer_slice_larger_than_u16_max,
         ),
     ];
 
