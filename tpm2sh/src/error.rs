@@ -1,100 +1,61 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2025 Opinsys Oy
 
-use std::{error::Error, fmt, io::Error as IoError, num::ParseIntError};
+use std::{io::Error as IoError, num::ParseIntError};
+use thiserror::Error;
 use tpm2_protocol::{data::TpmRc, TpmErrorKind};
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum TpmError {
-    Base64(base64::DecodeError),
+    #[error("Failed to build TPM structure: {0}")]
     Build(TpmErrorKind),
-    Der(pkcs8::der::Error),
+
+    #[error("Execution failed: {0}")]
     Execution(String),
-    File(String, IoError),
-    Hex(hex::FromHexError),
+
+    #[error("File operation on '{0}': {1}")]
+    File(String, #[source] IoError),
+
+    #[error("Invalid handle: {0}")]
     InvalidHandle(String),
-    Io(IoError),
-    Json(json::Error),
-    Lexopt(lexopt::Error),
+
+    #[error("I/O error: {0}")]
+    Io(#[from] IoError),
+
+    #[error("JSON operation failed: {0}")]
+    Json(#[from] json::Error),
+
+    #[error("Argument parsing failed: {0}")]
+    Lexopt(#[from] lexopt::Error),
+
+    #[error("Parsing failed: {0}")]
     Parse(String),
-    ParseInt(ParseIntError),
+
+    #[error("Invalid PCR selection: {0}")]
     PcrSelection(String),
-    Pem(pem::PemError),
-    Pkcs8(pkcs8::Error),
+
+    #[error("TPM returned an error: {0}")]
     TpmRc(TpmRc),
+
+    #[error("Unexpected response type from TPM: {0}")]
     UnexpectedResponse(String),
-}
-
-impl Error for TpmError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        match self {
-            TpmError::Base64(err) => Some(err),
-            TpmError::Der(err) => Some(err),
-            TpmError::File(_, err) | TpmError::Io(err) => Some(err),
-            TpmError::Hex(err) => Some(err),
-            TpmError::Json(err) => Some(err),
-            TpmError::Lexopt(err) => Some(err),
-            TpmError::ParseInt(err) => Some(err),
-            TpmError::Pem(err) => Some(err),
-            TpmError::Pkcs8(err) => Some(err),
-            _ => None,
-        }
-    }
-}
-
-impl fmt::Display for TpmError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            TpmError::Base64(err) => write!(f, "Base64 decoding failed: {err}"),
-            TpmError::Build(err) => write!(f, "Failed to build TPM structure: {err}"),
-            TpmError::Der(err) => write!(f, "DER encoding/decoding failed: {err}"),
-            TpmError::Execution(reason) => write!(f, "Execution failed: {reason}"),
-            TpmError::File(path, err) => write!(f, "File operation failed on '{path}': {err}"),
-            TpmError::Hex(err) => write!(f, "Hex decoding failed: {err}"),
-            TpmError::InvalidHandle(handle) => write!(f, "Invalid handle: {handle}"),
-            TpmError::Io(err) => write!(f, "I/O error: {err}"),
-            TpmError::Json(err) => write!(f, "JSON serialization/deserialization failed: {err}"),
-            TpmError::Lexopt(err) => write!(f, "Argument parsing failed: {err}"),
-            TpmError::Parse(reason) => write!(f, "Parsing failed: {reason}"),
-            TpmError::ParseInt(err) => write!(f, "Integer parsing failed: {err}"),
-            TpmError::PcrSelection(reason) => write!(f, "Invalid PCR selection: {reason}"),
-            TpmError::Pem(err) => write!(f, "PEM parsing failed: {err}"),
-            TpmError::Pkcs8(err) => write!(f, "PKCS#8 parsing failed: {err}"),
-            TpmError::TpmRc(rc) => write!(f, "TPM returned an error: {rc}"),
-            TpmError::UnexpectedResponse(reason) => {
-                write!(f, "Unexpected response type from TPM: {reason}")
-            }
-        }
-    }
 }
 
 impl From<base64::DecodeError> for TpmError {
     fn from(err: base64::DecodeError) -> Self {
-        TpmError::Base64(err)
+        TpmError::Parse(err.to_string())
     }
 }
 
 impl From<hex::FromHexError> for TpmError {
     fn from(err: hex::FromHexError) -> Self {
-        TpmError::Hex(err)
-    }
-}
-
-impl From<IoError> for TpmError {
-    fn from(err: IoError) -> Self {
-        TpmError::Io(err)
+        TpmError::Parse(err.to_string())
     }
 }
 
 impl From<ParseIntError> for TpmError {
     fn from(err: ParseIntError) -> Self {
-        TpmError::ParseInt(err)
-    }
-}
-
-impl From<TpmErrorKind> for TpmError {
-    fn from(err: TpmErrorKind) -> Self {
-        TpmError::Build(err)
+        TpmError::Parse(err.to_string())
     }
 }
 
@@ -106,30 +67,24 @@ impl From<indicatif::style::TemplateError> for TpmError {
 
 impl From<pkcs8::der::Error> for TpmError {
     fn from(err: pkcs8::der::Error) -> Self {
-        TpmError::Der(err)
-    }
-}
-
-impl From<json::Error> for TpmError {
-    fn from(err: json::Error) -> Self {
-        TpmError::Json(err)
+        TpmError::Parse(err.to_string())
     }
 }
 
 impl From<pkcs8::Error> for TpmError {
     fn from(err: pkcs8::Error) -> Self {
-        TpmError::Pkcs8(err)
+        TpmError::Parse(err.to_string())
     }
 }
 
 impl From<pem::PemError> for TpmError {
     fn from(err: pem::PemError) -> Self {
-        TpmError::Pem(err)
+        TpmError::Parse(err.to_string())
     }
 }
 
-impl From<lexopt::Error> for TpmError {
-    fn from(err: lexopt::Error) -> Self {
-        TpmError::Lexopt(err)
+impl From<TpmErrorKind> for TpmError {
+    fn from(err: TpmErrorKind) -> Self {
+        TpmError::Build(err)
     }
 }

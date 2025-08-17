@@ -31,8 +31,8 @@ const-oid = { version = "0.9.6", features = ["db"] }
 hex = "0.4"
 hmac = "0.12"
 indicatif = "0.17"
-json = "0.12.4"
-lexopt = "0.3.1"
+json = "0.12"
+lexopt = "0.3"
 num-traits = "0.2"
 p256 = { version = "0.13", features = ["ecdh"] }
 p384 = { version = "0.13", features = ["ecdh"] }
@@ -46,6 +46,7 @@ regex = "1.11"
 rsa = { version = "0.9", features = ["sha1", "sha2"] }
 sha1 = "0.10"
 sha2 = "0.10"
+thiserror = "2.0"
 tpm2-protocol = { path = "../tpm2_protocol" }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
