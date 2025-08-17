@@ -15,6 +15,9 @@ pub const TPM_RC_P_BIT: u32 = 1 << 6;
 pub const TPM_RC_N_SHIFT: u32 = 8;
 pub const TPM_RC_FMT1_ERROR_MASK: u32 = 0x003F;
 
+const MAX_HANDLE_INDEX: u8 = 7;
+const SESSION_INDEX_OFFSET: u8 = 8;
+
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum TpmRcIndex {
     Parameter(u8),
@@ -91,15 +94,12 @@ impl TpmRc {
         }
         let is_parameter = (value & TPM_RC_P_BIT) != 0;
         let n = ((value >> TPM_RC_N_SHIFT) & 0b1111) as u8;
-        if n == 0 {
-            return None;
-        }
-        if is_parameter {
-            Some(TpmRcIndex::Parameter(n))
-        } else if n <= 7 {
-            Some(TpmRcIndex::Handle(n))
-        } else {
-            Some(TpmRcIndex::Session(n - 8))
+
+        match (is_parameter, n) {
+            (_, 0) => None,
+            (true, num) => Some(TpmRcIndex::Parameter(num)),
+            (false, num @ 1..=MAX_HANDLE_INDEX) => Some(TpmRcIndex::Handle(num)),
+            (false, num) => Some(TpmRcIndex::Session(num - SESSION_INDEX_OFFSET)),
         }
     }
 
