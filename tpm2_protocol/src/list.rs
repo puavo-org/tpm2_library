@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2025 Opinsys Oy
+// Copyright (c) 2024-2025 Jarkko Sakkinen
 
-use crate::{TpmBuild, TpmErrorKind, TpmObject, TpmResult, TpmSized};
+use crate::{TpmBuild, TpmErrorKind, TpmObject, TpmParse, TpmResult, TpmSized};
 use core::{mem::size_of, ops::Deref};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -73,10 +74,8 @@ impl<T: TpmBuild + Copy + Default, const CAPACITY: usize> TpmBuild for TpmList<T
     }
 }
 
-impl<'a, T: TpmObject<'a> + Copy + Default, const CAPACITY: usize> crate::TpmParse<'a>
-    for TpmList<T, CAPACITY>
-{
-    fn parse(buf: &'a [u8]) -> TpmResult<(Self, &'a [u8])> {
+impl<T: TpmObject + Copy + Default, const CAPACITY: usize> TpmParse for TpmList<T, CAPACITY> {
+    fn parse(buf: &[u8]) -> TpmResult<(Self, &[u8])> {
         let (count, mut buf) = u32::parse(buf)?;
         let count_usize = count as usize;
         if count_usize > CAPACITY {

@@ -16,6 +16,11 @@ use crate::{
 };
 use core::ops::Deref;
 
+/// A helper to convert a slice into a fixed-size array, returning an internal error on failure.
+fn slice_to_fixed_array<const N: usize>(slice: &[u8]) -> TpmResult<[u8; N]> {
+    slice.try_into().map_err(|_| TpmErrorKind::InternalError)
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum TpmuCapabilities {
     Algs(TpmlAlgProperty),
@@ -49,8 +54,8 @@ impl TpmBuild for TpmuCapabilities {
     }
 }
 
-impl<'a> TpmParseTagged<'a> for TpmuCapabilities {
-    fn parse_tagged(tag: TpmCap, buf: &'a [u8]) -> TpmResult<(Self, &'a [u8])> {
+impl TpmParseTagged for TpmuCapabilities {
+    fn parse_tagged(tag: TpmCap, buf: &[u8]) -> TpmResult<(Self, &[u8])> {
         match tag {
             TpmCap::Algs => {
                 let (algs, buf) = TpmlAlgProperty::parse(buf)?;
@@ -89,8 +94,8 @@ impl TpmBuild for TpmuHa {
     }
 }
 
-impl<'a> TpmParseTagged<'a> for TpmuHa {
-    fn parse_tagged(tag: TpmAlgId, buf: &'a [u8]) -> TpmResult<(Self, &'a [u8])> {
+impl TpmParseTagged for TpmuHa {
+    fn parse_tagged(tag: TpmAlgId, buf: &[u8]) -> TpmResult<(Self, &[u8])> {
         let digest_size = tpm_hash_size(&tag).ok_or(TpmErrorKind::InvalidValue)?;
         if buf.len() < digest_size {
             return Err(TpmErrorKind::Boundary);
@@ -99,31 +104,11 @@ impl<'a> TpmParseTagged<'a> for TpmuHa {
         let (digest_bytes, buf) = buf.split_at(digest_size);
 
         let digest = match tag {
-            TpmAlgId::Sha1 => Self::Sha1(
-                digest_bytes
-                    .try_into()
-                    .map_err(|_| TpmErrorKind::InternalError)?,
-            ),
-            TpmAlgId::Sha256 => Self::Sha256(
-                digest_bytes
-                    .try_into()
-                    .map_err(|_| TpmErrorKind::InternalError)?,
-            ),
-            TpmAlgId::Sha384 => Self::Sha384(
-                digest_bytes
-                    .try_into()
-                    .map_err(|_| TpmErrorKind::InternalError)?,
-            ),
-            TpmAlgId::Sha512 => Self::Sha512(
-                digest_bytes
-                    .try_into()
-                    .map_err(|_| TpmErrorKind::InternalError)?,
-            ),
-            TpmAlgId::Sm3_256 => Self::Sm3_256(
-                digest_bytes
-                    .try_into()
-                    .map_err(|_| TpmErrorKind::InternalError)?,
-            ),
+            TpmAlgId::Sha1 => Self::Sha1(slice_to_fixed_array(digest_bytes)?),
+            TpmAlgId::Sha256 => Self::Sha256(slice_to_fixed_array(digest_bytes)?),
+            TpmAlgId::Sha384 => Self::Sha384(slice_to_fixed_array(digest_bytes)?),
+            TpmAlgId::Sha512 => Self::Sha512(slice_to_fixed_array(digest_bytes)?),
+            TpmAlgId::Sm3_256 => Self::Sm3_256(slice_to_fixed_array(digest_bytes)?),
             _ => return Err(TpmErrorKind::InvalidValue),
         };
 
@@ -202,8 +187,8 @@ impl TpmBuild for TpmuPublicId {
     }
 }
 
-impl<'a> TpmParseTagged<'a> for TpmuPublicId {
-    fn parse_tagged(tag: TpmAlgId, buf: &'a [u8]) -> TpmResult<(Self, &'a [u8])> {
+impl TpmParseTagged for TpmuPublicId {
+    fn parse_tagged(tag: TpmAlgId, buf: &[u8]) -> TpmResult<(Self, &[u8])> {
         match tag {
             TpmAlgId::KeyedHash => {
                 let (val, rest) = Tpm2bDigest::parse(buf)?;
@@ -316,8 +301,8 @@ impl TpmBuild for TpmuPublicParms {
     }
 }
 
-impl<'a> TpmParseTagged<'a> for TpmuPublicParms {
-    fn parse_tagged(tag: TpmAlgId, buf: &'a [u8]) -> TpmResult<(Self, &'a [u8])> {
+impl TpmParseTagged for TpmuPublicParms {
+    fn parse_tagged(tag: TpmAlgId, buf: &[u8]) -> TpmResult<(Self, &[u8])> {
         match tag {
             TpmAlgId::KeyedHash => {
                 let (details, buf) = TpmsKeyedhashParms::parse(buf)?;
@@ -412,8 +397,8 @@ impl TpmBuild for TpmuSensitiveComposite {
     }
 }
 
-impl<'a> TpmParseTagged<'a> for TpmuSensitiveComposite {
-    fn parse_tagged(tag: TpmAlgId, buf: &'a [u8]) -> TpmResult<(Self, &'a [u8])> {
+impl TpmParseTagged for TpmuSensitiveComposite {
+    fn parse_tagged(tag: TpmAlgId, buf: &[u8]) -> TpmResult<(Self, &[u8])> {
         match tag {
             TpmAlgId::Rsa => {
                 let (val, buf) = crate::data::Tpm2bPrivateKeyRsa::parse(buf)?;
@@ -467,8 +452,8 @@ impl TpmSized for TpmuSymKeyBits {
     }
 }
 
-impl<'a> TpmParseTagged<'a> for TpmuSymKeyBits {
-    fn parse_tagged(tag: TpmAlgId, buf: &'a [u8]) -> TpmResult<(Self, &'a [u8])> {
+impl TpmParseTagged for TpmuSymKeyBits {
+    fn parse_tagged(tag: TpmAlgId, buf: &[u8]) -> TpmResult<(Self, &[u8])> {
         match tag {
             TpmAlgId::Aes => {
                 let (val, buf) = u16::parse(buf)?;
@@ -532,8 +517,8 @@ impl TpmSized for TpmuSymMode {
     }
 }
 
-impl<'a> TpmParseTagged<'a> for TpmuSymMode {
-    fn parse_tagged(tag: TpmAlgId, buf: &'a [u8]) -> TpmResult<(Self, &'a [u8])> {
+impl TpmParseTagged for TpmuSymMode {
+    fn parse_tagged(tag: TpmAlgId, buf: &[u8]) -> TpmResult<(Self, &[u8])> {
         match tag {
             TpmAlgId::Aes => {
                 let (val, buf) = TpmAlgId::parse(buf)?;
@@ -608,8 +593,8 @@ impl TpmBuild for TpmuSignature {
     }
 }
 
-impl<'a> TpmParseTagged<'a> for TpmuSignature {
-    fn parse_tagged(tag: TpmAlgId, buf: &'a [u8]) -> TpmResult<(Self, &'a [u8])> {
+impl TpmParseTagged for TpmuSignature {
+    fn parse_tagged(tag: TpmAlgId, buf: &[u8]) -> TpmResult<(Self, &[u8])> {
         match tag {
             TpmAlgId::Rsassa => {
                 let (val, buf) = TpmsSignatureRsa::parse(buf)?;
@@ -694,8 +679,8 @@ impl TpmBuild for TpmuAttest {
     }
 }
 
-impl<'a> TpmParseTagged<'a> for TpmuAttest {
-    fn parse_tagged(tag: crate::data::TpmSt, buf: &'a [u8]) -> TpmResult<(Self, &'a [u8])> {
+impl TpmParseTagged for TpmuAttest {
+    fn parse_tagged(tag: crate::data::TpmSt, buf: &[u8]) -> TpmResult<(Self, &[u8])> {
         match tag {
             crate::data::TpmSt::AttestCertify => {
                 let (val, buf) = TpmsCertifyInfo::parse(buf)?;

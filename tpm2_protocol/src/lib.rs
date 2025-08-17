@@ -196,7 +196,7 @@ pub trait TpmBuild: TpmSized {
     fn build(&self, writer: &mut TpmWriter) -> TpmResult<()>;
 }
 
-pub trait TpmParse<'a>: Sized + TpmSized {
+pub trait TpmParse: Sized + TpmSized {
     /// Parses an object from the given buffer.
     ///
     /// Returns the parsed type and the remaining portion of the buffer.
@@ -205,23 +205,23 @@ pub trait TpmParse<'a>: Sized + TpmSized {
     ///
     /// * `TpmErrorKind::Boundary` if the buffer is too small to contain the object.
     /// * `TpmErrorKind::InvalidDiscriminant` if a value in the buffer is invalid for the target type.
-    fn parse(buf: &'a [u8]) -> TpmResult<(Self, &'a [u8])>;
+    fn parse(buf: &[u8]) -> TpmResult<(Self, &[u8])>;
 }
 
 /// A unifying trait for TPM objects that are both serializable and deserializable.
-pub trait TpmObject<'a>: TpmParse<'a> + TpmBuild {}
-impl<'a, T: TpmParse<'a> + TpmBuild> TpmObject<'a> for T {}
+pub trait TpmObject: TpmParse + TpmBuild {}
+impl<T: TpmParse + TpmBuild> TpmObject for T {}
 
 /// Types that are composed of a tag and a value e.g., a union.
 pub trait TpmTagged {
     /// The type of the tag/discriminant.
-    type Tag: for<'a> TpmObject<'a> + Copy;
+    type Tag: TpmObject + Copy;
     /// The type of the value/union.
     type Value;
 }
 
 /// Parses a tagged object from a buffer.
-pub trait TpmParseTagged<'a>: Sized {
+pub trait TpmParseTagged: Sized {
     /// Parses a tagged object from the given buffer using the provided tag.
     ///
     /// # Errors
@@ -229,10 +229,10 @@ pub trait TpmParseTagged<'a>: Sized {
     /// This method can return any error of the underlying type's `TpmParse` implementation,
     /// such as a `TpmErrorKind::Boundary` if the buffer is too small or an
     /// `TpmErrorKind::InvalidValue` if the data is malformed.
-    fn parse_tagged(tag: <Self as TpmTagged>::Tag, buf: &'a [u8]) -> TpmResult<(Self, &'a [u8])>
+    fn parse_tagged(tag: <Self as TpmTagged>::Tag, buf: &[u8]) -> TpmResult<(Self, &[u8])>
     where
         Self: TpmTagged,
-        <Self as TpmTagged>::Tag: for<'b> TpmObject<'b>;
+        <Self as TpmTagged>::Tag: TpmObject;
 }
 
 impl TpmSized for u8 {
@@ -248,8 +248,8 @@ impl TpmBuild for u8 {
     }
 }
 
-impl<'a> TpmParse<'a> for u8 {
-    fn parse(buf: &'a [u8]) -> TpmResult<(Self, &'a [u8])> {
+impl TpmParse for u8 {
+    fn parse(buf: &[u8]) -> TpmResult<(Self, &[u8])> {
         let (val, buf) = buf.split_first().ok_or(TpmErrorKind::Boundary)?;
         Ok((*val, buf))
     }
@@ -257,8 +257,8 @@ impl<'a> TpmParse<'a> for u8 {
 
 macro_rules! tpm_integer {
     ($ty:ty) => {
-        impl<'a> TpmParse<'a> for $ty {
-            fn parse(buf: &'a [u8]) -> TpmResult<(Self, &'a [u8])> {
+        impl TpmParse for $ty {
+            fn parse(buf: &[u8]) -> TpmResult<(Self, &[u8])> {
                 let size = size_of::<$ty>();
                 if buf.len() < size {
                     return Err(TpmErrorKind::Boundary);

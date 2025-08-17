@@ -208,7 +208,7 @@ pub fn write_to_file<T: TpmBuild>(path: &str, obj: &T) -> Result<(), TpmError> {
 /// cannot be parsed into the target type `T`, including if there is trailing data.
 pub fn read_from_file<T>(path: &str) -> Result<T, TpmError>
 where
-    T: for<'a> TpmParse<'a>,
+    T: TpmParse,
 {
     let bytes = fs::read(path).map_err(|e| TpmError::File(path.to_string(), e))?;
     let (obj, remainder) = T::parse(&bytes)?;

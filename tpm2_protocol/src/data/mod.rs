@@ -45,46 +45,46 @@ tpm2b!(Tpm2bSymKey, MAX_SYM_KEY_BYTES);
 tpm2b!(Tpm2bData, MAX_SENSITIVE_DATA);
 tpm2b!(Tpm2bTimeout, 8);
 
-tpm2b_struct!(
+tpm2b_struct! {
     #[derive(Debug, PartialEq, Eq, Clone, Default)]
     Tpm2bPublic,
     TpmtPublic
-);
-tpm2b_struct!(
+}
+tpm2b_struct! {
     #[derive(Debug, PartialEq, Eq, Clone, Default)]
     Tpm2bSensitiveCreate,
     TpmsSensitiveCreate
-);
-tpm2b_struct!(
+}
+tpm2b_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     Tpm2bSensitive,
     TpmtSensitive
-);
-tpm2b_struct!(
+}
+tpm2b_struct! {
     #[derive(Debug, PartialEq, Eq, Clone, Default)]
     Tpm2bCreationData,
     TpmsCreationData
-);
-tpm2b_struct!(
+}
+tpm2b_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     Tpm2bAttest,
     TpmsAttest
-);
-tpm2b_struct!(
+}
+tpm2b_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     Tpm2bNvPublic,
     TpmsNvPublic
-);
-tpm2b_struct!(
+}
+tpm2b_struct! {
     #[derive(Debug, PartialEq, Eq, Clone, Default)]
     Tpm2bIdObject,
     TpmsIdObject
-);
-tpm2b_struct!(
+}
+tpm2b_struct! {
     #[derive(Debug, PartialEq, Eq, Clone, Copy, Default)]
     Tpm2bEccPoint,
     TpmsEccPoint
-);
+}
 
 tpm_bool! {
     #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]

@@ -69,8 +69,8 @@ impl TpmBuild for TpmsCapabilityData {
     }
 }
 
-impl<'a> TpmParse<'a> for TpmsCapabilityData {
-    fn parse(buf: &'a [u8]) -> TpmResult<(Self, &'a [u8])> {
+impl TpmParse for TpmsCapabilityData {
+    fn parse(buf: &[u8]) -> TpmResult<(Self, &[u8])> {
         let (capability, buf) = TpmCap::parse(buf)?;
         let (data, buf) = TpmuCapabilities::parse_tagged(capability, buf)?;
         Ok((Self { capability, data }, buf))
@@ -165,8 +165,8 @@ impl TpmBuild for TpmsPcrSelection {
     }
 }
 
-impl<'a> TpmParse<'a> for TpmsPcrSelection {
-    fn parse(buf: &'a [u8]) -> TpmResult<(Self, &'a [u8])> {
+impl TpmParse for TpmsPcrSelection {
+    fn parse(buf: &[u8]) -> TpmResult<(Self, &[u8])> {
         let (hash, buf) = TpmAlgId::parse(buf)?;
         let (size, buf) = u8::parse(buf)?;
         let size = size as usize;
@@ -364,8 +364,8 @@ impl TpmBuild for TpmsAttest {
     }
 }
 
-impl<'a> TpmParse<'a> for TpmsAttest {
-    fn parse(buf: &'a [u8]) -> TpmResult<(Self, &'a [u8])> {
+impl TpmParse for TpmsAttest {
+    fn parse(buf: &[u8]) -> TpmResult<(Self, &[u8])> {
         let (magic, buf) = u32::parse(buf)?;
         if magic != 0xff54_4347 {
             return Err(TpmErrorKind::InvalidMagic {

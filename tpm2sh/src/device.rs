@@ -63,7 +63,7 @@ impl TpmDevice {
         log_format: cli::LogFormat,
     ) -> Result<(TpmResponseBody, tpm2_protocol::message::TpmAuthResponses), TpmError>
     where
-        C: for<'a> tpm2_protocol::message::TpmHeader<'a> + PrettyTrace,
+        C: tpm2_protocol::message::TpmHeader + PrettyTrace,
     {
         let mut command_buf = [0u8; TPM_MAX_COMMAND_SIZE];
         let len = {

@@ -23,7 +23,7 @@ macro_rules! tpm_struct {
             }
         }
 
-        impl $crate::message::TpmHeader<'_> for $name {
+        impl $crate::message::TpmHeader for $name {
             const COMMAND: $crate::data::TpmCc = $cc;
             const NO_SESSIONS: bool = $no_sessions;
             const WITH_SESSIONS: bool = $with_sessions;
@@ -58,8 +58,8 @@ macro_rules! tpm_struct {
             }
         }
 
-        impl<'a> $crate::TpmParse<'a> for $name {
-            fn parse(buf: &'a [u8]) -> $crate::TpmResult<(Self, &'a [u8])> {
+        impl $crate::TpmParse for $name {
+            fn parse(buf: &[u8]) -> $crate::TpmResult<(Self, &[u8])> {
                 $(let ($field_name, buf) = <$field_type>::parse(buf)?;)*
                 Ok((
                     Self {
@@ -106,8 +106,8 @@ macro_rules! tpm_tagged_struct {
             }
         }
 
-        impl<'a> $crate::TpmParse<'a> for $name {
-            fn parse(buf: &'a [u8]) -> $crate::TpmResult<(Self, &'a [u8])> {
+        impl $crate::TpmParse for $name {
+            fn parse(buf: &[u8]) -> $crate::TpmResult<(Self, &[u8])> {
                 let ($tag_field, buf) = <$tag_ty>::parse(buf)?;
                 let ($value_field, buf) =
                     <$value_ty as $crate::TpmParseTagged>::parse_tagged($tag_field, buf)?;

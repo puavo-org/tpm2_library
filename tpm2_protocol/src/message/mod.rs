@@ -12,10 +12,24 @@ use crate::{
         TpmsCapabilityData, TpmsContext, TpmtRsaDecrypt, TpmtSignature, TpmtSymDef,
         TpmtSymDefObject, TpmtTkCreation, TpmtTkHashcheck, TpmtTkVerified,
     },
-    tpm_dispatch, tpm_response, tpm_struct, TpmBuild, TpmList, TpmObject, TpmParse, TpmPersistent,
-    TpmResult, TpmSession, TpmSized, TpmTransient, TpmWriter,
+    tpm_dispatch, tpm_response, tpm_struct, TpmList, TpmObject, TpmParse, TpmPersistent,
+    TpmSession, TpmSized, TpmTransient,
 };
 use core::fmt::Debug;
+
+pub mod build;
+pub mod integrity;
+pub mod non_volatile;
+pub mod parse;
+pub mod policy;
+pub mod sequence;
+
+pub use build::*;
+pub use integrity::*;
+pub use non_volatile::*;
+pub use parse::*;
+pub use policy::*;
+pub use sequence::*;
 
 /// The maximum number of handles a command can have.
 pub const MAX_HANDLES: usize = 8;
@@ -30,7 +44,7 @@ pub type TpmAuthCommands = TpmList<TpmsAuthCommand, MAX_SESSIONS>;
 pub type TpmAuthResponses = TpmList<TpmsAuthResponse, MAX_SESSIONS>;
 
 /// A trait for TPM commands and responses that provides header information.
-pub trait TpmHeader<'a>: TpmObject<'a> + Debug {
+pub trait TpmHeader: TpmObject + Debug {
     const COMMAND: TpmCc;
     const NO_SESSIONS: bool;
     const WITH_SESSIONS: bool;
@@ -39,7 +53,7 @@ pub trait TpmHeader<'a>: TpmObject<'a> + Debug {
 
 pub const TPM_HEADER_SIZE: usize = 10;
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmStartupCommand,
     TpmCc::Startup,
@@ -49,9 +63,9 @@ tpm_struct!(
     {
         pub startup_type: TpmSu,
     }
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmStartupResponse,
     TpmCc::Startup,
@@ -59,9 +73,9 @@ tpm_struct!(
     false,
     0,
     {}
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmShutdownCommand,
     TpmCc::Shutdown,
@@ -71,9 +85,9 @@ tpm_struct!(
     {
         pub shutdown_type: TpmSu,
     }
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmShutdownResponse,
     TpmCc::Shutdown,
@@ -81,9 +95,9 @@ tpm_struct!(
     true,
     0,
     {}
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmContextLoadCommand,
     TpmCc::ContextLoad,
@@ -93,9 +107,9 @@ tpm_struct!(
     {
         pub context: TpmsContext,
     }
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmContextSaveCommand,
     TpmCc::ContextSave,
@@ -103,9 +117,9 @@ tpm_struct!(
     false,
     1,
     {}
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmDictionaryAttackLockResetCommand,
     TpmCc::DictionaryAttackLockReset,
@@ -113,9 +127,9 @@ tpm_struct!(
     true,
     1,
     {}
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmFlushContextCommand,
     TpmCc::FlushContext,
@@ -125,9 +139,9 @@ tpm_struct!(
     {
         pub flush_handle: u32,
     }
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmUnsealCommand,
     TpmCc::Unseal,
@@ -135,31 +149,31 @@ tpm_struct!(
     true,
     1,
     {}
-);
+}
 
 macro_rules! tpm_create {
-	($name:ident, $cc:expr) => {
-		tpm_struct!(
-			#[derive(Debug, Default, PartialEq, Eq, Clone)]
-			$name,
-			$cc,
-			false,
-			true,
-			1,
-			{
-				pub in_sensitive: Tpm2bSensitiveCreate,
-				pub in_public: Tpm2bPublic,
-				pub outside_info: Tpm2b,
-				pub creation_pcr: TpmlPcrSelection,
-			}
-		);
-	};
+    ($name:ident, $cc:expr) => {
+        tpm_struct! {
+            #[derive(Debug, Default, PartialEq, Eq, Clone)]
+            $name,
+            $cc,
+            false,
+            true,
+            1,
+            {
+                pub in_sensitive: Tpm2bSensitiveCreate,
+                pub in_public: Tpm2bPublic,
+                pub outside_info: Tpm2b,
+                pub creation_pcr: TpmlPcrSelection,
+            }
+        }
+    };
 }
 
 tpm_create!(TpmCreateCommand, TpmCc::Create);
 tpm_create!(TpmCreatePrimaryCommand, TpmCc::CreatePrimary);
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmEvictControlCommand,
     TpmCc::EvictControl,
@@ -169,9 +183,9 @@ tpm_struct!(
     {
         pub persistent_handle: TpmPersistent,
     }
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmGetCapabilityCommand,
     TpmCc::GetCapability,
@@ -183,9 +197,9 @@ tpm_struct!(
         pub property: u32,
         pub property_count: u32,
     }
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmHashCommand,
     TpmCc::Hash,
@@ -197,9 +211,9 @@ tpm_struct!(
         pub hash_alg: TpmAlgId,
         pub hierarchy: TpmRh,
     }
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmImportCommand,
     TpmCc::Import,
@@ -213,9 +227,9 @@ tpm_struct!(
         pub in_sym_seed: Tpm2bEncryptedSecret,
         pub symmetric_alg: TpmtSymDef,
     }
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
     TpmLoadCommand,
     TpmCc::Load,
@@ -226,9 +240,9 @@ tpm_struct!(
         pub in_private: Tpm2bPrivate,
         pub in_public: Tpm2bPublic,
     }
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
     TpmObjectChangeAuthCommand,
     TpmCc::ObjectChangeAuth,
@@ -238,31 +252,31 @@ tpm_struct!(
     {
         pub new_auth: Tpm2bAuth,
     }
-);
+}
 
 #[derive(Debug, Default, PartialEq, Eq, Clone)]
 pub struct TpmPolicyGetDigestResponse {
     pub policy_digest: Tpm2bDigest,
 }
-impl TpmHeader<'_> for TpmPolicyGetDigestResponse {
+impl TpmHeader for TpmPolicyGetDigestResponse {
     const COMMAND: TpmCc = TpmCc::PolicyGetDigest;
     const NO_SESSIONS: bool = false;
     const WITH_SESSIONS: bool = true;
     const HANDLES: usize = 0;
 }
-impl TpmSized for TpmPolicyGetDigestResponse {
+impl crate::TpmSized for TpmPolicyGetDigestResponse {
     const SIZE: usize = <Tpm2bDigest>::SIZE;
     fn len(&self) -> usize {
         self.policy_digest.len()
     }
 }
-impl TpmBuild for TpmPolicyGetDigestResponse {
-    fn build(&self, writer: &mut TpmWriter) -> TpmResult<()> {
+impl crate::TpmBuild for TpmPolicyGetDigestResponse {
+    fn build(&self, writer: &mut crate::TpmWriter) -> crate::TpmResult<()> {
         self.policy_digest.build(writer)
     }
 }
-impl<'a> TpmParse<'a> for TpmPolicyGetDigestResponse {
-    fn parse(buf: &'a [u8]) -> TpmResult<(Self, &'a [u8])> {
+impl crate::TpmParse for TpmPolicyGetDigestResponse {
+    fn parse(buf: &[u8]) -> crate::TpmResult<(Self, &[u8])> {
         if buf.is_empty() {
             return Ok((Self::default(), buf));
         }
@@ -271,7 +285,7 @@ impl<'a> TpmParse<'a> for TpmPolicyGetDigestResponse {
     }
 }
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmReadPublicCommand,
     TpmCc::ReadPublic,
@@ -279,9 +293,9 @@ tpm_struct!(
     true,
     1,
     {}
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
     TpmStartAuthSessionCommand,
     TpmCc::StartAuthSession,
@@ -295,9 +309,9 @@ tpm_struct!(
         pub symmetric: TpmtSymDefObject,
         pub auth_hash: TpmAlgId,
     }
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmVendorTcgTestCommand,
     TpmCc::VendorTcgTest,
@@ -307,9 +321,9 @@ tpm_struct!(
     {
         pub input_data: Tpm2bData,
     }
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmContextLoadResponse,
     TpmCc::ContextLoad,
@@ -319,9 +333,9 @@ tpm_struct!(
     {
         pub loaded_handle: TpmTransient,
     }
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmContextSaveResponse,
     TpmCc::ContextSave,
@@ -331,9 +345,9 @@ tpm_struct!(
     {
         pub context: TpmsContext,
     }
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmHashResponse,
     TpmCc::Hash,
@@ -344,9 +358,9 @@ tpm_struct!(
         pub out_hash: Tpm2bDigest,
         pub validation: TpmtTkHashcheck,
     }
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
     TpmImportResponse,
     TpmCc::Import,
@@ -356,9 +370,9 @@ tpm_struct!(
     {
         pub out_private: Tpm2bPrivate,
     }
-);
+}
 
-tpm_response!(
+tpm_response! {
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
     TpmObjectChangeAuthResponse,
     TpmCc::ObjectChangeAuth,
@@ -367,9 +381,9 @@ tpm_response!(
     {
         pub out_private: Tpm2bPrivate,
     }
-);
+}
 
-tpm_response!(
+tpm_response! {
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
     TpmReadPublicResponse,
     TpmCc::ReadPublic,
@@ -380,9 +394,9 @@ tpm_response!(
         pub name: Tpm2bName,
         pub qualified_name: Tpm2bName,
     }
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
     TpmStartAuthSessionResponse,
     TpmCc::StartAuthSession,
@@ -393,9 +407,9 @@ tpm_struct!(
         pub session_handle: TpmSession,
         pub nonce_tpm: Tpm2b,
     }
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmVendorTcgTestResponse,
     TpmCc::VendorTcgTest,
@@ -405,9 +419,9 @@ tpm_struct!(
     {
         pub output_data: Tpm2bData,
     }
-);
+}
 
-tpm_response!(
+tpm_response! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmCreatePrimaryResponse,
     TpmCc::CreatePrimary,
@@ -421,9 +435,9 @@ tpm_response!(
         pub creation_ticket: TpmtTkCreation,
         pub name: Tpm2bName,
     }
-);
+}
 
-tpm_response!(
+tpm_response! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmCreateResponse,
     TpmCc::Create,
@@ -436,9 +450,9 @@ tpm_response!(
         pub creation_hash: Tpm2bDigest,
         pub creation_ticket: TpmtTkCreation,
     }
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmDictionaryAttackLockResetResponse,
     TpmCc::DictionaryAttackLockReset,
@@ -446,9 +460,9 @@ tpm_struct!(
     true,
     0,
     {}
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmEvictControlResponse,
     TpmCc::EvictControl,
@@ -456,9 +470,9 @@ tpm_struct!(
     true,
     0,
     {}
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmFlushContextResponse,
     TpmCc::FlushContext,
@@ -466,9 +480,9 @@ tpm_struct!(
     false,
     0,
     {}
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmGetCapabilityResponse,
     TpmCc::GetCapability,
@@ -479,9 +493,9 @@ tpm_struct!(
         pub more_data: TpmiYesNo,
         pub capability_data: TpmsCapabilityData,
     }
-);
+}
 
-tpm_response!(
+tpm_response! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmLoadResponse,
     TpmCc::Load,
@@ -491,9 +505,9 @@ tpm_response!(
     {
         pub name: Tpm2bName,
     }
-);
+}
 
-tpm_response!(
+tpm_response! {
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
     TpmUnsealResponse,
     TpmCc::Unseal,
@@ -502,9 +516,9 @@ tpm_response!(
     {
         pub out_data: Tpm2b,
     }
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmNvCertifyResponse,
     TpmCc::NvCertify,
@@ -515,9 +529,9 @@ tpm_struct!(
         pub certify_info: Tpm2bAttest,
         pub signature: TpmtSignature,
     }
-);
+}
 
-tpm_struct! (
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmCertifyCommand,
     TpmCc::Certify,
@@ -528,9 +542,9 @@ tpm_struct! (
         pub qualifying_data: Tpm2bData,
         pub in_scheme: TpmtSignature,
     }
-);
+}
 
-tpm_response!(
+tpm_response! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmCertifyResponse,
     TpmCc::Certify,
@@ -540,9 +554,9 @@ tpm_response!(
         pub certify_info: Tpm2bAttest,
         pub signature: TpmtSignature,
     }
-);
+}
 
-tpm_struct! (
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmCertifyCreationCommand,
     TpmCc::CertifyCreation,
@@ -555,9 +569,9 @@ tpm_struct! (
         pub in_scheme: TpmtSignature,
         pub creation_ticket: TpmtTkCreation,
     }
-);
+}
 
-tpm_response!(
+tpm_response! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmCertifyCreationResponse,
     TpmCc::CertifyCreation,
@@ -567,9 +581,9 @@ tpm_response!(
         pub certify_info: Tpm2bAttest,
         pub signature: TpmtSignature,
     }
-);
+}
 
-tpm_struct! (
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmQuoteCommand,
     TpmCc::Quote,
@@ -581,9 +595,9 @@ tpm_struct! (
         pub in_scheme: TpmtSignature,
         pub pcr_select: TpmlPcrSelection,
     }
-);
+}
 
-tpm_response!(
+tpm_response! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmQuoteResponse,
     TpmCc::Quote,
@@ -593,9 +607,9 @@ tpm_response!(
         pub quoted: Tpm2bAttest,
         pub signature: TpmtSignature,
     }
-);
+}
 
-tpm_struct! (
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmGetSessionAuditDigestCommand,
     TpmCc::GetSessionAuditDigest,
@@ -606,9 +620,9 @@ tpm_struct! (
         pub qualifying_data: Tpm2bData,
         pub in_scheme: TpmtSignature,
     }
-);
+}
 
-tpm_response!(
+tpm_response! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmGetSessionAuditDigestResponse,
     TpmCc::GetSessionAuditDigest,
@@ -618,9 +632,9 @@ tpm_response!(
         pub audit_info: Tpm2bAttest,
         pub signature: TpmtSignature,
     }
-);
+}
 
-tpm_struct! (
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmGetCommandAuditDigestCommand,
     TpmCc::GetCommandAuditDigest,
@@ -631,9 +645,9 @@ tpm_struct! (
         pub qualifying_data: Tpm2bData,
         pub in_scheme: TpmtSignature,
     }
-);
+}
 
-tpm_response!(
+tpm_response! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmGetCommandAuditDigestResponse,
     TpmCc::GetCommandAuditDigest,
@@ -643,9 +657,9 @@ tpm_response!(
         pub audit_info: Tpm2bAttest,
         pub signature: TpmtSignature,
     }
-);
+}
 
-tpm_struct! (
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmGetTimeCommand,
     TpmCc::GetTime,
@@ -656,9 +670,9 @@ tpm_struct! (
         pub qualifying_data: Tpm2bData,
         pub in_scheme: TpmtSignature,
     }
-);
+}
 
-tpm_response!(
+tpm_response! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmGetTimeResponse,
     TpmCc::GetTime,
@@ -668,9 +682,9 @@ tpm_response!(
         pub time_info: Tpm2bAttest,
         pub signature: TpmtSignature,
     }
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmSignCommand,
     TpmCc::Sign,
@@ -682,9 +696,9 @@ tpm_struct!(
         pub in_scheme: TpmtSignature,
         pub validation: TpmtTkHashcheck,
     }
-);
+}
 
-tpm_response!(
+tpm_response! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmSignResponse,
     TpmCc::Sign,
@@ -693,9 +707,9 @@ tpm_response!(
     {
         pub signature: TpmtSignature,
     }
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmVerifySignatureCommand,
     TpmCc::VerifySignature,
@@ -706,9 +720,9 @@ tpm_struct!(
         pub digest: Tpm2bDigest,
         pub signature: TpmtSignature,
     }
-);
+}
 
-tpm_response!(
+tpm_response! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmVerifySignatureResponse,
     TpmCc::VerifySignature,
@@ -717,9 +731,9 @@ tpm_response!(
     {
         pub validation: TpmtTkVerified,
     }
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmMakeCredentialCommand,
     TpmCc::MakeCredential,
@@ -730,9 +744,9 @@ tpm_struct!(
         pub credential: Tpm2bDigest,
         pub object_name: Tpm2bName,
     }
-);
+}
 
-tpm_response!(
+tpm_response! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmMakeCredentialResponse,
     TpmCc::MakeCredential,
@@ -742,9 +756,9 @@ tpm_response!(
         pub credential_blob: Tpm2bIdObject,
         pub secret: Tpm2bEncryptedSecret,
     }
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmLoadExternalCommand,
     TpmCc::LoadExternal,
@@ -756,9 +770,9 @@ tpm_struct!(
         pub in_public: Tpm2bPublic,
         pub hierarchy: TpmRh,
     }
-);
+}
 
-tpm_response!(
+tpm_response! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmLoadExternalResponse,
     TpmCc::LoadExternal,
@@ -768,9 +782,9 @@ tpm_response!(
     {
         pub name: Tpm2bName,
     }
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmActivateCredentialCommand,
     TpmCc::ActivateCredential,
@@ -781,9 +795,9 @@ tpm_struct!(
         pub credential_blob: Tpm2bIdObject,
         pub secret: Tpm2bEncryptedSecret,
     }
-);
+}
 
-tpm_response!(
+tpm_response! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmActivateCredentialResponse,
     TpmCc::ActivateCredential,
@@ -792,9 +806,9 @@ tpm_response!(
     {
         pub cert_info: Tpm2bDigest,
     }
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmSelfTestCommand,
     TpmCc::SelfTest,
@@ -804,18 +818,18 @@ tpm_struct!(
     {
         pub full_test: TpmiYesNo,
     }
-);
+}
 
-tpm_response!(
+tpm_response! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmSelfTestResponse,
     TpmCc::SelfTest,
     true,
     true,
     {}
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmIncrementalSelfTestCommand,
     TpmCc::IncrementalSelfTest,
@@ -825,9 +839,9 @@ tpm_struct!(
     {
         pub to_test: TpmlAlg,
     }
-);
+}
 
-tpm_response!(
+tpm_response! {
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
     TpmIncrementalSelfTestResponse,
     TpmCc::IncrementalSelfTest,
@@ -836,9 +850,9 @@ tpm_response!(
     {
         pub to_do_list: TpmlAlg,
     }
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmGetTestResultCommand,
     TpmCc::GetTestResult,
@@ -846,9 +860,9 @@ tpm_struct!(
     true,
     0,
     {}
-);
+}
 
-tpm_response!(
+tpm_response! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmGetTestResultResponse,
     TpmCc::GetTestResult,
@@ -858,9 +872,9 @@ tpm_response!(
         pub out_data: Tpm2bMaxBuffer,
         pub test_result: TpmRc,
     }
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmDuplicateCommand,
     TpmCc::Duplicate,
@@ -871,9 +885,9 @@ tpm_struct!(
         pub encryption_key_in: Tpm2bData,
         pub symmetric_alg: TpmtSymDefObject,
     }
-);
+}
 
-tpm_response!(
+tpm_response! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmDuplicateResponse,
     TpmCc::Duplicate,
@@ -884,9 +898,9 @@ tpm_response!(
         pub duplicate: Tpm2bPrivate,
         pub out_sym_seed: Tpm2bEncryptedSecret,
     }
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmRewrapCommand,
     TpmCc::Rewrap,
@@ -898,9 +912,9 @@ tpm_struct!(
         pub name: Tpm2bName,
         pub in_sym_seed: Tpm2bEncryptedSecret,
     }
-);
+}
 
-tpm_response!(
+tpm_response! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmRewrapResponse,
     TpmCc::Rewrap,
@@ -910,9 +924,9 @@ tpm_response!(
         pub out_duplicate: Tpm2bPrivate,
         pub out_sym_seed: Tpm2bEncryptedSecret,
     }
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmRsaEncryptCommand,
     TpmCc::RsaEncrypt,
@@ -924,9 +938,9 @@ tpm_struct!(
         pub in_scheme: TpmtRsaDecrypt,
         pub label: Tpm2bData,
     }
-);
+}
 
-tpm_response!(
+tpm_response! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmRsaEncryptResponse,
     TpmCc::RsaEncrypt,
@@ -935,9 +949,9 @@ tpm_response!(
     {
         pub out_data: Tpm2bPublicKeyRsa,
     }
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmRsaDecryptCommand,
     TpmCc::RsaDecrypt,
@@ -949,9 +963,9 @@ tpm_struct!(
         pub in_scheme: TpmtRsaDecrypt,
         pub label: Tpm2bData,
     }
-);
+}
 
-tpm_response!(
+tpm_response! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmRsaDecryptResponse,
     TpmCc::RsaDecrypt,
@@ -960,9 +974,9 @@ tpm_response!(
     {
         pub message: Tpm2bPublicKeyRsa,
     }
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmEcdhKeyGenCommand,
     TpmCc::EcdhKeyGen,
@@ -970,9 +984,9 @@ tpm_struct!(
     true,
     1,
     {}
-);
+}
 
-tpm_response!(
+tpm_response! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmEcdhKeyGenResponse,
     TpmCc::EcdhKeyGen,
@@ -982,9 +996,9 @@ tpm_response!(
         pub z_point: Tpm2bEccPoint,
         pub pub_point: Tpm2bEccPoint,
     }
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone, Copy)]
     TpmEcdhZGenCommand,
     TpmCc::EcdhZGen,
@@ -994,9 +1008,9 @@ tpm_struct!(
     {
         pub in_point: Tpm2bEccPoint,
     }
-);
+}
 
-tpm_response!(
+tpm_response! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmEcdhZGenResponse,
     TpmCc::EcdhZGen,
@@ -1005,9 +1019,9 @@ tpm_response!(
     {
         pub out_point: Tpm2bEccPoint,
     }
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Copy, Clone)]
     TpmEccParametersCommand,
     TpmCc::EccParameters,
@@ -1017,9 +1031,9 @@ tpm_struct!(
     {
         pub curve_id: TpmEccCurve,
     }
-);
+}
 
-tpm_response!(
+tpm_response! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmEccParametersResponse,
     TpmCc::EccParameters,
@@ -1028,9 +1042,9 @@ tpm_response!(
     {
         pub parameters: TpmsAlgorithmDetailEcc,
     }
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmEncryptDecrypt2Command,
     TpmCc::EncryptDecrypt2,
@@ -1043,9 +1057,9 @@ tpm_struct!(
         pub mode: TpmAlgId,
         pub iv_in: Tpm2b,
     }
-);
+}
 
-tpm_response!(
+tpm_response! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmEncryptDecrypt2Response,
     TpmCc::EncryptDecrypt2,
@@ -1055,9 +1069,9 @@ tpm_response!(
         pub out_data: Tpm2bMaxBuffer,
         pub iv_out: Tpm2b,
     }
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone, Copy)]
     TpmGetRandomCommand,
     TpmCc::GetRandom,
@@ -1067,9 +1081,9 @@ tpm_struct!(
     {
         pub bytes_requested: u16,
     }
-);
+}
 
-tpm_response!(
+tpm_response! {
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
     TpmGetRandomResponse,
     TpmCc::GetRandom,
@@ -1078,9 +1092,9 @@ tpm_response!(
     {
         pub random_bytes: Tpm2bDigest,
     }
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmStirRandomCommand,
     TpmCc::StirRandom,
@@ -1090,18 +1104,18 @@ tpm_struct!(
     {
         pub in_data: Tpm2bSensitiveData,
     }
-);
+}
 
-tpm_response!(
+tpm_response! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmStirRandomResponse,
     TpmCc::StirRandom,
     true,
     true,
     {}
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmHierarchyControlCommand,
     TpmCc::HierarchyControl,
@@ -1112,18 +1126,18 @@ tpm_struct!(
         pub enable: TpmRh,
         pub state: TpmiYesNo,
     }
-);
+}
 
-tpm_response!(
+tpm_response! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmHierarchyControlResponse,
     TpmCc::HierarchyControl,
     false,
     true,
     {}
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmChangePpsCommand,
     TpmCc::ChangePps,
@@ -1131,18 +1145,18 @@ tpm_struct!(
     true,
     1,
     {}
-);
+}
 
-tpm_response!(
+tpm_response! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmChangePpsResponse,
     TpmCc::ChangePps,
     false,
     true,
     {}
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmChangeEpsCommand,
     TpmCc::ChangeEps,
@@ -1150,18 +1164,18 @@ tpm_struct!(
     true,
     1,
     {}
-);
+}
 
-tpm_response!(
+tpm_response! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmChangeEpsResponse,
     TpmCc::ChangeEps,
     false,
     true,
     {}
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmClearCommand,
     TpmCc::Clear,
@@ -1169,18 +1183,18 @@ tpm_struct!(
     true,
     1,
     {}
-);
+}
 
-tpm_response!(
+tpm_response! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmClearResponse,
     TpmCc::Clear,
     false,
     true,
     {}
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmClearControlCommand,
     TpmCc::ClearControl,
@@ -1190,18 +1204,18 @@ tpm_struct!(
     {
         pub disable: TpmiYesNo,
     }
-);
+}
 
-tpm_response!(
+tpm_response! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmClearControlResponse,
     TpmCc::ClearControl,
     false,
     true,
     {}
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmHierarchyChangeAuthCommand,
     TpmCc::HierarchyChangeAuth,
@@ -1211,16 +1225,16 @@ tpm_struct!(
     {
         pub new_auth: Tpm2bAuth,
     }
-);
+}
 
-tpm_response!(
+tpm_response! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmHierarchyChangeAuthResponse,
     TpmCc::HierarchyChangeAuth,
     false,
     true,
     {}
-);
+}
 
 tpm_dispatch! {
     (TpmNvUndefineSpaceSpecialCommand, TpmNvUndefineSpaceSpecialResponse, NvUndefineSpaceSpecial),
@@ -1311,17 +1325,3 @@ tpm_dispatch! {
     (TpmEncryptDecrypt2Command, TpmEncryptDecrypt2Response, EncryptDecrypt2),
     (TpmVendorTcgTestCommand, TpmVendorTcgTestResponse, VendorTcgTest),
 }
-
-pub mod build;
-pub mod integrity;
-pub mod non_volatile;
-pub mod parse;
-pub mod policy;
-pub mod sequence;
-
-pub use build::*;
-pub use integrity::*;
-pub use non_volatile::*;
-pub use parse::*;
-pub use policy::*;
-pub use sequence::*;

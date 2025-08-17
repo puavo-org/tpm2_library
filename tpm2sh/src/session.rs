@@ -47,14 +47,14 @@ pub fn build_password_session(auth: Option<&str>) -> Result<Vec<data::TpmsAuthCo
 ///
 /// Returns a `TpmError` if building the command parameters or creating the
 /// authorization HMAC fails.
-pub fn get_auth_sessions<'a, C>(
+pub fn get_auth_sessions<C>(
     command: &C,
     handles: &[u32],
-    session: Option<&'a AuthSession>,
-    password: Option<&'a str>,
+    session: Option<&AuthSession>,
+    password: Option<&str>,
 ) -> Result<Vec<data::TpmsAuthCommand>, TpmError>
 where
-    C: for<'b> TpmHeader<'b>,
+    C: TpmHeader,
 {
     if let Some(session) = session {
         let params = util::build_to_vec(command)?;

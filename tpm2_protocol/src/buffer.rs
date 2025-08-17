@@ -48,8 +48,8 @@ impl<const CAPACITY: usize> TpmBuild for TpmBuffer<CAPACITY> {
     }
 }
 
-impl<'a, const CAPACITY: usize> TpmParse<'a> for TpmBuffer<CAPACITY> {
-    fn parse(buf: &'a [u8]) -> TpmResult<(Self, &'a [u8])> {
+impl<const CAPACITY: usize> TpmParse for TpmBuffer<CAPACITY> {
+    fn parse(buf: &[u8]) -> TpmResult<(Self, &[u8])> {
         let (bytes, remainder) = parse_tpm2b(buf)?;
         if bytes.len() > CAPACITY {
             return Err(TpmErrorKind::ValueTooLarge);

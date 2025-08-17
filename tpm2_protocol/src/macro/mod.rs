@@ -76,8 +76,8 @@ macro_rules! tpm_bitflags {
             }
         }
 
-        impl<'a> $crate::TpmParse<'a> for $name {
-            fn parse(buf: &'a [u8]) -> $crate::TpmResult<(Self, &'a [u8])> {
+        impl $crate::TpmParse for $name {
+            fn parse(buf: &[u8]) -> $crate::TpmResult<(Self, &[u8])> {
                 let (val, buf) = <$repr>::parse(buf)?;
                 Ok((Self(val), buf))
             }
@@ -119,8 +119,8 @@ macro_rules! tpm_bool {
             }
         }
 
-        impl<'a> $crate::TpmParse<'a> for $name {
-            fn parse(buf: &'a [u8]) -> $crate::TpmResult<(Self, &'a [u8])> {
+        impl $crate::TpmParse for $name {
+            fn parse(buf: &[u8]) -> $crate::TpmResult<(Self, &[u8])> {
                 let (val, buf) = u8::parse(buf)?;
                 match val {
                     0 => Ok((Self(false), buf)),
@@ -300,8 +300,8 @@ macro_rules! tpm_enum {
             }
         }
 
-        impl<'a> $crate::TpmParse<'a> for $name {
-            fn parse(buf: &'a [u8]) -> $crate::TpmResult<(Self, &'a [u8])> {
+        impl $crate::TpmParse for $name {
+            fn parse(buf: &[u8]) -> $crate::TpmResult<(Self, &[u8])> {
                 let (val, buf) = <$repr>::parse(buf)?;
                 let enum_val = Self::try_from(val).map_err(|()| $crate::TpmErrorKind::InvalidDiscriminant {
                     type_name: stringify!($name),
@@ -340,8 +340,8 @@ macro_rules! tpm_handle {
             }
         }
 
-        impl<'a> $crate::TpmParse<'a> for $name {
-            fn parse(buf: &'a [u8]) -> $crate::TpmResult<(Self, &'a [u8])> {
+        impl $crate::TpmParse for $name {
+            fn parse(buf: &[u8]) -> $crate::TpmResult<(Self, &[u8])> {
                 let (val, buf) = u32::parse(buf)?;
                 Ok((Self(val), buf))
             }
@@ -408,8 +408,8 @@ macro_rules! tpm2b_struct {
             }
         }
 
-        impl<'a> $crate::TpmParse<'a> for $wrapper_ty {
-            fn parse(buf: &'a [u8]) -> $crate::TpmResult<(Self, &'a [u8])> {
+        impl $crate::TpmParse for $wrapper_ty {
+            fn parse(buf: &[u8]) -> $crate::TpmResult<(Self, &[u8])> {
                 let (inner_bytes, rest) = $crate::parse_tpm2b(buf)?;
                 let (inner_val, tail) = <$inner_ty>::parse(inner_bytes)?;
 

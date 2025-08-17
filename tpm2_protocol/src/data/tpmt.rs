@@ -52,8 +52,8 @@ impl TpmBuild for TpmtPublic {
     }
 }
 
-impl<'a> TpmParse<'a> for TpmtPublic {
-    fn parse(buf: &'a [u8]) -> TpmResult<(Self, &'a [u8])> {
+impl TpmParse for TpmtPublic {
+    fn parse(buf: &[u8]) -> TpmResult<(Self, &[u8])> {
         let (object_type, buf) = TpmAlgId::parse(buf)?;
         let (name_alg, buf) = TpmAlgId::parse(buf)?;
         let (object_attributes, buf) = TpmaObject::parse(buf)?;
@@ -176,8 +176,8 @@ impl TpmBuild for TpmtSensitive {
     }
 }
 
-impl<'a> TpmParse<'a> for TpmtSensitive {
-    fn parse(buf: &'a [u8]) -> TpmResult<(Self, &'a [u8])> {
+impl TpmParse for TpmtSensitive {
+    fn parse(buf: &[u8]) -> TpmResult<(Self, &[u8])> {
         let (sensitive_type, buf) = TpmAlgId::parse(buf)?;
         let (auth_value, buf) = Tpm2bAuth::parse(buf)?;
         let (seed_value, buf) = Tpm2bDigest::parse(buf)?;
@@ -229,8 +229,8 @@ impl TpmBuild for TpmtSymDef {
     }
 }
 
-impl<'a> TpmParse<'a> for TpmtSymDef {
-    fn parse(buf: &'a [u8]) -> TpmResult<(Self, &'a [u8])> {
+impl TpmParse for TpmtSymDef {
+    fn parse(buf: &[u8]) -> TpmResult<(Self, &[u8])> {
         let (algorithm, buf) = TpmAlgId::parse(buf)?;
         if algorithm == TpmAlgId::Null {
             return Ok((

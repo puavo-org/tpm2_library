@@ -41,7 +41,7 @@ impl<'a> TpmParameters<'a> {
     /// # Errors
     ///
     /// Returns any error encountered during the parsing of the inner type `T`.
-    pub fn parse<T: TpmObject<'a>>(&mut self) -> TpmResult<T> {
+    pub fn parse<T: TpmObject>(&mut self) -> TpmResult<T> {
         let (value, rest) = T::parse(self.buf)?;
         self.buf = rest;
         Ok(value)

@@ -2,7 +2,8 @@
 // Copyright (c) 2025 Opinsys Oy
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 
-use crate::{tpm_enum, TpmErrorKind};
+#[allow(unused_imports)]
+use crate::{tpm_enum, TpmErrorKind, TpmParse};
 use core::{
     convert::TryFrom,
     fmt::{self, Debug, Display, Formatter},
@@ -130,8 +131,8 @@ impl crate::TpmBuild for TpmRc {
     }
 }
 
-impl<'a> crate::TpmParse<'a> for TpmRc {
-    fn parse(buf: &'a [u8]) -> crate::TpmResult<(Self, &'a [u8])> {
+impl crate::TpmParse for TpmRc {
+    fn parse(buf: &[u8]) -> crate::TpmResult<(Self, &[u8])> {
         let (val, remainder) = u32::parse(buf)?;
         let rc = Self::try_from(val)?;
         Ok((rc, remainder))

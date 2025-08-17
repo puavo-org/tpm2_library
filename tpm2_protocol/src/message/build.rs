@@ -14,7 +14,7 @@ use core::mem::size_of;
 /// # Errors
 ///
 /// * `TpmErrorKind::ValueTooLarge` if the command has unknown state
-pub fn tpm_build_command<'a, C>(
+pub fn tpm_build_command<C>(
     command: &C,
     tag: TpmSt,
     handles: Option<&[u32]>,
@@ -22,7 +22,7 @@ pub fn tpm_build_command<'a, C>(
     writer: &mut crate::TpmWriter,
 ) -> TpmResult<()>
 where
-    C: TpmHeader<'a>,
+    C: TpmHeader,
 {
     match tag {
         TpmSt::NoSessions => {
@@ -99,7 +99,7 @@ pub fn tpm_build_response<R>(
     writer: &mut crate::TpmWriter,
 ) -> TpmResult<()>
 where
-    R: for<'a> TpmHeader<'a>,
+    R: TpmHeader,
 {
     let tag = if !rc.is_error() && R::WITH_SESSIONS && !sessions.is_empty() {
         TpmSt::Sessions
