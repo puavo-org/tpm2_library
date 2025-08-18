@@ -4,12 +4,11 @@
 
 use crate::{
     data::{
-        Tpm2b, Tpm2bAttest, Tpm2bAuth, Tpm2bCreationData, Tpm2bData, Tpm2bDigest, Tpm2bEccPoint,
+        Tpm2b, Tpm2bAttest, Tpm2bAuth, Tpm2bCreationData, Tpm2bData, Tpm2bDigest,
         Tpm2bEncryptedSecret, Tpm2bIdObject, Tpm2bMaxBuffer, Tpm2bName, Tpm2bPrivate, Tpm2bPublic,
-        Tpm2bPublicKeyRsa, Tpm2bSensitive, Tpm2bSensitiveCreate, Tpm2bSensitiveData, TpmAlgId,
-        TpmCap, TpmCc, TpmEccCurve, TpmRc, TpmRh, TpmSe, TpmSu, TpmiYesNo, TpmlAlg,
-        TpmlPcrSelection, TpmsAlgorithmDetailEcc, TpmsAuthCommand, TpmsAuthResponse,
-        TpmsCapabilityData, TpmsContext, TpmtRsaDecrypt, TpmtSignature, TpmtSymDef,
+        Tpm2bSensitive, Tpm2bSensitiveCreate, Tpm2bSensitiveData, TpmAlgId, TpmCap, TpmCc, TpmRc,
+        TpmRh, TpmSe, TpmSu, TpmiYesNo, TpmlAlg, TpmlPcrSelection, TpmsAuthCommand,
+        TpmsAuthResponse, TpmsCapabilityData, TpmsContext, TpmtSignature, TpmtSymDef,
         TpmtSymDefObject, TpmtTkCreation, TpmtTkHashcheck, TpmtTkVerified,
     },
     tpm_dispatch, tpm_response, tpm_struct, TpmBuild, TpmList, TpmParse, TpmPersistent, TpmSession,
@@ -17,6 +16,7 @@ use crate::{
 };
 use core::fmt::Debug;
 
+pub mod asymmetric;
 pub mod build;
 pub mod integrity;
 pub mod non_volatile;
@@ -24,6 +24,7 @@ pub mod parse;
 pub mod policy;
 pub mod sequence;
 
+pub use asymmetric::*;
 pub use build::*;
 pub use integrity::*;
 pub use non_volatile::*;
@@ -928,124 +929,6 @@ tpm_response! {
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmRsaEncryptCommand,
-    TpmCc::RsaEncrypt,
-    true,
-    true,
-    1,
-    {
-        pub message: Tpm2bPublicKeyRsa,
-        pub in_scheme: TpmtRsaDecrypt,
-        pub label: Tpm2bData,
-    }
-}
-
-tpm_response! {
-    #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmRsaEncryptResponse,
-    TpmCc::RsaEncrypt,
-    true,
-    true,
-    {
-        pub out_data: Tpm2bPublicKeyRsa,
-    }
-}
-
-tpm_struct! {
-    #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmRsaDecryptCommand,
-    TpmCc::RsaDecrypt,
-    false,
-    true,
-    1,
-    {
-        pub cipher_text: Tpm2bPublicKeyRsa,
-        pub in_scheme: TpmtRsaDecrypt,
-        pub label: Tpm2bData,
-    }
-}
-
-tpm_response! {
-    #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmRsaDecryptResponse,
-    TpmCc::RsaDecrypt,
-    false,
-    true,
-    {
-        pub message: Tpm2bPublicKeyRsa,
-    }
-}
-
-tpm_struct! {
-    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmEcdhKeyGenCommand,
-    TpmCc::EcdhKeyGen,
-    true,
-    true,
-    1,
-    {}
-}
-
-tpm_response! {
-    #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmEcdhKeyGenResponse,
-    TpmCc::EcdhKeyGen,
-    true,
-    true,
-    {
-        pub z_point: Tpm2bEccPoint,
-        pub pub_point: Tpm2bEccPoint,
-    }
-}
-
-tpm_struct! {
-    #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-    TpmEcdhZGenCommand,
-    TpmCc::EcdhZGen,
-    false,
-    true,
-    1,
-    {
-        pub in_point: Tpm2bEccPoint,
-    }
-}
-
-tpm_response! {
-    #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmEcdhZGenResponse,
-    TpmCc::EcdhZGen,
-    false,
-    true,
-    {
-        pub out_point: Tpm2bEccPoint,
-    }
-}
-
-tpm_struct! {
-    #[derive(Debug, PartialEq, Eq, Copy, Clone)]
-    TpmEccParametersCommand,
-    TpmCc::EccParameters,
-    true,
-    true,
-    0,
-    {
-        pub curve_id: TpmEccCurve,
-    }
-}
-
-tpm_response! {
-    #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmEccParametersResponse,
-    TpmCc::EccParameters,
-    true,
-    true,
-    {
-        pub parameters: TpmsAlgorithmDetailEcc,
-    }
-}
-
-tpm_struct! {
-    #[derive(Debug, PartialEq, Eq, Clone)]
     TpmEncryptDecrypt2Command,
     TpmCc::EncryptDecrypt2,
     false,
@@ -1281,10 +1164,13 @@ tpm_dispatch! {
     (TpmRewrapCommand, TpmRewrapResponse, Rewrap),
     (TpmCreateCommand, TpmCreateResponse, Create),
     (TpmEcdhZGenCommand, TpmEcdhZGenResponse, EcdhZGen),
+    (TpmZGen2PhaseCommand, TpmZGen2PhaseResponse, ZGen2Phase),
     (TpmImportCommand, TpmImportResponse, Import),
     (TpmLoadCommand, TpmLoadResponse, Load),
     (TpmQuoteCommand, TpmQuoteResponse, Quote),
     (TpmRsaDecryptCommand, TpmRsaDecryptResponse, RsaDecrypt),
+    (TpmEccEncryptCommand, TpmEccEncryptResponse, EccEncrypt),
+    (TpmEccDecryptCommand, TpmEccDecryptResponse, EccDecrypt),
     (TpmSequenceUpdateCommand, TpmSequenceUpdateResponse, SequenceUpdate),
     (TpmSignCommand, TpmSignResponse, Sign),
     (TpmUnsealCommand, TpmUnsealResponse, Unseal),
