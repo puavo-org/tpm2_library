@@ -91,17 +91,6 @@ tpm_bool! {
     pub struct TpmiYesNo(bool);
 }
 
-tpm_enum! {
-    #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Hash, Default)]
-    pub enum TpmiEccKeyExchange(u16) {
-        #[default]
-        (None, 0x0000, "TPM_ECC_NONE"),
-        (Ecdh, 0x0019, "TPM_ALG_ECDH"),
-        (Ecmqv, 0x001D, "TPM_ALG_ECMQV"),
-        (Sm2, 0x001B, "TPM_ALG_SM2"),
-    }
-}
-
 tpml!(TpmlAlgProperty, TpmsAlgProperty, 64);
 tpml!(TpmlAlg, TpmAlgId, 64);
 tpml!(TpmlDigest, Tpm2bDigest, 8);
