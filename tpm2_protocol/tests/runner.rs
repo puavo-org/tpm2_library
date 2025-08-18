@@ -556,17 +556,21 @@ fn test_parse_build_tpmt_sym_def_xor() {
     );
 }
 
-fn test_buffer_slice_larger_than_u16_max() {
-    const CAPACITY: usize = 70_000;
+fn test_buffer_slice_larger_than_capacity() {
+    const CAPACITY: usize = 66_000;
     const DATA_LEN: usize = 66_000;
     let data = vec![0; DATA_LEN];
 
-    let result = TpmBuffer::<CAPACITY>::try_from(data.as_slice());
+    let buffer = TpmBuffer::<CAPACITY>::try_from(data.as_slice()).unwrap();
+
+    let mut out_buf = [0u8; TPM_MAX_COMMAND_SIZE];
+    let mut writer = TpmWriter::new(&mut out_buf);
+    let result = buffer.build(&mut writer);
 
     assert_eq!(
         result,
-        Err(TpmErrorKind::CapacityExceeded),
-        "Should reject slices with lengths that do not fit in a u16"
+        Err(TpmErrorKind::ValueTooLarge),
+        "Should reject building buffers with lengths that do not fit in a u16"
     );
 }
 
@@ -629,8 +633,8 @@ fn run_all_tests() -> usize {
             test_parse_build_tpmt_sym_def_xor,
         ),
         (
-            "test_buffer_slice_larger_than_u16_max",
-            test_buffer_slice_larger_than_u16_max,
+            "test_buffer_slice_larger_than_capacity",
+            test_buffer_slice_larger_than_capacity,
         ),
     ];
 
