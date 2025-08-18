@@ -40,7 +40,7 @@ enum PolicyAst {
 
 const ABOUT: &str = "Builds a policy using a policy expression";
 const USAGE: &str = "tpm2sh policy [OPTIONS] <EXPRESSION>";
-const ARGS: &[CommandLineArgument] = &[("EXPRESSION", "e.g. 'pcr(\\\"sha256:0\\\",\\\"...\\\")'")];
+const ARGS: &[CommandLineArgument] = &[("EXPRESSION", "e.g. 'pcr(\"sha256:0\",\"...\")'")];
 const OPTIONS: &[CommandLineOption] = &[
     (None, "--auth", "<AUTH>", "Authorization value"),
     (Some("-h"), "--help", "", "Print help information"),
@@ -316,7 +316,7 @@ impl Command for Policy {
                 Long("auth") => args.auth.auth = Some(parser.value()?.string()?),
                 Short('h') | Long("help") => {
                     Self::help();
-                    std::process::exit(0);
+                    return Err(TpmError::HelpDisplayed);
                 }
                 Value(val) if expression_arg.is_none() => {
                     expression_arg = Some(val.string()?);
@@ -330,7 +330,7 @@ impl Command for Policy {
             Ok(Commands::Policy(args))
         } else {
             Self::help();
-            std::process::exit(1);
+            Err(TpmError::HelpDisplayed)
         }
     }
 

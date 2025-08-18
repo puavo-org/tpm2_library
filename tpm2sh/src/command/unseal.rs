@@ -39,7 +39,7 @@ impl Command for Unseal {
                 Long("auth") => args.auth.auth = Some(parser.value()?.string()?),
                 Short('h') | Long("help") => {
                     Self::help();
-                    std::process::exit(0);
+                    return Err(TpmError::HelpDisplayed);
                 }
                 _ => return Err(TpmError::from(arg.unexpected())),
             }

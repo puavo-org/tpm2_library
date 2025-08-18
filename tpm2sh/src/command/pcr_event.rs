@@ -43,7 +43,7 @@ impl Command for PcrEvent {
                 Long("auth") => args.auth.auth = Some(parser.value()?.string()?),
                 Short('h') | Long("help") => {
                     Self::help();
-                    std::process::exit(0);
+                    return Err(TpmError::HelpDisplayed);
                 }
                 Value(val) if data_arg.is_none() => {
                     data_arg = Some(val.string()?);
@@ -57,7 +57,7 @@ impl Command for PcrEvent {
             Ok(Commands::PcrEvent(args))
         } else {
             Self::help();
-            std::process::exit(1);
+            Err(TpmError::HelpDisplayed)
         }
     }
 

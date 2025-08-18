@@ -31,7 +31,7 @@ impl Command for PcrRead {
             match arg {
                 Short('h') | Long("help") => {
                     Self::help();
-                    std::process::exit(0);
+                    return Err(TpmError::HelpDisplayed);
                 }
                 Value(val) if selection.is_none() => {
                     selection = Some(val.string()?);
@@ -44,7 +44,7 @@ impl Command for PcrRead {
             Ok(Commands::PcrRead(PcrRead { selection }))
         } else {
             Self::help();
-            std::process::exit(1);
+            Err(TpmError::HelpDisplayed)
         }
     }
 

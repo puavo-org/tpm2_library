@@ -2,7 +2,7 @@
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 // Copyright (c) 2025 Opinsys Oy
 
-use cli::execute_cli;
+use cli::{execute_cli, TpmError};
 use std::error::Error;
 use tracing::error;
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
@@ -14,14 +14,17 @@ fn main() {
         .finish();
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
-    if let Err(err) = execute_cli() {
-        error!("{}", err);
-
-        let mut source = err.source();
-        while let Some(cause) = source {
-            error!("  - {}", cause);
-            source = cause.source();
+    match execute_cli() {
+        Ok(()) => {}
+        Err(TpmError::HelpDisplayed) => {}
+        Err(err) => {
+            error!("{err}");
+            let mut source = err.source();
+            while let Some(cause) = source {
+                error!("  - {cause}");
+                source = cause.source();
+            }
+            std::process::exit(1);
         }
-        std::process::exit(1);
     }
 }

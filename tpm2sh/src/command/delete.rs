@@ -41,7 +41,7 @@ impl Command for Delete {
                 Long("auth") => args.auth.auth = Some(parser.value()?.string()?),
                 Short('h') | Long("help") => {
                     Self::help();
-                    std::process::exit(0);
+                    return Err(TpmError::HelpDisplayed);
                 }
                 Value(val) if handle_arg.is_none() => {
                     handle_arg = Some(val.string()?);
@@ -55,7 +55,7 @@ impl Command for Delete {
             Ok(Commands::Delete(args))
         } else {
             Self::help();
-            std::process::exit(1);
+            Err(TpmError::HelpDisplayed)
         }
     }
 

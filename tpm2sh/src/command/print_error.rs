@@ -29,7 +29,7 @@ impl Command for PrintError {
             match arg {
                 Short('h') | Long("help") => {
                     Self::help();
-                    std::process::exit(0);
+                    return Err(TpmError::HelpDisplayed);
                 }
                 Value(val) if rc_str.is_none() => {
                     rc_str = Some(val.string()?);
@@ -44,7 +44,7 @@ impl Command for PrintError {
             }))
         } else {
             Self::help();
-            std::process::exit(1);
+            Err(TpmError::HelpDisplayed)
         }
     }
 

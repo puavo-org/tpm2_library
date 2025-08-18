@@ -9,7 +9,7 @@ use crate::{
     },
     Command, TpmError,
 };
-use std::{ffi::OsString, fmt::Write, process::exit};
+use std::{ffi::OsString, fmt::Write};
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -158,13 +158,8 @@ const GLOBAL_OPTIONS: &[CommandLineOption] = &[
 ];
 
 fn print_usage() {
-    let mut output = format!(
-        "tpm2sh {VERSION}
-TPM 2.0 shell
-
-USAGE:
-    tpm2sh [OPTIONS] <COMMAND>"
-    );
+    let mut output =
+        format!("tpm2sh {VERSION}\nTPM 2.0 shell\n\nUSAGE:\n    tpm2sh [OPTIONS] <COMMAND>");
 
     let opt_items: Vec<(String, &str)> = GLOBAL_OPTIONS
         .iter()
@@ -194,7 +189,7 @@ USAGE:
 
 fn print_main_help() {
     print_usage();
-    let mut output = "SUBCOMMANDS:\n".to_string();
+    let mut output = "\nSUBCOMMANDS:\n".to_string();
     for cmd in SUBCOMMANDS {
         let _ = writeln!(output, "    {: <20} {}", cmd.name, cmd.about);
     }
@@ -272,7 +267,7 @@ pub fn parse_cli() -> Result<Option<Cli>, TpmError> {
 
     if cli.command.is_none() {
         print_usage();
-        exit(1);
+        return Err(TpmError::HelpDisplayed);
     }
 
     Ok(Some(cli))

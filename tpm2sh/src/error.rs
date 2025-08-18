@@ -10,6 +10,9 @@ pub enum TpmError {
     #[error("Failed to build TPM structure: {0}")]
     Build(TpmErrorKind),
 
+    #[error("Help message was displayed.")]
+    HelpDisplayed,
+
     #[error("Execution failed: {0}")]
     Execution(String),
 
