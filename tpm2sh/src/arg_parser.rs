@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2025 Opinsys Oy
-
-//! A modular, `lexopt`-based CLI parser.
+// Copyright (c) 2024-2025 Jarkko Sakkinen
 
 use crate::{
     cli::{

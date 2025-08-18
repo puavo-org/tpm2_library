@@ -32,7 +32,7 @@ pub mod message;
 pub mod parameters;
 
 use crate::data::TpmAlgId;
-use core::{any::Any, convert::TryFrom, fmt, mem::size_of, result::Result};
+use core::{convert::TryFrom, fmt, mem::size_of, result::Result};
 
 pub use buffer::TpmBuffer;
 pub use list::TpmList;
@@ -206,48 +206,6 @@ pub trait TpmParse: Sized + TpmSized {
     /// * `TpmErrorKind::Boundary` if the buffer is too small to contain the object.
     /// * `TpmErrorKind::InvalidDiscriminant` if a value in the buffer is invalid for the target type.
     fn parse(buf: &[u8]) -> TpmResult<(Self, &[u8])>;
-}
-
-#[allow(clippy::len_without_is_empty)]
-pub trait TpmObject: Any + fmt::Debug {
-    /// Builds the object into the given writer.
-    ///
-    /// # Errors
-    ///
-    /// * `TpmErrorKind::ValueTooLarge` if the object contains a value that cannot be built.
-    /// * `TpmErrorKind::Boundary` if the writer runs out of space.
-    fn build(&self, writer: &mut TpmWriter) -> TpmResult<()>;
-    /// Returns the exact serialized size of the object.
-    fn len(&self) -> usize;
-    /// Returns the object as a `&dyn Any` for downcasting.
-    fn as_any(&self) -> &dyn Any;
-    /// Performs a dynamic equality check against another `TpmObject`.
-    fn dyn_eq(&self, other: &dyn TpmObject) -> bool;
-}
-
-impl<T> TpmObject for T
-where
-    T: TpmBuild + TpmParse + PartialEq + Any + fmt::Debug,
-{
-    fn build(&self, writer: &mut TpmWriter) -> TpmResult<()> {
-        TpmBuild::build(self, writer)
-    }
-
-    fn len(&self) -> usize {
-        TpmSized::len(self)
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn dyn_eq(&self, other: &dyn TpmObject) -> bool {
-        if let Some(other) = other.as_any().downcast_ref::<T>() {
-            self == other
-        } else {
-            false
-        }
-    }
 }
 
 /// Types that are composed of a tag and a value e.g., a union.
