@@ -521,19 +521,6 @@ tpm_response! {
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmNvCertifyResponse,
-    TpmCc::NvCertify,
-    false,
-    true,
-    0,
-    {
-        pub certify_info: Tpm2bAttest,
-        pub signature: TpmtSignature,
-    }
-}
-
-tpm_struct! {
-    #[derive(Debug, PartialEq, Eq, Clone)]
     TpmCertifyCommand,
     TpmCc::Certify,
     false,

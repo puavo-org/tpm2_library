@@ -6,7 +6,8 @@
 
 use crate::{
     data::{
-        Tpm2bAuth, Tpm2bData, Tpm2bMaxNvBuffer, Tpm2bName, Tpm2bNvPublic, TpmCc, TpmtSignature,
+        Tpm2bAttest, Tpm2bAuth, Tpm2bData, Tpm2bMaxNvBuffer, Tpm2bName, Tpm2bNvPublic, TpmCc,
+        TpmtSignature,
     },
     tpm_struct,
 };
@@ -306,3 +307,16 @@ tpm_struct!(
         pub offset: u16,
     }
 );
+
+tpm_struct! {
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmNvCertifyResponse,
+    TpmCc::NvCertify,
+    false,
+    true,
+    0,
+    {
+        pub certify_info: Tpm2bAttest,
+        pub signature: TpmtSignature,
+    }
+}
