@@ -7,9 +7,9 @@ use crate::{
         Tpm2b, Tpm2bAttest, Tpm2bAuth, Tpm2bCreationData, Tpm2bData, Tpm2bDigest,
         Tpm2bEncryptedSecret, Tpm2bIdObject, Tpm2bMaxBuffer, Tpm2bName, Tpm2bPrivate, Tpm2bPublic,
         Tpm2bSensitive, Tpm2bSensitiveCreate, Tpm2bSensitiveData, TpmAlgId, TpmCap, TpmCc, TpmRc,
-        TpmRh, TpmSe, TpmSu, TpmiYesNo, TpmlAlg, TpmlPcrSelection, TpmsAuthCommand,
-        TpmsAuthResponse, TpmsCapabilityData, TpmsContext, TpmtSignature, TpmtSymDef,
-        TpmtSymDefObject, TpmtTkCreation, TpmtTkHashcheck, TpmtTkVerified,
+        TpmRh, TpmSe, TpmiYesNo, TpmlAlg, TpmlPcrSelection, TpmsAuthCommand, TpmsAuthResponse,
+        TpmsCapabilityData, TpmsContext, TpmtSignature, TpmtSymDef, TpmtSymDefObject,
+        TpmtTkCreation, TpmtTkHashcheck, TpmtTkVerified,
     },
     tpm_dispatch, tpm_response, tpm_struct, TpmBuild, TpmList, TpmParse, TpmPersistent, TpmSession,
     TpmSized, TpmTransient,
@@ -24,6 +24,7 @@ pub mod integrity;
 pub mod non_volatile;
 pub mod parse;
 pub mod sequence;
+pub mod startup;
 
 pub use asymmetric::*;
 pub use attestation::*;
@@ -33,6 +34,7 @@ pub use integrity::*;
 pub use non_volatile::*;
 pub use parse::*;
 pub use sequence::*;
+pub use startup::*;
 
 /// The maximum number of handles a command can have.
 pub const MAX_HANDLES: usize = 8;
@@ -55,50 +57,6 @@ pub trait TpmHeader: TpmBuild + TpmParse + Debug {
 }
 
 pub const TPM_HEADER_SIZE: usize = 10;
-
-tpm_struct! {
-    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmStartupCommand,
-    TpmCc::Startup,
-    true,
-    false,
-    0,
-    {
-        pub startup_type: TpmSu,
-    }
-}
-
-tpm_struct! {
-    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmStartupResponse,
-    TpmCc::Startup,
-    true,
-    false,
-    0,
-    {}
-}
-
-tpm_struct! {
-    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmShutdownCommand,
-    TpmCc::Shutdown,
-    true,
-    true,
-    0,
-    {
-        pub shutdown_type: TpmSu,
-    }
-}
-
-tpm_struct! {
-    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmShutdownResponse,
-    TpmCc::Shutdown,
-    true,
-    true,
-    0,
-    {}
-}
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
