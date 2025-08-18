@@ -4,9 +4,9 @@
 
 use crate::{
     arg_parser::{format_subcommand_help, CommandLineArgument, CommandLineOption},
-    build_to_vec,
     cli::{self, Commands, Object, PcrRead},
-    get_pcr_count, parse_pcr_selection, Command, TpmDevice, TpmError,
+    get_pcr_count, parse_pcr_selection, pcr_response_to_output, Command, Envelope, TpmDevice,
+    TpmError,
 };
 use lexopt::prelude::*;
 use tpm2_protocol::message::TpmPcrReadCommand;
@@ -63,8 +63,14 @@ impl Command for PcrRead {
             .PcrRead()
             .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
 
-        let response_bytes = build_to_vec(&pcr_read_resp)?;
-        let obj = Object::TpmObject(hex::encode(response_bytes));
+        let pcr_output = pcr_response_to_output(&pcr_read_resp)?;
+        let envelope = Envelope {
+            version: 1,
+            object_type: "pcr-values".to_string(),
+            data: pcr_output.to_json(),
+        };
+
+        let obj = Object::TpmObject(envelope.to_json().dump());
         println!("{}", obj.to_json().dump());
 
         Ok(())

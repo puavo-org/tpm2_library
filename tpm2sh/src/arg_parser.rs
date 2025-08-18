@@ -5,7 +5,7 @@
 use crate::{
     cli::{
         Algorithms, Cli, Commands, Convert, CreatePrimary, Delete, Import, Load, Objects, PcrEvent,
-        PcrRead, Policy, PrintError, ResetLock, Save, Seal, StartSession, Unseal,
+        PcrRead, Policy, PrintError, PrintStack, ResetLock, Save, Seal, StartSession, Unseal,
     },
     Command, TpmError,
 };
@@ -124,6 +124,10 @@ const SUBCOMMANDS: &[Subcommand] = &[
         about: "Encodes and print a TPM error code",
     },
     Subcommand {
+        name: "print-stack",
+        about: "Prints a human-readable summary of the object stack to stderr",
+    },
+    Subcommand {
         name: "reset-lock",
         about: "Resets the dictionary attack lockout timer",
     },
@@ -217,6 +221,7 @@ fn dispatch_subcommand(
         Some("pcr-read") => PcrRead::parse(parser),
         Some("policy") => Policy::parse(parser),
         Some("print-error") => PrintError::parse(parser),
+        Some("print-stack") => PrintStack::parse(parser),
         Some("reset-lock") => ResetLock::parse(parser),
         Some("save") => Save::parse(parser),
         Some("seal") => Seal::parse(parser),

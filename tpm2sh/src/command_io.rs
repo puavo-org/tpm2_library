@@ -101,6 +101,11 @@ impl<W: Write> CommandIo<W> {
         Ok(self.input_objects.remove(pos))
     }
 
+    /// Consumes and returns all input objects.
+    pub fn consume_all_objects(&mut self) -> Vec<cli::Object> {
+        std::mem::take(&mut self.input_objects)
+    }
+
     /// Adds an object to be written to the output stream upon finalization.
     pub fn push_object(&mut self, obj: cli::Object) {
         self.output_objects.push(obj);

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2025 Opinsys Oy
 
+use crate::{ContextData, ObjectData, PcrOutput, SessionData};
+use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
 use std::vec::Vec;
 use tpm2_protocol::{
     data::{
@@ -21,11 +23,94 @@ use tpm2_protocol::{
         TpmPolicySecretCommand, TpmReadPublicCommand, TpmResponseBody, TpmStartAuthSessionCommand,
         TpmStartAuthSessionResponse, TpmUnsealCommand,
     },
-    TpmBuffer, TpmList, TpmPersistent, TpmSession, TpmTransient,
+    TpmBuffer, TpmList, TpmParse, TpmPersistent, TpmSession, TpmTransient,
 };
 use tracing::trace;
 
 const INDENT: usize = 2;
+
+/// Pretty-prints a JSON object from the pipeline to stdout.
+pub fn pretty_print_json_object_to_stdout(obj: &json::JsonValue, indent: usize) {
+    let prefix = " ".repeat(indent * INDENT);
+    let obj_type = obj["type"].as_str().unwrap_or("unknown");
+    println!("{prefix}Type: {obj_type}");
+
+    let data = &obj["data"];
+    match obj_type {
+        "object" => {
+            if let Ok(d) = ObjectData::from_json(data) {
+                println!("{prefix}  Parent: {}", d.parent);
+                if let Ok(pub_bytes) = base64_engine.decode(d.public) {
+                    if let Ok((pub_obj, _)) = data::Tpm2bPublic::parse(&pub_bytes) {
+                        println!("{prefix}  Public:");
+                        pretty_print_tpmt_public(&pub_obj.inner, indent + 2);
+                    }
+                }
+            }
+        }
+        "session" => {
+            if let Ok(d) = SessionData::from_json(data) {
+                println!("{prefix}  Handle: {:#010x}", d.handle);
+                if let Ok(alg) = TpmAlgId::try_from(d.auth_hash) {
+                    println!("{prefix}  Auth Hash: {alg}");
+                }
+                println!("{prefix}  Policy Digest: {}", d.policy_digest);
+            }
+        }
+        "context" => {
+            if let Ok(d) = ContextData::from_json(data) {
+                if let Ok(ctx_bytes) = base64_engine.decode(d.context_blob) {
+                    if let Ok((ctx_obj, _)) = data::TpmsContext::parse(&ctx_bytes) {
+                        println!("{prefix}  Context:");
+                        println!("{prefix}    Sequence: {:#x}", ctx_obj.sequence);
+                        println!("{prefix}    Saved Handle: {:#010x}", ctx_obj.saved_handle);
+                        println!("{prefix}    Hierarchy: {}", ctx_obj.hierarchy);
+                    }
+                }
+            }
+        }
+        "pcr-values" => {
+            if let Ok(d) = PcrOutput::from_json(data) {
+                println!("{prefix}  Update Counter: {}", d.update_counter);
+                for (bank, pcrs) in d.banks {
+                    println!("{prefix}  Bank ({bank}):");
+                    for (pcr, digest) in pcrs {
+                        println!("{prefix}    PCR {pcr}: {digest}");
+                    }
+                }
+            }
+        }
+        _ => println!("{prefix}  Data: {}", data.dump()),
+    }
+}
+
+fn pretty_print_tpmt_public(public: &TpmtPublic, indent: usize) {
+    let prefix = " ".repeat(indent * INDENT);
+    println!("{prefix}Type: {}", public.object_type);
+    println!("{prefix}Name Alg: {}", public.name_alg);
+    let flags: Vec<_> = public.object_attributes.flag_names().collect();
+    println!("{prefix}Attributes: {}", flags.join(" | "));
+
+    match &public.parameters {
+        TpmuPublicParms::Rsa {
+            key_bits, exponent, ..
+        } => {
+            println!("{prefix}Parameters (RSA):");
+            println!("{prefix}  Key Bits: {key_bits}");
+            let exp_val = if *exponent == 0 {
+                "65537 (default)".to_string()
+            } else {
+                exponent.to_string()
+            };
+            println!("{prefix}  Exponent: {exp_val}");
+        }
+        TpmuPublicParms::Ecc { curve_id, .. } => {
+            println!("{prefix}Parameters (ECC):");
+            println!("{prefix}  Curve: {curve_id:?}");
+        }
+        _ => {}
+    }
+}
 
 pub trait PrettyTrace {
     fn pretty_trace(&self, name: &str, indent: usize);

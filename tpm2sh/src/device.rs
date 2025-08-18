@@ -9,6 +9,8 @@ use std::{
     fs::{File, OpenOptions},
     io::{self, IsTerminal, Read, Write},
     path::Path,
+    sync::mpsc,
+    thread,
     time::Duration,
 };
 use tpm2_protocol::{
@@ -50,7 +52,7 @@ impl TpmDevice {
 
     /// Sends a command to the TPM and waits for the response.
     ///
-    /// Displays a spinner on stderr if the operation is long-running.
+    /// Displays a spinner on stderr if the operation takes longer than one second.
     ///
     /// # Errors
     ///
@@ -84,16 +86,25 @@ impl TpmDevice {
             writer.len()
         };
         let command_bytes = &command_buf[..len];
+        let style = ProgressStyle::with_template("{spinner:.cyan.bold} {msg}")?
+            .tick_strings(&["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]);
 
-        let maybe_pb = if std::io::stderr().is_terminal() {
-            let pb = ProgressBar::new_spinner();
-            pb.enable_steady_tick(Duration::from_millis(100));
-            pb.set_style(
-                ProgressStyle::with_template("{spinner:.cyan.bold} {msg}")?
-                    .tick_strings(&["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]),
-            );
-            pb.set_message("Waiting for TPM...");
-            Some(pb)
+        let (tx, rx) = mpsc::channel::<()>();
+        let spinner_thread = if std::io::stderr().is_terminal() {
+            let handle = thread::spawn(move || {
+                if let Err(mpsc::RecvTimeoutError::Timeout) =
+                    rx.recv_timeout(Duration::from_secs(1))
+                {
+                    let pb = ProgressBar::new_spinner();
+                    pb.enable_steady_tick(Duration::from_millis(100));
+                    pb.set_style(style);
+                    pb.set_message("Waiting for TPM...");
+
+                    let _ = rx.recv();
+                    pb.finish_with_message("✔ TPM operation complete.");
+                }
+            });
+            Some(handle)
         } else {
             None
         };
@@ -117,8 +128,9 @@ impl TpmDevice {
         let size = u32::from_be_bytes(size_bytes) as usize;
 
         if size < header.len() || size > TPM_MAX_COMMAND_SIZE {
-            if let Some(pb) = maybe_pb {
-                pb.abandon_with_message("✖ Invalid response size in TPM header.");
+            drop(tx);
+            if let Some(handle) = spinner_thread {
+                let _ = handle.join();
             }
             return Err(TpmError::Parse(format!(
                 "Invalid response size in header: {size}"
@@ -129,8 +141,9 @@ impl TpmDevice {
         resp_buf.resize(size, 0);
         self.file.read_exact(&mut resp_buf[header.len()..])?;
 
-        if let Some(pb) = maybe_pb {
-            pb.finish_with_message("✔ TPM operation complete.");
+        drop(tx);
+        if let Some(handle) = spinner_thread {
+            let _ = handle.join();
         }
 
         let result = tpm2_protocol::message::tpm_parse_response(C::COMMAND, &resp_buf)?;

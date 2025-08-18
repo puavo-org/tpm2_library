@@ -13,6 +13,7 @@ pub mod pcr_event;
 pub mod pcr_read;
 pub mod policy;
 pub mod print_error;
+pub mod print_stack;
 pub mod reset_lock;
 pub mod save;
 pub mod seal;

@@ -191,6 +191,7 @@ pub enum Commands {
     PcrRead(PcrRead),
     Policy(Policy),
     PrintError(PrintError),
+    PrintStack(PrintStack),
     ResetLock(ResetLock),
     Save(Save),
     Seal(Seal),
@@ -230,6 +231,7 @@ impl Command for Commands {
             Self::PcrRead(args) => args.run(device, log_format),
             Self::Policy(args) => args.run(device, log_format),
             Self::PrintError(args) => args.run(device, log_format),
+            Self::PrintStack(args) => args.run(device, log_format),
             Self::ResetLock(args) => args.run(device, log_format),
             Self::Save(args) => args.run(device, log_format),
             Self::Seal(args) => args.run(device, log_format),
@@ -299,6 +301,9 @@ pub struct PcrEvent {
 pub struct PrintError {
     pub rc: TpmRc,
 }
+
+#[derive(Debug, Default)]
+pub struct PrintStack {}
 
 #[derive(Debug, Default)]
 pub struct ResetLock {
