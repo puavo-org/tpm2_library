@@ -7,6 +7,7 @@
 
 use std::{convert::TryFrom, io::IsTerminal, string::ToString, vec::Vec};
 use tpm2_protocol::{
+    build_tpm2b,
     data::{
         Tpm2bAuth, Tpm2bDigest, Tpm2bMaxBuffer, Tpm2bNonce, TpmAlgId, TpmCap, TpmCc, TpmRc,
         TpmRcBase, TpmRcIndex, TpmRh, TpmaSession, TpmlPcrSelection, TpmtSymDef, TpmuSymKeyBits,
@@ -556,21 +557,36 @@ fn test_parse_build_tpmt_sym_def_xor() {
     );
 }
 
-fn test_buffer_slice_larger_than_capacity() {
-    const CAPACITY: usize = 66_000;
-    const DATA_LEN: usize = 66_000;
-    let data = vec![0; DATA_LEN];
+fn test_try_from_slice_larger_than_capacity() {
+    const CAPACITY: usize = 4096;
+    let data = vec![0; CAPACITY + 1];
 
-    let buffer = TpmBuffer::<CAPACITY>::try_from(data.as_slice()).unwrap();
+    let result = TpmBuffer::<CAPACITY>::try_from(data.as_slice());
 
-    let mut out_buf = [0u8; TPM_MAX_COMMAND_SIZE];
+    assert_eq!(
+        result,
+        Err(TpmErrorKind::CapacityExceeded),
+        "Should reject creating a TpmBuffer from a slice larger than its capacity"
+    );
+}
+
+fn test_build_tpm2b_length_exceeds_u16_max() {
+    let large_slice: &[u8] = unsafe {
+        std::slice::from_raw_parts(
+            std::ptr::NonNull::<u8>::dangling().as_ptr(),
+            u16::MAX as usize + 1,
+        )
+    };
+
+    let mut out_buf = [0u8; 10];
     let mut writer = TpmWriter::new(&mut out_buf);
-    let result = buffer.build(&mut writer);
+
+    let result = build_tpm2b(&mut writer, large_slice);
 
     assert_eq!(
         result,
         Err(TpmErrorKind::ValueTooLarge),
-        "Should reject building buffers with lengths that do not fit in a u16"
+        "Should reject building a TPM2B structure with a length that does not fit in a u16"
     );
 }
 
@@ -633,8 +649,12 @@ fn run_all_tests() -> usize {
             test_parse_build_tpmt_sym_def_xor,
         ),
         (
-            "test_buffer_slice_larger_than_capacity",
-            test_buffer_slice_larger_than_capacity,
+            "test_try_from_slice_larger_than_capacity",
+            test_try_from_slice_larger_than_capacity,
+        ),
+        (
+            "test_build_tpm2b_length_exceeds_u16_max",
+            test_build_tpm2b_length_exceeds_u16_max,
         ),
     ];
 
