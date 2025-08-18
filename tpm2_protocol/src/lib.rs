@@ -334,7 +334,7 @@ tpm_integer!(u64);
 ///
 /// * `TpmErrorKind::ValueTooLarge` if the data slice is too large to fit in a `u16` length.
 pub fn build_tpm2b(writer: &mut TpmWriter, data: &[u8]) -> TpmResult<()> {
-    let len_u16 = u16::try_from(data.len()).map_err(|_| TpmErrorKind::CapacityExceeded)?;
+    let len_u16 = u16::try_from(data.len()).map_err(|_| TpmErrorKind::ValueTooLarge)?;
     TpmBuild::build(&len_u16, writer)?;
     writer.write_bytes(data)
 }
