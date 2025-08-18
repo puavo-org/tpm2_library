@@ -48,6 +48,22 @@ tpm_enum! {
 
 tpm_enum! {
     #[derive(Debug, PartialEq, Eq, Copy, Clone)]
+    pub enum TpmAt(u32) {
+        (Any, 0x0000_0000, "TPM_AT_ANY"),
+        (Error, 0x0000_0001, "TPM_AT_ERROR"),
+        (Pv1, 0x0000_0002, "TPM_AT_PV1"),
+        (Vend, 0x8000_0000, "TPM_AT_VEND"),
+    }
+}
+
+impl Default for TpmAt {
+    fn default() -> Self {
+        Self::Any
+    }
+}
+
+tpm_enum! {
+    #[derive(Debug, PartialEq, Eq, Copy, Clone)]
     pub enum TpmCap(u32) {
         (Algs, 0x0000_0000, "TPM_CAP_ALGS"),
         (Handles, 0x0000_0001, "TPM_CAP_HANDLES"),
@@ -148,6 +164,10 @@ tpm_enum! {
         (PolicyGetDigest, 0x0000_0189, "TPM_CC_PolicyGetDigest"),
         (PolicyPassword, 0x0000_018C, "TPM_CC_PolicyPassword"),
         (EncryptDecrypt2, 0x0000_0193, "TPM_CC_EncryptDecrypt2"),
+        (AcGetCapability, 0x0000_0194, "TPM_CC_AcGetCapability"),
+        (AcSend, 0x0000_0195, "TPM_CC_AcSend"),
+        (PolicyAcSendSelect, 0x0000_0196, "TPM_CC_Policy_AC_SendSelect"),
+        (ActSetTimeout, 0x0000_0198, "TPM2_ACT_SetTimeout"),
         (NvDefineSpace2, 0x0000_019D, "TPM_CC_NV_DefineSpace2"),
         (NvReadPublic2, 0x0000_019E, "TPM_CC_NV_ReadPublic2"),
         (VendorTcgTest, 0x2000_0000, "TPM_CC_Vendor_TCG_Test"),

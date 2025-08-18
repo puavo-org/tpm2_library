@@ -91,6 +91,7 @@ tpm_bool! {
     pub struct TpmiYesNo(bool);
 }
 
+tpml!(TpmlAcCapabilities, TpmsAcOutput, 64);
 tpml!(TpmlAlgProperty, TpmsAlgProperty, 64);
 tpml!(TpmlAlg, TpmAlgId, 64);
 tpml!(TpmlDigest, Tpm2bDigest, 8);

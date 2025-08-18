@@ -17,6 +17,7 @@ use crate::{
 use core::fmt::Debug;
 
 pub mod asymmetric;
+pub mod attached;
 pub mod attestation;
 pub mod build;
 pub mod enhanced_authorization;
@@ -28,6 +29,7 @@ pub mod sequence;
 pub mod startup;
 
 pub use asymmetric::*;
+pub use attached::*;
 pub use attestation::*;
 pub use build::*;
 pub use enhanced_authorization::*;
@@ -412,7 +414,7 @@ tpm_response! {
 }
 
 tpm_struct! {
-    #[derive(Debug, PartialEq, Eq, Clone)]
+    #[derive(Debug, PartialEq, Eq, Clone, Copy)]
     TpmSelfTestCommand,
     TpmCc::SelfTest,
     true,
@@ -811,5 +813,9 @@ tpm_dispatch! {
     (TpmPolicyGetDigestCommand, TpmPolicyGetDigestResponse, PolicyGetDigest),
     (TpmPolicyPasswordCommand, TpmPolicyPasswordResponse, PolicyPassword),
     (TpmEncryptDecrypt2Command, TpmEncryptDecrypt2Response, EncryptDecrypt2),
+    (TpmAcGetCapabilityCommand, TpmAcGetCapabilityResponse, AcGetCapability),
+    (TpmAcSendCommand, TpmAcSendResponse, AcSend),
+    (TpmPolicyAcSendSelectCommand, TpmPolicyAcSendSelectResponse, PolicyAcSendSelect),
+    (TpmActSetTimeoutCommand, TpmActSetTimeoutResponse, ActSetTimeout),
     (TpmVendorTcgTestCommand, TpmVendorTcgTestResponse, VendorTcgTest),
 }

@@ -5,9 +5,9 @@
 use crate::{
     data::{
         Tpm2b, Tpm2bAuth, Tpm2bData, Tpm2bDigest, Tpm2bEccParameter, Tpm2bMaxNvBuffer, Tpm2bName,
-        Tpm2bNonce, Tpm2bSensitiveData, TpmAlgId, TpmCap, TpmEccCurve, TpmRh, TpmSt, TpmaAlgorithm,
-        TpmaLocality, TpmaNv, TpmaSession, TpmiYesNo, TpmlPcrSelection, TpmtKdfScheme, TpmtScheme,
-        TpmtSymDefObject, TpmuCapabilities,
+        Tpm2bNonce, Tpm2bSensitiveData, TpmAlgId, TpmAt, TpmCap, TpmEccCurve, TpmRh, TpmSt,
+        TpmaAlgorithm, TpmaLocality, TpmaNv, TpmaSession, TpmiYesNo, TpmlPcrSelection,
+        TpmtKdfScheme, TpmtScheme, TpmtSymDefObject, TpmuCapabilities,
     },
     tpm_struct, TpmBuffer, TpmBuild, TpmErrorKind, TpmParse, TpmParseTagged, TpmResult, TpmSized,
     TpmTagged, TpmWriter,
@@ -16,6 +16,14 @@ use core::{convert::TryFrom, mem::size_of, ops::Deref};
 
 pub const TPM_PCR_SELECT_MAX: usize = 3;
 pub type TpmsPcrSelect = TpmBuffer<TPM_PCR_SELECT_MAX>;
+
+tpm_struct! {
+    #[derive(Debug, PartialEq, Eq, Clone, Copy, Default)]
+    pub struct TpmsAcOutput {
+        pub tag: TpmAt,
+        pub data: u32,
+    }
+}
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone, Default, Copy)]
