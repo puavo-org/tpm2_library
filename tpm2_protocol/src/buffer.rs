@@ -79,10 +79,12 @@ impl<const CAPACITY: usize> AsRef<[u8]> for TpmBuffer<CAPACITY> {
 impl<const CAPACITY: usize> Debug for TpmBuffer<CAPACITY> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "TpmBuffer(")?;
-        for byte in &**self {
-            write!(f, "{byte:02x}")?;
+        if let Some(first) = self.first() {
+            write!(f, "{first:02X}")?;
+            for byte in self.iter().skip(1) {
+                write!(f, " {byte:02X}")?;
+            }
         }
-
         write!(f, ")")
     }
 }
