@@ -9,7 +9,7 @@ use crate::{
 };
 use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
 use lexopt::prelude::*;
-use std::io;
+use std::io::{self, IsTerminal};
 use tpm2_protocol::{
     data::{Tpm2bPrivate, Tpm2bPublic},
     message::TpmLoadCommand,
@@ -57,6 +57,11 @@ impl Command for Load {
     ///
     /// Returns a `TpmError` if the execution fails
     fn run(&self, chip: &mut TpmDevice, log_format: cli::LogFormat) -> Result<(), TpmError> {
+        if std::io::stdin().is_terminal() {
+            Self::help();
+            std::process::exit(1);
+        }
+
         let mut io = CommandIo::new(io::stdin(), io::stdout(), log_format)?;
         let session = io.take_session()?;
 

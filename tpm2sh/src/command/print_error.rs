@@ -23,19 +23,29 @@ impl Command for PrintError {
     }
 
     fn parse(parser: &mut lexopt::Parser) -> Result<Commands, TpmError> {
-        let rc_str = parser.value()?.string()?;
-        if let Some(arg) = parser.next()? {
+        let mut rc_str = None;
+
+        while let Some(arg) = parser.next()? {
             match arg {
                 Short('h') | Long("help") => {
                     Self::help();
                     std::process::exit(0);
                 }
+                Value(val) if rc_str.is_none() => {
+                    rc_str = Some(val.string()?);
+                }
                 _ => return Err(TpmError::from(arg.unexpected())),
             }
         }
-        Ok(Commands::PrintError(PrintError {
-            rc: parse_tpm_rc(&rc_str)?,
-        }))
+
+        if let Some(s) = rc_str {
+            Ok(Commands::PrintError(PrintError {
+                rc: parse_tpm_rc(&s)?,
+            }))
+        } else {
+            Self::help();
+            std::process::exit(1);
+        }
     }
 
     fn run(&self, _device: &mut TpmDevice, _log_format: cli::LogFormat) -> Result<(), TpmError> {

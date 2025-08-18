@@ -309,7 +309,7 @@ impl Command for Policy {
 
     fn parse(parser: &mut lexopt::Parser) -> Result<Commands, TpmError> {
         let mut args = Policy::default();
-        let mut expression_arg = None;
+        let mut expression_arg: Option<String> = None;
 
         while let Some(arg) = parser.next()? {
             match arg {
@@ -319,17 +319,19 @@ impl Command for Policy {
                     std::process::exit(0);
                 }
                 Value(val) if expression_arg.is_none() => {
-                    expression_arg = Some(val);
+                    expression_arg = Some(val.string()?);
                 }
                 _ => return Err(TpmError::from(arg.unexpected())),
             }
         }
-        args.expression = expression_arg
-            .ok_or_else(|| {
-                TpmError::Execution("missing required positional argument <EXPRESSION>".to_string())
-            })?
-            .string()?;
-        Ok(Commands::Policy(args))
+
+        if let Some(expression) = expression_arg {
+            args.expression = expression;
+            Ok(Commands::Policy(args))
+        } else {
+            Self::help();
+            std::process::exit(1);
+        }
     }
 
     /// Run 'policy'.

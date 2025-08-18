@@ -46,17 +46,19 @@ impl Command for PcrEvent {
                     std::process::exit(0);
                 }
                 Value(val) if data_arg.is_none() => {
-                    data_arg = Some(val);
+                    data_arg = Some(val.string()?);
                 }
                 _ => return Err(TpmError::from(arg.unexpected())),
             }
         }
-        args.data = data_arg
-            .ok_or_else(|| {
-                TpmError::Execution("missing required positional argument <DATA>".to_string())
-            })?
-            .string()?;
-        Ok(Commands::PcrEvent(args))
+
+        if let Some(data) = data_arg {
+            args.data = data;
+            Ok(Commands::PcrEvent(args))
+        } else {
+            Self::help();
+            std::process::exit(1);
+        }
     }
 
     /// Runs `pcr-event`.

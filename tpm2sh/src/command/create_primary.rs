@@ -176,9 +176,8 @@ impl Command for CreatePrimary {
             }
         }
         if !alg_set {
-            return Err(TpmError::Execution(
-                "the following required arguments were not provided: --alg <ALGORITHM>".to_string(),
-            ));
+            Self::help();
+            std::process::exit(1);
         }
         Ok(Commands::CreatePrimary(args))
     }

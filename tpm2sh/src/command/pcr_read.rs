@@ -25,17 +25,27 @@ impl Command for PcrRead {
     }
 
     fn parse(parser: &mut lexopt::Parser) -> Result<Commands, TpmError> {
-        let selection = parser.value()?.string()?;
-        if let Some(arg) = parser.next()? {
+        let mut selection = None;
+
+        while let Some(arg) = parser.next()? {
             match arg {
                 Short('h') | Long("help") => {
                     Self::help();
                     std::process::exit(0);
                 }
+                Value(val) if selection.is_none() => {
+                    selection = Some(val.string()?);
+                }
                 _ => return Err(TpmError::from(arg.unexpected())),
             }
         }
-        Ok(Commands::PcrRead(PcrRead { selection }))
+
+        if let Some(selection) = selection {
+            Ok(Commands::PcrRead(PcrRead { selection }))
+        } else {
+            Self::help();
+            std::process::exit(1);
+        }
     }
 
     /// Runs `pcr-read`.

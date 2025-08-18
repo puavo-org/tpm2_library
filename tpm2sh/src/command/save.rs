@@ -9,6 +9,7 @@ use crate::{
     TpmError,
 };
 use lexopt::prelude::*;
+use std::io::IsTerminal;
 use tpm2_protocol::{data::TpmRh, message::TpmEvictControlCommand};
 
 const ABOUT: &str = "Saves to non-volatile memory";
@@ -64,6 +65,11 @@ impl Command for Save {
     ///
     /// Returns a `TpmError` if the execution fails
     fn run(&self, chip: &mut TpmDevice, log_format: cli::LogFormat) -> Result<(), TpmError> {
+        if self.object_handle == 0 && std::io::stdin().is_terminal() {
+            Self::help();
+            std::process::exit(1);
+        }
+
         let mut io = CommandIo::new(std::io::stdin(), std::io::stdout(), log_format)?;
         let session = io.take_session()?;
 

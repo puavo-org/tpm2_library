@@ -261,7 +261,7 @@ pub struct Save {
 
 #[derive(Debug, Default)]
 pub struct Delete {
-    pub handle: u32,
+    pub handle: String,
     pub auth: AuthArgs,
 }
 

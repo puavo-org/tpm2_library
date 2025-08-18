@@ -14,10 +14,10 @@ use tpm2_protocol::{
 };
 
 const ABOUT: &str = "Deletes a transient or persistent object";
-const USAGE: &str = "tpm2sh delete [OPTIONS] [HANDLE]";
+const USAGE: &str = "tpm2sh delete [OPTIONS] <HANDLE>";
 const ARGS: &[CommandLineArgument] = &[(
     "HANDLE",
-    "Handle of the object to delete (optional if piped)",
+    "Handle of the object to delete, or '-' to read from stdin",
 )];
 const OPTIONS: &[CommandLineOption] = &[
     (None, "--auth", "<AUTH>", "Authorization value"),
@@ -34,7 +34,7 @@ impl Command for Delete {
 
     fn parse(parser: &mut lexopt::Parser) -> Result<Commands, TpmError> {
         let mut args = Delete::default();
-        let mut handle_str = None;
+        let mut handle_arg = None;
 
         while let Some(arg) = parser.next()? {
             match arg {
@@ -43,17 +43,20 @@ impl Command for Delete {
                     Self::help();
                     std::process::exit(0);
                 }
-                Value(val) if handle_str.is_none() => {
-                    handle_str = Some(val);
+                Value(val) if handle_arg.is_none() => {
+                    handle_arg = Some(val.string()?);
                 }
                 _ => return Err(TpmError::from(arg.unexpected())),
             }
         }
 
-        if let Some(handle) = handle_str {
-            args.handle = parse_hex_u32(&handle.to_string_lossy())?;
+        if let Some(handle) = handle_arg {
+            args.handle = handle;
+            Ok(Commands::Delete(args))
+        } else {
+            Self::help();
+            std::process::exit(1);
         }
-        Ok(Commands::Delete(args))
     }
 
     /// Runs `delete`.
@@ -65,12 +68,12 @@ impl Command for Delete {
         let mut io = CommandIo::new(std::io::stdin(), std::io::stdout(), log_format)?;
         let session = io.take_session()?;
 
-        let handle = if self.handle != 0 {
-            self.handle
-        } else {
+        let handle = if self.handle == "-" {
             let obj = io.consume_object(|_| true)?;
             let Object::TpmObject(hex_string) = obj;
             parse_hex_u32(&hex_string)?
+        } else {
+            parse_hex_u32(&self.handle)?
         };
 
         if handle >= TpmRh::PersistentFirst as u32 {
