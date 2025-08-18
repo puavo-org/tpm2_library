@@ -12,7 +12,7 @@ use crate::{
         TpmtTkCreation, TpmtTkHashcheck, TpmtTkVerified,
     },
     tpm_dispatch, tpm_response, tpm_struct, TpmBuild, TpmList, TpmParse, TpmPersistent, TpmSession,
-    TpmSized, TpmTransient,
+    TpmTransient,
 };
 use core::fmt::Debug;
 
@@ -172,41 +172,6 @@ tpm_struct! {
         pub duplicate: Tpm2bPrivate,
         pub in_sym_seed: Tpm2bEncryptedSecret,
         pub symmetric_alg: TpmtSymDef,
-    }
-}
-
-#[derive(Debug, Default, PartialEq, Eq, Clone)]
-pub struct TpmPolicyGetDigestResponse {
-    pub policy_digest: Tpm2bDigest,
-}
-
-impl TpmHeader for TpmPolicyGetDigestResponse {
-    const COMMAND: TpmCc = TpmCc::PolicyGetDigest;
-    const NO_SESSIONS: bool = false;
-    const WITH_SESSIONS: bool = true;
-    const HANDLES: usize = 0;
-}
-
-impl crate::TpmSized for TpmPolicyGetDigestResponse {
-    const SIZE: usize = <Tpm2bDigest>::SIZE;
-    fn len(&self) -> usize {
-        TpmSized::len(&self.policy_digest)
-    }
-}
-
-impl crate::TpmBuild for TpmPolicyGetDigestResponse {
-    fn build(&self, writer: &mut crate::TpmWriter) -> crate::TpmResult<()> {
-        TpmBuild::build(&self.policy_digest, writer)
-    }
-}
-
-impl crate::TpmParse for TpmPolicyGetDigestResponse {
-    fn parse(buf: &[u8]) -> crate::TpmResult<(Self, &[u8])> {
-        if buf.is_empty() {
-            return Ok((Self::default(), buf));
-        }
-        let (policy_digest, buf) = Tpm2bDigest::parse(buf)?;
-        Ok((Self { policy_digest }, buf))
     }
 }
 

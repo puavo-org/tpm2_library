@@ -17,7 +17,7 @@ use tpm2_protocol::{
         tpm_build_command, tpm_build_response, tpm_parse_command, tpm_parse_response,
         TpmAuthCommands, TpmCommandBody, TpmContextSaveCommand, TpmEvictControlCommand,
         TpmFlushContextCommand, TpmFlushContextResponse, TpmGetCapabilityCommand, TpmHashCommand,
-        TpmPcrEventResponse, TpmPcrReadCommand, TpmPcrReadResponse,
+        TpmPcrEventResponse, TpmPcrReadCommand, TpmPcrReadResponse, TpmPolicyGetDigestResponse,
     },
     TpmBuffer, TpmBuild, TpmErrorKind, TpmParse, TpmPersistent, TpmSession, TpmWriter,
     TPM_MAX_COMMAND_SIZE,
@@ -590,6 +590,40 @@ fn test_build_tpm2b_length_exceeds_u16_max() {
     );
 }
 
+fn test_parse_policy_get_digest_response() {
+    let original_resp = TpmPolicyGetDigestResponse {
+        policy_digest: Tpm2bDigest::try_from(&[0xAA; 32][..]).unwrap(),
+    };
+    let rc = TpmRc::try_from(TpmRcBase::Success as u32).unwrap();
+
+    let mut buf = [0u8; TPM_MAX_COMMAND_SIZE];
+    let len = {
+        let mut writer = TpmWriter::new(&mut buf);
+        tpm_build_response(&original_resp, &[], rc, &mut writer).unwrap();
+        writer.len()
+    };
+    let response_bytes = &buf[..len];
+
+    let body_buf = &response_bytes[10..];
+
+    let result = TpmPolicyGetDigestResponse::parse(body_buf);
+
+    assert!(
+        result.is_ok(),
+        "Parsing should succeed with the fixed parser. Result: {:?}",
+        result
+    );
+    let (parsed_resp, remainder) = result.unwrap();
+    assert_eq!(
+        parsed_resp, original_resp,
+        "Parsed response does not match original"
+    );
+    assert!(
+        remainder.is_empty(),
+        "Response should have no trailing data"
+    );
+}
+
 fn print_ok() {
     if std::io::stderr().is_terminal() {
         println!("\x1B[32mOK\x1B[0m");
@@ -655,6 +689,10 @@ fn run_all_tests() -> usize {
         (
             "test_build_tpm2b_length_exceeds_u16_max",
             test_build_tpm2b_length_exceeds_u16_max,
+        ),
+        (
+            "test_parse_policy_get_digest_response",
+            test_parse_policy_get_digest_response,
         ),
     ];
 

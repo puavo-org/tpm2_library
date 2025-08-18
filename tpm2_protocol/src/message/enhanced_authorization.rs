@@ -105,6 +105,17 @@ tpm_struct!(
     }
 );
 
+tpm_response!(
+    #[derive(Debug, Default, PartialEq, Eq, Clone)]
+    TpmPolicyGetDigestResponse,
+    TpmCc::PolicyGetDigest,
+    false,
+    true,
+    {
+        pub policy_digest: Tpm2bDigest,
+    }
+);
+
 tpm_struct!(
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmPolicyAuthValueResponse,
