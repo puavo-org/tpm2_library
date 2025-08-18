@@ -18,6 +18,7 @@ pub struct AuthSession {
     pub attributes: data::TpmaSession,
     pub hmac_key: data::Tpm2bAuth,
     pub auth_hash: data::TpmAlgId,
+    pub original_json: String,
 }
 
 /// Builds the authorization area for a password-based session.

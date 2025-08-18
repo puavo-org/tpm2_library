@@ -12,7 +12,6 @@ pub struct CommandIo<W: Write> {
     writer: W,
     input_objects: Vec<cli::Object>,
     output_objects: Vec<cli::Object>,
-    pub session: Option<AuthSession>,
     pub log_format: cli::LogFormat,
 }
 
@@ -37,39 +36,50 @@ impl<W: Write> CommandIo<W> {
             }
         }
 
-        let mut session = None;
-        let mut new_input_objects = Vec::with_capacity(input_objects.len());
-
-        for obj in input_objects {
-            if let cli::Object::Context(val) = &obj {
-                if let Ok(json_val) = from_json_str(&val.to_string(), "session") {
-                    let session_data = SessionData::from_json(&json_val)?;
-                    session = Some(AuthSession {
-                        handle: session_data.handle.into(),
-                        nonce_tpm: Tpm2bNonce::try_from(
-                            base64_engine.decode(session_data.nonce_tpm)?.as_slice(),
-                        )?,
-                        attributes: TpmaSession::from_bits_truncate(session_data.attributes),
-                        hmac_key: Tpm2bAuth::try_from(
-                            base64_engine.decode(session_data.hmac_key)?.as_slice(),
-                        )?,
-                        auth_hash: TpmAlgId::try_from(session_data.auth_hash).map_err(|()| {
-                            TpmError::Parse("invalid auth_hash in session data".to_string())
-                        })?,
-                    });
-                    continue;
-                }
-            }
-            new_input_objects.push(obj);
-        }
-
         Ok(Self {
             writer,
-            input_objects: new_input_objects,
+            input_objects,
             output_objects: Vec::new(),
-            session,
             log_format,
         })
+    }
+
+    /// Finds and removes the session object from the input pipeline, if it exists.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `TpmError` if an object appears to be a session but is malformed.
+    pub fn take_session(&mut self) -> Result<Option<AuthSession>, TpmError> {
+        let session_pos = self.input_objects.iter().position(|obj| {
+            let cli::Object::TpmObject(s) = obj;
+            if let Ok(val) = json::parse(s) {
+                return val["type"] == "session";
+            }
+            false
+        });
+
+        if let Some(pos) = session_pos {
+            let obj = self.input_objects.remove(pos);
+            let cli::Object::TpmObject(s) = obj;
+            let json_val = from_json_str(&s, "session")?;
+            let session_data = SessionData::from_json(&json_val)?;
+            let session = AuthSession {
+                handle: session_data.handle.into(),
+                nonce_tpm: Tpm2bNonce::try_from(
+                    base64_engine.decode(session_data.nonce_tpm)?.as_slice(),
+                )?,
+                attributes: TpmaSession::from_bits_truncate(session_data.attributes),
+                hmac_key: Tpm2bAuth::try_from(
+                    base64_engine.decode(session_data.hmac_key)?.as_slice(),
+                )?,
+                auth_hash: TpmAlgId::try_from(session_data.auth_hash)
+                    .map_err(|()| TpmError::Parse("invalid auth_hash in session".to_string()))?,
+                original_json: s,
+            };
+            return Ok(Some(session));
+        }
+
+        Ok(None)
     }
 
     /// Finds and removes the first object from the input pipeline that matches a predicate.

@@ -5,7 +5,7 @@
 use crate::{
     arg_parser::{format_subcommand_help, CommandLineOption},
     cli::{self, Commands, ResetLock},
-    get_auth_sessions, Command, TpmDevice, TpmError,
+    get_auth_sessions, Command, CommandIo, TpmDevice, TpmError,
 };
 use lexopt::prelude::*;
 use tpm2_protocol::{data::TpmRh, message::TpmDictionaryAttackLockResetCommand};
@@ -46,15 +46,16 @@ impl Command for ResetLock {
     ///
     /// Returns a `TpmError` if the execution fails
     fn run(&self, chip: &mut TpmDevice, log_format: cli::LogFormat) -> Result<(), TpmError> {
-        let io =
-            crate::command_io::CommandIo::new(std::io::stdin(), std::io::stdout(), log_format)?;
+        let mut io = CommandIo::new(std::io::stdin(), std::io::stdout(), log_format)?;
+        let session = io.take_session()?;
+
         let command = TpmDictionaryAttackLockResetCommand {};
         let handles = [TpmRh::Lockout as u32];
 
         let sessions = get_auth_sessions(
             &command,
             &handles,
-            io.session.as_ref(),
+            session.as_ref(),
             self.auth.auth.as_deref(),
         )?;
 
@@ -62,6 +63,6 @@ impl Command for ResetLock {
         resp.DictionaryAttackLockReset()
             .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
 
-        Ok(())
+        io.finalize()
     }
 }

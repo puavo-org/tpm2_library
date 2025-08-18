@@ -2,31 +2,23 @@
 // Copyright (c) 2025 Opinsys Oy
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 
-use crate::{formats::PcrOutput, Alg, Command, TpmError};
+use crate::{Alg, Command, TpmError};
 use std::str::FromStr;
 use tpm2_protocol::{
     data::{TpmRc, TpmRh},
-    TpmPersistent, TpmTransient,
+    TpmPersistent,
 };
 
 #[derive(Debug, Clone)]
 pub enum Object {
-    Handle(TpmTransient),
-    Persistent(TpmPersistent),
-    Context(json::JsonValue),
-    Pcrs(PcrOutput),
+    TpmObject(String),
 }
 
 impl Object {
     #[must_use]
     pub fn to_json(&self) -> json::JsonValue {
         match self {
-            Object::Handle(h) => json::object! { "handle": format!("{:#010x}", u32::from(*h)) },
-            Object::Persistent(p) => {
-                json::object! { "persistent": format!("{:#010x}", u32::from(*p)) }
-            }
-            Object::Context(c) => json::object! { "context": c.clone() },
-            Object::Pcrs(p) => json::object! { "pcrs": p.to_json() },
+            Object::TpmObject(s) => json::object! { "tpm-object": s.clone() },
         }
     }
 
@@ -34,40 +26,17 @@ impl Object {
     ///
     /// # Errors
     ///
-    /// Returns a `TpmError::Parse` if the JSON object is malformed, has an
-    /// unknown key, or contains values of the wrong type.
+    /// Returns a `TpmError::Parse` if the JSON object is malformed.
     pub fn from_json(value: &json::JsonValue) -> Result<Self, TpmError> {
         if !value.is_object() {
             return Err(TpmError::Parse("expected a JSON object".to_string()));
         }
 
-        let (key, value) = value
-            .entries()
-            .next()
-            .ok_or_else(|| TpmError::Parse("object is empty".to_string()))?;
+        let hex_string = value["tpm-object"]
+            .as_str()
+            .ok_or_else(|| TpmError::Parse("missing or invalid 'tpm-object' key".to_string()))?;
 
-        match key {
-            "handle" => {
-                let s = value
-                    .as_str()
-                    .ok_or_else(|| TpmError::Parse("handle value is not a string".to_string()))?;
-                let handle = crate::parse_hex_u32(s).map(TpmTransient)?;
-                Ok(Object::Handle(handle))
-            }
-            "persistent" => {
-                let s = value.as_str().ok_or_else(|| {
-                    TpmError::Parse("persistent value is not a string".to_string())
-                })?;
-                let handle = crate::parse_persistent_handle(s)?;
-                Ok(Object::Persistent(handle))
-            }
-            "context" => Ok(Object::Context(value.clone())),
-            "pcrs" => {
-                let pcrs = PcrOutput::from_json(value)?;
-                Ok(Object::Pcrs(pcrs))
-            }
-            _ => Err(TpmError::Parse(format!("unknown object key: {key}"))),
-        }
+        Ok(Object::TpmObject(hex_string.to_string()))
     }
 }
 
@@ -363,7 +332,6 @@ pub struct Convert {
 pub struct Policy {
     pub expression: String,
     pub auth: AuthArgs,
-    pub partial: bool,
 }
 
 /// Retrieves all handles of a specific type from the TPM.

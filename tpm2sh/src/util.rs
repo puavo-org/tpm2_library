@@ -3,6 +3,7 @@
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 
 use crate::{cli, CommandIo, TpmDevice, TpmError};
+use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
 use json::JsonValue;
 use std::{fs, io::Write};
 use tpm2_protocol::{
@@ -44,7 +45,7 @@ impl Envelope {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct SessionData {
     pub handle: u32,
     pub nonce_tpm: String,
@@ -164,6 +165,20 @@ impl ContextData {
             context_blob: self.context_blob.clone()
         }
     }
+
+    /// Deserializes `ContextData` from a `json::JsonValue`.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `TpmError::Parse` if the JSON object is missing required fields.
+    pub fn from_json(value: &json::JsonValue) -> Result<Self, TpmError> {
+        Ok(Self {
+            context_blob: value["context_blob"]
+                .as_str()
+                .ok_or_else(|| TpmError::Parse("missing or invalid 'context_blob'".to_string()))?
+                .to_string(),
+        })
+    }
 }
 
 /// Deserializes an `Envelope`-wrapped JSON object from a string.
@@ -228,16 +243,14 @@ where
 /// or the data cannot be parsed.
 pub fn pop_object_data<W: Write>(io: &mut CommandIo<W>) -> Result<ObjectData, TpmError> {
     let obj = io.consume_object(|obj| {
-        if let cli::Object::Context(v) = obj {
-            return v["type"].as_str() == Some("object");
+        let cli::Object::TpmObject(s) = obj;
+        if let Ok(val) = json::parse(s) {
+            return val["type"] == "object";
         }
         false
     })?;
-    let cli::Object::Context(envelope_value) = obj else {
-        unreachable!()
-    };
-
-    let data = &envelope_value["data"];
+    let cli::Object::TpmObject(s) = obj;
+    let data = &from_json_str(&s, "object")?;
     ObjectData::from_json(data)
 }
 
@@ -296,26 +309,34 @@ pub fn object_to_handle(
     obj: &cli::Object,
     log_format: cli::LogFormat,
 ) -> Result<TpmTransient, TpmError> {
-    match obj {
-        cli::Object::Handle(handle) => Ok(*handle),
-        cli::Object::Persistent(handle) => Ok(TpmTransient(handle.0)),
-        cli::Object::Context(v) => {
-            let s = v.as_str().ok_or_else(|| {
-                TpmError::Parse("context object must contain a string value".to_string())
-            })?;
-            let context_blob = input_to_bytes(s)?;
-            let (context, _) = data::TpmsContext::parse(&context_blob)?;
+    let cli::Object::TpmObject(obj_str) = obj;
+
+    if let Ok(handle) = parse_hex_u32(obj_str) {
+        if handle >= data::TpmRh::PersistentFirst as u32 {
+            return Ok(TpmTransient(handle));
+        }
+        if handle >= data::TpmRh::TransientFirst as u32 {
+            return Ok(TpmTransient(handle));
+        }
+    }
+
+    if let Ok(json_val) = from_json_str(obj_str, "context") {
+        let context_data = ContextData::from_json(&json_val)?;
+        let context_blob = base64_engine.decode(context_data.context_blob)?;
+        let (context, remainder) = data::TpmsContext::parse(&context_blob)?;
+        if remainder.is_empty() {
             let load_cmd = TpmContextLoadCommand { context };
             let (resp, _) = chip.execute(&load_cmd, None, &[], log_format)?;
             let load_resp = resp
                 .ContextLoad()
                 .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
-            Ok(load_resp.loaded_handle)
+            return Ok(load_resp.loaded_handle);
         }
-        cli::Object::Pcrs(_) => Err(TpmError::Execution(
-            "cannot convert a PCR object to a handle".to_string(),
-        )),
     }
+
+    Err(TpmError::Parse(
+        "pipeline object is not a valid handle or context".to_string(),
+    ))
 }
 
 /// A helper to build a `TpmBuild` type into a `Vec<u8>`.
@@ -343,10 +364,11 @@ pub fn consume_and_get_parent_handle<W: Write>(
     log_format: cli::LogFormat,
 ) -> Result<TpmTransient, TpmError> {
     let parent_obj = io.consume_object(|obj| {
-        matches!(
-            obj,
-            cli::Object::Handle(_) | cli::Object::Persistent(_) | cli::Object::Context(_)
-        ) && !matches!(obj, cli::Object::Pcrs(_))
+        let cli::Object::TpmObject(s) = obj;
+        if let Ok(val) = json::parse(s) {
+            return val["type"] != "session";
+        }
+        true
     })?;
     object_to_handle(chip, &parent_obj, log_format)
 }

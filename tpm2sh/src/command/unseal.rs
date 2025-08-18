@@ -54,6 +54,7 @@ impl Command for Unseal {
     /// Returns a `TpmError` if the execution fails
     fn run(&self, chip: &mut TpmDevice, log_format: cli::LogFormat) -> Result<(), TpmError> {
         let mut io = CommandIo::new(io::stdin(), io::stdout(), log_format)?;
+        let session = io.take_session()?;
         let object_data = pop_object_data(&mut io)?;
 
         let parent_handle = parse_parent_handle_from_json(&object_data)?;
@@ -72,7 +73,7 @@ impl Command for Unseal {
             chip,
             parent_handle,
             &self.auth,
-            io.session.as_ref(),
+            session.as_ref(),
             in_public,
             in_private,
             log_format,
@@ -82,7 +83,7 @@ impl Command for Unseal {
                 let sessions = get_auth_sessions(
                     &unseal_cmd,
                     &unseal_handles,
-                    io.session.as_ref(),
+                    session.as_ref(),
                     self.auth.auth.as_deref(),
                 )?;
 

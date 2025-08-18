@@ -59,19 +59,18 @@ impl Command for Import {
     #[allow(clippy::too_many_lines)]
     fn run(&self, chip: &mut TpmDevice, log_format: cli::LogFormat) -> Result<(), TpmError> {
         let mut io = CommandIo::new(io::stdin(), io::stdout(), log_format)?;
+        let session = io.take_session()?;
 
         let parent_handle = consume_and_get_parent_handle(&mut io, chip, log_format)?;
 
         let (parent_public, parent_name) = read_public(chip, parent_handle, log_format)?;
         let parent_name_alg = parent_public.name_alg;
 
-        let private_key_obj = io.consume_object(|obj| matches!(obj, Object::Context(_)))?;
-        let Object::Context(private_key_path_val) = private_key_obj else {
-            unreachable!();
-        };
-        let private_key_path = private_key_path_val.as_str().ok_or_else(|| {
-            TpmError::Parse("context for private key must be a string path".to_string())
+        let private_key_obj = io.consume_object(|obj| {
+            let cli::Object::TpmObject(s) = obj;
+            !s.starts_with("0x")
         })?;
+        let cli::Object::TpmObject(private_key_path) = private_key_obj;
 
         let private_key = PrivateKey::from_pem_file(private_key_path.as_ref())?;
         let public = private_key.to_tpmt_public(parent_name_alg)?;
@@ -103,7 +102,7 @@ impl Command for Import {
         let sessions = get_auth_sessions(
             &import_cmd,
             &handles,
-            io.session.as_ref(),
+            session.as_ref(),
             self.parent_auth.auth.as_deref(),
         )?;
 
@@ -123,13 +122,14 @@ impl Command for Import {
             private: base64_engine.encode(priv_key_bytes),
         };
 
-        let new_object = Object::Context(
+        let new_object = Object::TpmObject(
             Envelope {
                 version: 1,
                 object_type: "object".to_string(),
                 data: data.to_json(),
             }
-            .to_json(),
+            .to_json()
+            .dump(),
         );
 
         io.push_object(new_object);

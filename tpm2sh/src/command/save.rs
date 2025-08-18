@@ -4,8 +4,9 @@
 
 use crate::{
     arg_parser::{format_subcommand_help, CommandLineOption},
-    cli::{self, Commands, Save},
-    get_auth_sessions, parse_hex_u32, parse_persistent_handle, Command, TpmDevice, TpmError,
+    cli::{self, Commands, Object, Save},
+    get_auth_sessions, parse_hex_u32, parse_persistent_handle, Command, CommandIo, TpmDevice,
+    TpmError,
 };
 use lexopt::prelude::*;
 use tpm2_protocol::{data::TpmRh, message::TpmEvictControlCommand};
@@ -17,7 +18,7 @@ const OPTIONS: &[CommandLineOption] = &[
         None,
         "--object-handle",
         "<HANDLE>",
-        "Handle of the transient object",
+        "Handle of the transient object (optional if piped)",
     ),
     (
         None,
@@ -63,10 +64,19 @@ impl Command for Save {
     ///
     /// Returns a `TpmError` if the execution fails
     fn run(&self, chip: &mut TpmDevice, log_format: cli::LogFormat) -> Result<(), TpmError> {
-        let io =
-            crate::command_io::CommandIo::new(std::io::stdin(), std::io::stdout(), log_format)?;
+        let mut io = CommandIo::new(std::io::stdin(), std::io::stdout(), log_format)?;
+        let session = io.take_session()?;
+
+        let object_handle = if self.object_handle != 0 {
+            self.object_handle
+        } else {
+            let obj = io.consume_object(|_| true)?;
+            let Object::TpmObject(hex_string) = obj;
+            parse_hex_u32(&hex_string)?
+        };
+
         let auth_handle = TpmRh::Owner;
-        let handles = [auth_handle as u32, self.object_handle];
+        let handles = [auth_handle as u32, object_handle];
 
         let evict_cmd = TpmEvictControlCommand {
             persistent_handle: self.persistent_handle,
@@ -75,7 +85,7 @@ impl Command for Save {
         let sessions = get_auth_sessions(
             &evict_cmd,
             &handles,
-            io.session.as_ref(),
+            session.as_ref(),
             self.auth.auth.as_deref(),
         )?;
 
@@ -83,7 +93,8 @@ impl Command for Save {
         resp.EvictControl()
             .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
 
-        println!("{:#010x}", self.persistent_handle);
-        Ok(())
+        let obj = Object::TpmObject(format!("{:#010x}", self.persistent_handle));
+        io.push_object(obj);
+        io.finalize()
     }
 }

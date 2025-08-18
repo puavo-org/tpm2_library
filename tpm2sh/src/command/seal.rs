@@ -70,20 +70,14 @@ impl Command for Seal {
     /// Returns a `TpmError` if the execution fails
     fn run(&self, chip: &mut TpmDevice, log_format: cli::LogFormat) -> Result<(), TpmError> {
         let mut io = CommandIo::new(io::stdin(), io::stdout(), log_format)?;
+        let session = io.take_session()?;
 
-        let parent_obj = io.consume_object(|obj| !matches!(obj, Object::Context(_)))?;
+        let parent_obj = io.consume_object(|_| true)?;
         let parent_handle = object_to_handle(chip, &parent_obj, log_format)?;
 
-        let data_to_seal_obj = io.consume_object(|obj| matches!(obj, Object::Context(_)))?;
-        let data_to_seal = match data_to_seal_obj {
-            Object::Context(v) => {
-                let s = v.as_str().ok_or_else(|| {
-                    TpmError::Parse("context for sealed data must be a string".to_string())
-                })?;
-                input_to_bytes(s)?
-            }
-            _ => unreachable!(),
-        };
+        let data_to_seal_obj = io.consume_object(|_| true)?;
+        let Object::TpmObject(data_str) = data_to_seal_obj;
+        let data_to_seal = input_to_bytes(&data_str)?;
 
         let mut object_attributes = TpmaObject::FIXED_TPM | TpmaObject::FIXED_PARENT;
         if self.object_auth.auth.is_some() {
@@ -123,7 +117,7 @@ impl Command for Seal {
         let sessions = get_auth_sessions(
             &cmd,
             &handles,
-            io.session.as_ref(),
+            session.as_ref(),
             self.parent_auth.auth.as_deref(),
         )?;
 
@@ -144,13 +138,14 @@ impl Command for Seal {
             private: base64_engine.encode(priv_bytes),
         };
 
-        let new_object = Object::Context(
+        let new_object = Object::TpmObject(
             Envelope {
                 version: 1,
                 object_type: "object".to_string(),
                 data: data.to_json(),
             }
-            .to_json(),
+            .to_json()
+            .dump(),
         );
 
         io.push_object(new_object);

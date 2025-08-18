@@ -102,8 +102,8 @@ impl Command for StartSession {
             data: data.to_json(),
         };
 
-        let envelope_value = envelope.to_json();
-        let output_object = Object::Context(envelope_value);
+        let envelope_string = envelope.to_json().dump();
+        let output_object = Object::TpmObject(envelope_string);
         let json_line = output_object.to_json().dump();
         println!("{json_line}");
 

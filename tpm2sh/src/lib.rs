@@ -12,7 +12,6 @@ pub mod command_io;
 pub mod crypto;
 pub mod device;
 pub mod error;
-pub mod formats;
 pub mod key;
 pub mod pcr;
 pub mod pretty_printer;

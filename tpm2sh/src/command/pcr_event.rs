@@ -5,14 +5,14 @@
 use crate::{
     arg_parser::{format_subcommand_help, CommandLineArgument, CommandLineOption},
     cli::{self, Commands, PcrEvent},
-    get_auth_sessions, parse_hex_u32, Command, TpmDevice, TpmError,
+    get_auth_sessions, parse_hex_u32, Command, CommandIo, TpmDevice, TpmError,
 };
 use lexopt::prelude::*;
 use tpm2_protocol::{data::Tpm2b, message::TpmPcrEventCommand};
 
 const ABOUT: &str = "Extends a PCR with an event";
 const USAGE: &str = "tpm2sh pcr-event [OPTIONS] <DATA>";
-const ARGS: &[CommandLineArgument] = &[("<DATA>", "Data to be hashed and extended")];
+const ARGS: &[CommandLineArgument] = &[("DATA", "Data to be hashed and extended")];
 const OPTIONS: &[CommandLineOption] = &[
     (
         None,
@@ -65,9 +65,10 @@ impl Command for PcrEvent {
     ///
     /// Returns a `TpmError` if the execution fails
     fn run(&self, chip: &mut TpmDevice, log_format: cli::LogFormat) -> Result<(), TpmError> {
-        let io =
-            crate::command_io::CommandIo::new(std::io::stdin(), std::io::stdout(), log_format)?;
-        if io.session.is_none() && self.auth.auth.is_none() {
+        let mut io = CommandIo::new(std::io::stdin(), std::io::stdout(), log_format)?;
+        let session = io.take_session()?;
+
+        if session.is_none() && self.auth.auth.is_none() {
             return Err(TpmError::Execution(
                 "Authorization is required for pcr-event. Use --auth or pipeline session."
                     .to_string(),
@@ -82,7 +83,7 @@ impl Command for PcrEvent {
         let sessions = get_auth_sessions(
             &command,
             &handles,
-            io.session.as_ref(),
+            session.as_ref(),
             self.auth.auth.as_deref(),
         )?;
 

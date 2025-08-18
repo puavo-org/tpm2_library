@@ -4,7 +4,7 @@
 
 use crate::{
     arg_parser::{format_subcommand_help, CommandLineOption},
-    cli::{self, Commands, Load, Object},
+    cli::{self, Commands, Load},
     get_auth_sessions, object_to_handle, pop_object_data, Command, CommandIo, TpmDevice, TpmError,
 };
 use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
@@ -58,8 +58,9 @@ impl Command for Load {
     /// Returns a `TpmError` if the execution fails
     fn run(&self, chip: &mut TpmDevice, log_format: cli::LogFormat) -> Result<(), TpmError> {
         let mut io = CommandIo::new(io::stdin(), io::stdout(), log_format)?;
+        let session = io.take_session()?;
 
-        let parent_obj = io.consume_object(|obj| !matches!(obj, Object::Pcrs(_)))?;
+        let parent_obj = io.consume_object(|_| true)?;
         let parent_handle = object_to_handle(chip, &parent_obj, log_format)?;
 
         let object_data = pop_object_data(&mut io)?;
@@ -83,7 +84,7 @@ impl Command for Load {
         let sessions = get_auth_sessions(
             &load_cmd,
             &handles,
-            io.session.as_ref(),
+            session.as_ref(),
             self.parent_auth.auth.as_deref(),
         )?;
 
@@ -92,7 +93,7 @@ impl Command for Load {
             .Load()
             .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
 
-        let new_object = crate::cli::Object::Handle(load_resp.object_handle);
+        let new_object = cli::Object::TpmObject(format!("{:#010x}", load_resp.object_handle));
         io.push_object(new_object);
 
         io.finalize()

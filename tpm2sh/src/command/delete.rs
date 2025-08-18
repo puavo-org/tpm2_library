@@ -3,8 +3,8 @@
 
 use crate::{
     arg_parser::{format_subcommand_help, CommandLineArgument, CommandLineOption},
-    cli::{self, Commands, Delete},
-    get_auth_sessions, parse_hex_u32, Command, TpmDevice, TpmError,
+    cli::{self, Commands, Delete, Object},
+    get_auth_sessions, parse_hex_u32, Command, CommandIo, TpmDevice, TpmError,
 };
 use lexopt::prelude::*;
 use tpm2_protocol::{
@@ -14,8 +14,11 @@ use tpm2_protocol::{
 };
 
 const ABOUT: &str = "Deletes a transient or persistent object";
-const USAGE: &str = "tpm2sh delete [OPTIONS] <HANDLE>";
-const ARGS: &[CommandLineArgument] = &[("<HANDLE>", "Handle of the object to delete")];
+const USAGE: &str = "tpm2sh delete [OPTIONS] [HANDLE]";
+const ARGS: &[CommandLineArgument] = &[(
+    "HANDLE",
+    "Handle of the object to delete (optional if piped)",
+)];
 const OPTIONS: &[CommandLineOption] = &[
     (None, "--auth", "<AUTH>", "Authorization value"),
     (Some("-h"), "--help", "", "Print help information"),
@@ -47,10 +50,9 @@ impl Command for Delete {
             }
         }
 
-        let handle = handle_str.ok_or_else(|| {
-            TpmError::Execution("missing required positional argument <HANDLE>".to_string())
-        })?;
-        args.handle = parse_hex_u32(&handle.to_string_lossy())?;
+        if let Some(handle) = handle_str {
+            args.handle = parse_hex_u32(&handle.to_string_lossy())?;
+        }
         Ok(Commands::Delete(args))
     }
 
@@ -60,9 +62,16 @@ impl Command for Delete {
     ///
     /// Returns a `TpmError` if the execution fails
     fn run(&self, chip: &mut TpmDevice, log_format: cli::LogFormat) -> Result<(), TpmError> {
-        let io =
-            crate::command_io::CommandIo::new(std::io::stdin(), std::io::stdout(), log_format)?;
-        let handle = self.handle;
+        let mut io = CommandIo::new(std::io::stdin(), std::io::stdout(), log_format)?;
+        let session = io.take_session()?;
+
+        let handle = if self.handle != 0 {
+            self.handle
+        } else {
+            let obj = io.consume_object(|_| true)?;
+            let Object::TpmObject(hex_string) = obj;
+            parse_hex_u32(&hex_string)?
+        };
 
         if handle >= TpmRh::PersistentFirst as u32 {
             let persistent_handle = TpmPersistent(handle);
@@ -73,7 +82,7 @@ impl Command for Delete {
             let sessions = get_auth_sessions(
                 &evict_cmd,
                 &handles,
-                io.session.as_ref(),
+                session.as_ref(),
                 self.auth.auth.as_deref(),
             )?;
             let (resp, _) = chip.execute(&evict_cmd, Some(&handles), &sessions, log_format)?;
@@ -91,8 +100,7 @@ impl Command for Delete {
             println!("{flush_handle:#010x}");
         } else {
             return Err(TpmError::InvalidHandle(format!(
-                "'{:#010x}' is not a transient or persistent handle",
-                self.handle
+                "'{handle:#010x}' is not a transient or persistent handle"
             )));
         }
         Ok(())

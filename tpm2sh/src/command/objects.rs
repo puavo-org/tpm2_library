@@ -7,7 +7,7 @@ use crate::{
     Command, TpmDevice, TpmError,
 };
 use lexopt::prelude::*;
-use tpm2_protocol::{data::TpmRh, TpmPersistent, TpmTransient};
+use tpm2_protocol::data::TpmRh;
 
 const ABOUT: &str = "Lists objects in volatile and non-volatile memory";
 const USAGE: &str = "tpm2sh objects";
@@ -42,14 +42,14 @@ impl Command for Objects {
     fn run(&self, device: &mut TpmDevice, log_format: cli::LogFormat) -> Result<(), TpmError> {
         let transient_handles = cli::get_handles(device, TpmRh::TransientFirst, log_format)?;
         for handle in transient_handles {
-            let obj = cli::Object::Handle(TpmTransient(handle));
+            let obj = cli::Object::TpmObject(format!("{handle:#010x}"));
             let json_line = obj.to_json().dump();
             println!("{json_line}");
         }
 
         let persistent_handles = cli::get_handles(device, TpmRh::PersistentFirst, log_format)?;
         for handle in persistent_handles {
-            let obj = cli::Object::Persistent(TpmPersistent(handle));
+            let obj = cli::Object::TpmObject(format!("{handle:#010x}"));
             let json_line = obj.to_json().dump();
             println!("{json_line}");
         }

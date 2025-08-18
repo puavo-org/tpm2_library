@@ -4,16 +4,14 @@
 
 use crate::{
     arg_parser::{format_subcommand_help, CommandLineArgument, CommandLineOption},
-    cli,
-    cli::{Commands, Object, PcrRead},
-    formats::PcrOutput,
-    get_pcr_count, parse_pcr_selection, tpm_alg_id_to_str, Command, TpmDevice, TpmError,
+    build_to_vec,
+    cli::{self, Commands, Object, PcrRead},
+    get_pcr_count, parse_pcr_selection, Command, TpmDevice, TpmError,
 };
 use lexopt::prelude::*;
-use std::collections::BTreeMap;
 use tpm2_protocol::message::TpmPcrReadCommand;
 
-const ABOUT: &str = "Reads PCRs";
+const ABOUT: &str = "Reads PCR values from the TPM";
 const USAGE: &str = "tpm2sh pcr-read <SELECTION>";
 const ARGS: &[CommandLineArgument] = &[("SELECTION", "e.g. 'sha256:0,1,2+sha1:0'")];
 const OPTIONS: &[CommandLineOption] = &[(Some("-h"), "--help", "", "Print help information")];
@@ -51,38 +49,13 @@ impl Command for PcrRead {
 
         let cmd = TpmPcrReadCommand { pcr_selection_in };
         let (resp, _) = chip.execute(&cmd, None, &[], log_format)?;
-
         let pcr_read_resp = resp
             .PcrRead()
             .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
 
-        let mut banks: BTreeMap<String, BTreeMap<String, String>> = BTreeMap::new();
-        let mut pcr_iter = pcr_read_resp.pcr_values.iter();
-
-        for selection in pcr_read_resp.pcr_selection_out.iter() {
-            let bank = banks
-                .entry(tpm_alg_id_to_str(selection.hash).to_string())
-                .or_default();
-            for (byte_index, &byte) in selection.pcr_select.iter().enumerate() {
-                for bit_index in 0..8 {
-                    if (byte >> bit_index) & 1 == 1 {
-                        let pcr_index = byte_index * 8 + bit_index;
-                        if let Some(digest) = pcr_iter.next() {
-                            bank.insert(pcr_index.to_string(), hex::encode_upper(digest.as_ref()));
-                        }
-                    }
-                }
-            }
-        }
-
-        let pcr_output = PcrOutput {
-            update_counter: pcr_read_resp.pcr_update_counter,
-            banks,
-        };
-
-        let output_object = Object::Pcrs(pcr_output);
-        let json_line = output_object.to_json().dump();
-        println!("{json_line}");
+        let response_bytes = build_to_vec(&pcr_read_resp)?;
+        let obj = Object::TpmObject(hex::encode(response_bytes));
+        println!("{}", obj.to_json().dump());
 
         Ok(())
     }

@@ -5,7 +5,7 @@
 use crate::{
     arg_parser::{format_subcommand_help, CommandLineOption},
     build_to_vec,
-    cli::{self, Commands, CreatePrimary},
+    cli::{self, Commands, CreatePrimary, Object},
     get_auth_sessions, parse_persistent_handle, Alg, AlgInfo, Command, ContextData, Envelope,
     TpmDevice, TpmError,
 };
@@ -123,7 +123,7 @@ pub fn save_key_context(
     chip: &mut TpmDevice,
     handle: TpmTransient,
     log_format: cli::LogFormat,
-) -> Result<String, TpmError> {
+) -> Result<json::JsonValue, TpmError> {
     let save_command = TpmContextSaveCommand {};
     let (resp, _) = chip.execute(&save_command, Some(&[handle.into()]), &[], log_format)?;
 
@@ -141,7 +141,7 @@ pub fn save_key_context(
         object_type: "context".to_string(),
         data: data.to_json(),
     };
-    Ok(envelope.to_json().pretty(2))
+    Ok(envelope.to_json())
 }
 
 impl Command for CreatePrimary {
@@ -189,8 +189,10 @@ impl Command for CreatePrimary {
     ///
     /// Returns a `TpmError` if the execution fails
     fn run(&self, chip: &mut TpmDevice, log_format: cli::LogFormat) -> Result<(), TpmError> {
-        let io =
+        let mut io =
             crate::command_io::CommandIo::new(std::io::stdin(), std::io::stdout(), log_format)?;
+        let session = io.take_session()?;
+
         let primary_handle: TpmRh = self.hierarchy.into();
         let handles = [primary_handle as u32];
         let public_template = build_public_template(&self.alg);
@@ -210,12 +212,8 @@ impl Command for CreatePrimary {
             creation_pcr: TpmlPcrSelection::default(),
         };
 
-        let sessions = get_auth_sessions(
-            &cmd,
-            &handles,
-            io.session.as_ref(),
-            self.auth.auth.as_deref(),
-        )?;
+        let sessions =
+            get_auth_sessions(&cmd, &handles, session.as_ref(), self.auth.auth.as_deref())?;
         let (resp, _) = chip.execute(&cmd, Some(&handles), &sessions, log_format)?;
 
         let create_primary_resp = resp
@@ -227,7 +225,7 @@ impl Command for CreatePrimary {
             let evict_cmd = TpmEvictControlCommand { persistent_handle };
             let evict_handles = [TpmRh::Owner as u32, object_handle.into()];
             let evict_sessions =
-                get_auth_sessions(&evict_cmd, &evict_handles, io.session.as_ref(), None)?;
+                get_auth_sessions(&evict_cmd, &evict_handles, session.as_ref(), None)?;
             let (resp, _) = chip.execute(
                 &evict_cmd,
                 Some(&evict_handles),
@@ -236,10 +234,13 @@ impl Command for CreatePrimary {
             )?;
             resp.EvictControl()
                 .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
-            println!("{persistent_handle:#010x}");
+
+            let obj = Object::TpmObject(format!("{persistent_handle:#010x}"));
+            println!("{}", obj.to_json().dump());
         } else {
-            let json_out = save_key_context(chip, object_handle, log_format)?;
-            println!("{json_out}");
+            let context_json = save_key_context(chip, object_handle, log_format)?;
+            let obj = Object::TpmObject(context_json.dump());
+            println!("{}", obj.to_json().dump());
         }
 
         Ok(())
