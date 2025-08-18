@@ -350,7 +350,7 @@ pub fn parse_tpm2b(buf: &[u8]) -> TpmResult<(&[u8], &[u8])> {
     let size = size as usize;
 
     if size > TPM_MAX_COMMAND_SIZE {
-        return Err(TpmErrorKind::CapacityExceeded);
+        return Err(TpmErrorKind::ValueTooLarge);
     }
 
     if buf.len() < size {
