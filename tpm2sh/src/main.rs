@@ -3,6 +3,7 @@
 // Copyright (c) 2025 Opinsys Oy
 
 use cli::execute_cli;
+use std::error::Error;
 use tracing::error;
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
@@ -14,7 +15,13 @@ fn main() {
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
     if let Err(err) = execute_cli() {
-        error!(error = %err, "execution failed");
+        error!("{}", err);
+
+        let mut source = err.source();
+        while let Some(cause) = source {
+            error!("  - {}", cause);
+            source = cause.source();
+        }
         std::process::exit(1);
     }
 }
