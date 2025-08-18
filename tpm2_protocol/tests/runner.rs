@@ -565,7 +565,7 @@ fn test_buffer_slice_larger_than_u16_max() {
 
     assert_eq!(
         result,
-        Err(TpmErrorKind::ValueTooLarge),
+        Err(TpmErrorKind::CapacityExceeded),
         "Should reject slices with lengths that do not fit in a u16"
     );
 }

@@ -26,7 +26,7 @@ impl<'a> TpmParameters<'a> {
         let size = size as usize;
 
         if size > crate::TPM_MAX_COMMAND_SIZE {
-            return Err(TpmErrorKind::ValueTooLarge);
+            return Err(TpmErrorKind::CapacityExceeded);
         }
 
         if buf.len() < size {
