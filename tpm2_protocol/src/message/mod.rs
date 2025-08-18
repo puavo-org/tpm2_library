@@ -5,9 +5,9 @@
 use crate::{
     data::{
         Tpm2b, Tpm2bAttest, Tpm2bAuth, Tpm2bCreationData, Tpm2bData, Tpm2bDigest,
-        Tpm2bEncryptedSecret, Tpm2bIdObject, Tpm2bMaxBuffer, Tpm2bName, Tpm2bPrivate, Tpm2bPublic,
-        Tpm2bSensitive, Tpm2bSensitiveCreate, Tpm2bSensitiveData, TpmAlgId, TpmCap, TpmCc, TpmRc,
-        TpmRh, TpmSe, TpmiYesNo, TpmlAlg, TpmlPcrSelection, TpmsAuthCommand, TpmsAuthResponse,
+        Tpm2bEncryptedSecret, Tpm2bMaxBuffer, Tpm2bName, Tpm2bPrivate, Tpm2bPublic,
+        Tpm2bSensitiveCreate, Tpm2bSensitiveData, TpmAlgId, TpmCap, TpmCc, TpmRc, TpmRh, TpmSe,
+        TpmiYesNo, TpmlAlg, TpmlPcrSelection, TpmsAuthCommand, TpmsAuthResponse,
         TpmsCapabilityData, TpmsContext, TpmtSignature, TpmtSymDef, TpmtSymDefObject,
         TpmtTkCreation, TpmtTkHashcheck, TpmtTkVerified,
     },
@@ -22,6 +22,7 @@ pub mod build;
 pub mod enhanced_authorization;
 pub mod integrity;
 pub mod non_volatile;
+pub mod object;
 pub mod parse;
 pub mod sequence;
 pub mod startup;
@@ -32,6 +33,7 @@ pub use build::*;
 pub use enhanced_authorization::*;
 pub use integrity::*;
 pub use non_volatile::*;
+pub use object::*;
 pub use parse::*;
 pub use sequence::*;
 pub use startup::*;
@@ -103,36 +105,19 @@ tpm_struct! {
 }
 
 tpm_struct! {
-    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmUnsealCommand,
-    TpmCc::Unseal,
+    #[derive(Debug, Default, PartialEq, Eq, Clone)]
+    TpmCreatePrimaryCommand,
+    TpmCc::CreatePrimary,
     false,
     true,
     1,
-    {}
+    {
+        pub in_sensitive: Tpm2bSensitiveCreate,
+        pub in_public: Tpm2bPublic,
+        pub outside_info: Tpm2b,
+        pub creation_pcr: TpmlPcrSelection,
+    }
 }
-
-macro_rules! tpm_create {
-    ($name:ident, $cc:expr) => {
-        tpm_struct! {
-            #[derive(Debug, Default, PartialEq, Eq, Clone)]
-            $name,
-            $cc,
-            false,
-            true,
-            1,
-            {
-                pub in_sensitive: Tpm2bSensitiveCreate,
-                pub in_public: Tpm2bPublic,
-                pub outside_info: Tpm2b,
-                pub creation_pcr: TpmlPcrSelection,
-            }
-        }
-    };
-}
-
-tpm_create!(TpmCreateCommand, TpmCc::Create);
-tpm_create!(TpmCreatePrimaryCommand, TpmCc::CreatePrimary);
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
@@ -190,52 +175,31 @@ tpm_struct! {
     }
 }
 
-tpm_struct! {
-    #[derive(Debug, Default, PartialEq, Eq, Clone)]
-    TpmLoadCommand,
-    TpmCc::Load,
-    false,
-    true,
-    1,
-    {
-        pub in_private: Tpm2bPrivate,
-        pub in_public: Tpm2bPublic,
-    }
-}
-
-tpm_struct! {
-    #[derive(Debug, Default, PartialEq, Eq, Clone)]
-    TpmObjectChangeAuthCommand,
-    TpmCc::ObjectChangeAuth,
-    false,
-    true,
-    2,
-    {
-        pub new_auth: Tpm2bAuth,
-    }
-}
-
 #[derive(Debug, Default, PartialEq, Eq, Clone)]
 pub struct TpmPolicyGetDigestResponse {
     pub policy_digest: Tpm2bDigest,
 }
+
 impl TpmHeader for TpmPolicyGetDigestResponse {
     const COMMAND: TpmCc = TpmCc::PolicyGetDigest;
     const NO_SESSIONS: bool = false;
     const WITH_SESSIONS: bool = true;
     const HANDLES: usize = 0;
 }
+
 impl crate::TpmSized for TpmPolicyGetDigestResponse {
     const SIZE: usize = <Tpm2bDigest>::SIZE;
     fn len(&self) -> usize {
         TpmSized::len(&self.policy_digest)
     }
 }
+
 impl crate::TpmBuild for TpmPolicyGetDigestResponse {
     fn build(&self, writer: &mut crate::TpmWriter) -> crate::TpmResult<()> {
         TpmBuild::build(&self.policy_digest, writer)
     }
 }
+
 impl crate::TpmParse for TpmPolicyGetDigestResponse {
     fn parse(buf: &[u8]) -> crate::TpmResult<(Self, &[u8])> {
         if buf.is_empty() {
@@ -244,16 +208,6 @@ impl crate::TpmParse for TpmPolicyGetDigestResponse {
         let (policy_digest, buf) = Tpm2bDigest::parse(buf)?;
         Ok((Self { policy_digest }, buf))
     }
-}
-
-tpm_struct! {
-    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmReadPublicCommand,
-    TpmCc::ReadPublic,
-    true,
-    true,
-    1,
-    {}
 }
 
 tpm_struct! {
@@ -333,30 +287,6 @@ tpm_struct! {
     }
 }
 
-tpm_response! {
-    #[derive(Debug, Default, PartialEq, Eq, Clone)]
-    TpmObjectChangeAuthResponse,
-    TpmCc::ObjectChangeAuth,
-    false,
-    true,
-    {
-        pub out_private: Tpm2bPrivate,
-    }
-}
-
-tpm_response! {
-    #[derive(Debug, Default, PartialEq, Eq, Clone)]
-    TpmReadPublicResponse,
-    TpmCc::ReadPublic,
-    true,
-    false,
-    {
-        pub out_public: Tpm2bPublic,
-        pub name: Tpm2bName,
-        pub qualified_name: Tpm2bName,
-    }
-}
-
 tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
     TpmStartAuthSessionResponse,
@@ -395,21 +325,6 @@ tpm_response! {
         pub creation_hash: Tpm2bDigest,
         pub creation_ticket: TpmtTkCreation,
         pub name: Tpm2bName,
-    }
-}
-
-tpm_response! {
-    #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmCreateResponse,
-    TpmCc::Create,
-    false,
-    true,
-    {
-        pub out_private: Tpm2bPrivate,
-        pub out_public: Tpm2bPublic,
-        pub creation_data: Tpm2bCreationData,
-        pub creation_hash: Tpm2bDigest,
-        pub creation_ticket: TpmtTkCreation,
     }
 }
 
@@ -453,29 +368,6 @@ tpm_struct! {
     {
         pub more_data: TpmiYesNo,
         pub capability_data: TpmsCapabilityData,
-    }
-}
-
-tpm_response! {
-    #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmLoadResponse,
-    TpmCc::Load,
-    false,
-    true,
-    pub object_handle: TpmTransient,
-    {
-        pub name: Tpm2bName,
-    }
-}
-
-tpm_response! {
-    #[derive(Debug, Default, PartialEq, Eq, Clone)]
-    TpmUnsealResponse,
-    TpmCc::Unseal,
-    false,
-    true,
-    {
-        pub out_data: Tpm2b,
     }
 }
 
@@ -551,81 +443,6 @@ tpm_response! {
     false,
     {
         pub validation: TpmtTkVerified,
-    }
-}
-
-tpm_struct! {
-    #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmMakeCredentialCommand,
-    TpmCc::MakeCredential,
-    true,
-    true,
-    1,
-    {
-        pub credential: Tpm2bDigest,
-        pub object_name: Tpm2bName,
-    }
-}
-
-tpm_response! {
-    #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmMakeCredentialResponse,
-    TpmCc::MakeCredential,
-    true,
-    true,
-    {
-        pub credential_blob: Tpm2bIdObject,
-        pub secret: Tpm2bEncryptedSecret,
-    }
-}
-
-tpm_struct! {
-    #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmLoadExternalCommand,
-    TpmCc::LoadExternal,
-    true,
-    true,
-    0,
-    {
-        pub in_private: Tpm2bSensitive,
-        pub in_public: Tpm2bPublic,
-        pub hierarchy: TpmRh,
-    }
-}
-
-tpm_response! {
-    #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmLoadExternalResponse,
-    TpmCc::LoadExternal,
-    true,
-    true,
-    pub object_handle: TpmTransient,
-    {
-        pub name: Tpm2bName,
-    }
-}
-
-tpm_struct! {
-    #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmActivateCredentialCommand,
-    TpmCc::ActivateCredential,
-    true,
-    true,
-    2,
-    {
-        pub credential_blob: Tpm2bIdObject,
-        pub secret: Tpm2bEncryptedSecret,
-    }
-}
-
-tpm_response! {
-    #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmActivateCredentialResponse,
-    TpmCc::ActivateCredential,
-    true,
-    true,
-    {
-        pub cert_info: Tpm2bDigest,
     }
 }
 
