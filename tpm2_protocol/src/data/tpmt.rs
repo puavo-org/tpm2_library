@@ -4,8 +4,8 @@
 
 use super::{
     tpmu::{
-        TpmuHa, TpmuPublicId, TpmuPublicParms, TpmuSensitiveComposite, TpmuSignature,
-        TpmuSymKeyBits, TpmuSymMode,
+        TpmuHa, TpmuKeyedhashScheme, TpmuPublicId, TpmuPublicParms, TpmuSensitiveComposite,
+        TpmuSigScheme, TpmuSymKeyBits, TpmuSymMode,
     },
     Tpm2bAuth, Tpm2bDigest, TpmAlgId, TpmRh, TpmSt, TpmaObject,
 };
@@ -101,10 +101,20 @@ tpm_struct! {
     }
 }
 
-tpm_struct! {
-    #[derive(Debug, PartialEq, Eq, Clone, Copy, Default)]
+tpm_tagged_struct! {
+    #[derive(Debug, PartialEq, Eq, Clone, Copy)]
     pub struct TpmtRsaDecrypt {
-        pub scheme: TpmtScheme,
+        pub scheme: TpmAlgId,
+        pub details: crate::data::tpmu::TpmuAsymScheme,
+    }
+}
+
+impl Default for TpmtRsaDecrypt {
+    fn default() -> Self {
+        Self {
+            scheme: TpmAlgId::Null,
+            details: crate::data::tpmu::TpmuAsymScheme::Null,
+        }
     }
 }
 
@@ -315,6 +325,22 @@ tpm_tagged_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     pub struct TpmtSignature {
         pub sig_alg: TpmAlgId,
-        pub signature: TpmuSignature,
+        pub signature: crate::data::tpmu::TpmuSignature,
+    }
+}
+
+tpm_tagged_struct! {
+    #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+    pub struct TpmtKeyedhashScheme {
+        pub scheme: TpmAlgId,
+        pub details: TpmuKeyedhashScheme,
+    }
+}
+
+tpm_tagged_struct! {
+    #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+    pub struct TpmtSigScheme {
+        pub scheme: TpmAlgId,
+        pub details: TpmuSigScheme,
     }
 }

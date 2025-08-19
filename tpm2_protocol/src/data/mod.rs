@@ -18,7 +18,7 @@ pub use tpms::*;
 pub use tpmt::*;
 pub use tpmu::*;
 
-use crate::{tpm2b, tpm2b_struct, tpml, TpmNotDiscriminant, TPM_MAX_COMMAND_SIZE};
+use crate::{tpm2b, tpm2b_struct, tpml, TPM_MAX_COMMAND_SIZE};
 use core::{convert::TryFrom, fmt::Debug};
 
 pub const MAX_DIGEST_SIZE: usize = 64;

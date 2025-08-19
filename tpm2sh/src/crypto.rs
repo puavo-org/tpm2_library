@@ -38,8 +38,9 @@ use std::str::Utf8Error;
 use tpm2_protocol::{
     data::{
         Tpm2b, Tpm2bDigest, Tpm2bEccParameter, Tpm2bEncryptedSecret, Tpm2bPrivate,
-        Tpm2bPublicKeyRsa, TpmAlgId, TpmCc, TpmEccCurve, TpmaObject, TpmsAuthCommand, TpmsEccPoint,
-        TpmtKdfScheme, TpmtPublic, TpmtScheme, TpmtSymDefObject, TpmuPublicId, TpmuPublicParms,
+        Tpm2bPublicKeyRsa, TpmAlgId, TpmCc, TpmEccCurve, TpmaObject, TpmsAuthCommand, TpmsEccParms,
+        TpmsEccPoint, TpmsRsaParms, TpmtKdfScheme, TpmtPublic, TpmtScheme, TpmtSymDefObject,
+        TpmuPublicId, TpmuPublicParms,
     },
     TpmBuild, TpmErrorKind, TpmWriter, TPM_MAX_COMMAND_SIZE,
 };
@@ -176,12 +177,12 @@ impl PrivateKey {
                         | TpmaObject::FIXED_TPM
                         | TpmaObject::FIXED_PARENT,
                     auth_policy: Tpm2bDigest::default(),
-                    parameters: TpmuPublicParms::Rsa {
+                    parameters: TpmuPublicParms::Rsa(TpmsRsaParms {
                         symmetric: TpmtSymDefObject::default(),
                         scheme: TpmtScheme::default(),
                         key_bits,
                         exponent: public_exponent,
-                    },
+                    }),
                     unique: TpmuPublicId::Rsa(Tpm2bPublicKeyRsa::try_from(
                         modulus_bytes.as_slice(),
                     )?),
@@ -217,12 +218,12 @@ impl PrivateKey {
                         | TpmaObject::FIXED_TPM
                         | TpmaObject::FIXED_PARENT,
                     auth_policy: Tpm2bDigest::default(),
-                    parameters: TpmuPublicParms::Ecc {
+                    parameters: TpmuPublicParms::Ecc(TpmsEccParms {
                         symmetric: TpmtSymDefObject::default(),
                         scheme: TpmtScheme::default(),
                         curve_id,
                         kdf: TpmtKdfScheme::default(),
-                    },
+                    }),
                     unique: TpmuPublicId::Ecc(TpmsEccPoint {
                         x: Tpm2bEccParameter::try_from(x)?,
                         y: Tpm2bEccParameter::try_from(y)?,
@@ -458,7 +459,7 @@ fn protect_seed_with_rsa(
         )),
     }?;
     let e = match &parent_public.parameters {
-        TpmuPublicParms::Rsa { exponent, .. } => Ok(*exponent),
+        TpmuPublicParms::Rsa(params) => Ok(params.exponent),
         _ => Err(TpmError::Execution(
             "parent is RSA type but parameters field is not RSA".to_string(),
         )),
@@ -554,7 +555,7 @@ fn protect_seed_with_ecc(
     seed: &[u8; 32],
 ) -> Result<(Tpm2bEncryptedSecret, Tpm2b), TpmError> {
     let (parent_point, curve_id) = match (&parent_public.unique, &parent_public.parameters) {
-        (TpmuPublicId::Ecc(point), TpmuPublicParms::Ecc { curve_id, .. }) => Ok((point, *curve_id)),
+        (TpmuPublicId::Ecc(point), TpmuPublicParms::Ecc(params)) => Ok((point, params.curve_id)),
         _ => Err(TpmError::Execution(
             "parent is not a valid ECC key".to_string(),
         )),
@@ -655,7 +656,7 @@ pub fn create_import_blob(
     };
 
     let parent_name_len_bytes = u16::try_from(parent_name.len())
-        .map_err(|_| TpmError::Build(TpmErrorKind::InvalidValue))?
+        .map_err(|_| TpmErrorKind::InvalidValue)?
         .to_be_bytes();
 
     let sym_key = kdfa(

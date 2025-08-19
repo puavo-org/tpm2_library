@@ -92,21 +92,19 @@ fn pretty_print_tpmt_public(public: &TpmtPublic, indent: usize) {
     println!("{prefix}Attributes: {}", flags.join(" | "));
 
     match &public.parameters {
-        TpmuPublicParms::Rsa {
-            key_bits, exponent, ..
-        } => {
+        TpmuPublicParms::Rsa(params) => {
             println!("{prefix}Parameters (RSA):");
-            println!("{prefix}  Key Bits: {key_bits}");
-            let exp_val = if *exponent == 0 {
+            println!("{prefix}  Key Bits: {}", params.key_bits);
+            let exp_val = if params.exponent == 0 {
                 "65537 (default)".to_string()
             } else {
-                exponent.to_string()
+                params.exponent.to_string()
             };
             println!("{prefix}  Exponent: {exp_val}");
         }
-        TpmuPublicParms::Ecc { curve_id, .. } => {
+        TpmuPublicParms::Ecc(params) => {
             println!("{prefix}Parameters (ECC):");
-            println!("{prefix}  Curve: {curve_id:?}");
+            println!("{prefix}  Curve: {:?}", params.curve_id);
         }
         _ => {}
     }
@@ -349,33 +347,23 @@ impl PrettyTrace for TpmuPublicParms {
     fn pretty_trace(&self, name: &str, indent: usize) {
         let prefix = " ".repeat(indent * INDENT);
         match self {
-            Self::KeyedHash { details } => {
+            Self::KeyedHash(details) => {
                 details.pretty_trace(&format!("{name} (keyedHash)"), indent);
             }
-            Self::SymCipher { details } => details.pretty_trace(&format!("{name} (sym)"), indent),
-            Self::Rsa {
-                symmetric,
-                scheme,
-                key_bits,
-                exponent,
-            } => {
+            Self::SymCipher(details) => details.pretty_trace(&format!("{name} (sym)"), indent),
+            Self::Rsa(params) => {
                 trace!(target: "cli::device", "{prefix}{name}: (rsa)");
-                symmetric.pretty_trace("symmetric", indent + 1);
-                scheme.pretty_trace("scheme", indent + 1);
-                key_bits.pretty_trace("keyBits", indent + 1);
-                exponent.pretty_trace("exponent", indent + 1);
+                params.symmetric.pretty_trace("symmetric", indent + 1);
+                params.scheme.pretty_trace("scheme", indent + 1);
+                params.key_bits.pretty_trace("keyBits", indent + 1);
+                params.exponent.pretty_trace("exponent", indent + 1);
             }
-            Self::Ecc {
-                symmetric,
-                scheme,
-                curve_id,
-                kdf,
-            } => {
+            Self::Ecc(params) => {
                 trace!(target: "cli::device", "{prefix}{name}: (ecc)");
-                symmetric.pretty_trace("symmetric", indent + 1);
-                scheme.pretty_trace("scheme", indent + 1);
-                curve_id.pretty_trace("curveId", indent + 1);
-                kdf.pretty_trace("kdf", indent + 1);
+                params.symmetric.pretty_trace("symmetric", indent + 1);
+                params.scheme.pretty_trace("scheme", indent + 1);
+                params.curve_id.pretty_trace("curveId", indent + 1);
+                params.kdf.pretty_trace("kdf", indent + 1);
             }
             Self::Null => trace!(target: "cli::device", "{prefix}{name}: null"),
         }

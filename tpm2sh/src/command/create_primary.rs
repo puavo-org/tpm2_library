@@ -16,9 +16,9 @@ use std::io::IsTerminal;
 use tpm2_protocol::{
     data::{
         Tpm2b, Tpm2bAuth, Tpm2bDigest, Tpm2bPublic, Tpm2bSensitiveCreate, Tpm2bSensitiveData,
-        TpmAlgId, TpmRh, TpmaObject, TpmlPcrSelection, TpmsEccPoint, TpmsKeyedhashParms,
-        TpmsSensitiveCreate, TpmtKdfScheme, TpmtPublic, TpmtScheme, TpmtSymDefObject, TpmuPublicId,
-        TpmuPublicParms, TpmuSymKeyBits, TpmuSymMode,
+        TpmAlgId, TpmRh, TpmaObject, TpmlPcrSelection, TpmsEccParms, TpmsEccPoint,
+        TpmsKeyedhashParms, TpmsRsaParms, TpmsSensitiveCreate, TpmtKdfScheme, TpmtPublic,
+        TpmtScheme, TpmtSymDefObject, TpmuPublicId, TpmuPublicParms, TpmuSymKeyBits, TpmuSymMode,
     },
     message::{
         TpmContextSaveCommand, TpmCreatePrimaryCommand, TpmEvictControlCommand,
@@ -67,7 +67,7 @@ fn build_public_template(alg_desc: &Alg) -> TpmtPublic {
         AlgInfo::Rsa { key_bits } => {
             object_attributes |= TpmaObject::DECRYPT | TpmaObject::RESTRICTED;
             (
-                TpmuPublicParms::Rsa {
+                TpmuPublicParms::Rsa(TpmsRsaParms {
                     symmetric: TpmtSymDefObject {
                         algorithm: TpmAlgId::Aes,
                         key_bits: TpmuSymKeyBits::Aes(128),
@@ -76,14 +76,14 @@ fn build_public_template(alg_desc: &Alg) -> TpmtPublic {
                     scheme: TpmtScheme::default(),
                     key_bits,
                     exponent: 0,
-                },
+                }),
                 TpmuPublicId::Rsa(TpmBuffer::default()),
             )
         }
         AlgInfo::Ecc { curve_id } => {
             object_attributes |= TpmaObject::DECRYPT | TpmaObject::RESTRICTED;
             (
-                TpmuPublicParms::Ecc {
+                TpmuPublicParms::Ecc(TpmsEccParms {
                     symmetric: TpmtSymDefObject {
                         algorithm: TpmAlgId::Aes,
                         key_bits: TpmuSymKeyBits::Aes(128),
@@ -92,18 +92,16 @@ fn build_public_template(alg_desc: &Alg) -> TpmtPublic {
                     scheme: TpmtScheme::default(),
                     curve_id,
                     kdf: TpmtKdfScheme::default(),
-                },
+                }),
                 TpmuPublicId::Ecc(TpmsEccPoint::default()),
             )
         }
         AlgInfo::KeyedHash => (
-            TpmuPublicParms::KeyedHash {
-                details: TpmsKeyedhashParms {
-                    scheme: TpmtScheme {
-                        scheme: TpmAlgId::Null,
-                    },
+            TpmuPublicParms::KeyedHash(TpmsKeyedhashParms {
+                scheme: TpmtScheme {
+                    scheme: TpmAlgId::Null,
                 },
-            },
+            }),
             TpmuPublicId::KeyedHash(TpmBuffer::default()),
         ),
     };

@@ -95,13 +95,11 @@ impl Command for Seal {
                 name_alg: TpmAlgId::Sha256,
                 object_attributes,
                 auth_policy: Tpm2bDigest::default(),
-                parameters: TpmuPublicParms::KeyedHash {
-                    details: TpmsKeyedhashParms {
-                        scheme: TpmtScheme {
-                            scheme: TpmAlgId::Null,
-                        },
+                parameters: TpmuPublicParms::KeyedHash(TpmsKeyedhashParms {
+                    scheme: TpmtScheme {
+                        scheme: TpmAlgId::Null,
                     },
-                },
+                }),
                 unique: TpmuPublicId::KeyedHash(tpm2_protocol::TpmBuffer::default()),
             };
 

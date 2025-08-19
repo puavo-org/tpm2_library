@@ -5,11 +5,11 @@
 use crate::{
     data::{
         Tpm2bDigest, Tpm2bEccParameter, Tpm2bPublicKeyRsa, Tpm2bSensitiveData, Tpm2bSymKey,
-        TpmAlgId, TpmCap, TpmEccCurve, TpmNotDiscriminant, TpmlAlgProperty, TpmlHandle,
-        TpmlPcrSelection, TpmsCertifyInfo, TpmsCommandAuditInfo, TpmsCreationInfo, TpmsEccPoint,
-        TpmsKeyedhashParms, TpmsNvCertifyInfo, TpmsNvDigestCertifyInfo, TpmsQuoteInfo,
-        TpmsSessionAuditInfo, TpmsSignatureEcc, TpmsSignatureRsa, TpmsSymcipherParms,
-        TpmsTimeAttestInfo, TpmtHa, TpmtKdfScheme,
+        TpmAlgId, TpmCap, TpmlAlgProperty, TpmlHandle, TpmlPcrSelection, TpmsCertifyInfo,
+        TpmsCommandAuditInfo, TpmsCreationInfo, TpmsEccParms, TpmsEccPoint, TpmsKeyedhashParms,
+        TpmsNvCertifyInfo, TpmsNvDigestCertifyInfo, TpmsQuoteInfo, TpmsRsaParms, TpmsSchemeHash,
+        TpmsSchemeXor, TpmsSessionAuditInfo, TpmsSignatureEcc, TpmsSignatureRsa,
+        TpmsSymcipherParms, TpmsTimeAttestInfo, TpmtHa,
     },
     tpm_hash_size, TpmBuild, TpmErrorKind, TpmParse, TpmParseTagged, TpmResult, TpmSized,
     TpmTagged, TpmWriter, TPM_MAX_COMMAND_SIZE,
@@ -218,26 +218,12 @@ impl Default for TpmuPublicId {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum TpmuPublicParms {
-    KeyedHash {
-        details: TpmsKeyedhashParms,
-    },
-    SymCipher {
-        details: TpmsSymcipherParms,
-    },
-    Rsa {
-        symmetric: crate::data::TpmtSymDefObject,
-        scheme: crate::data::TpmtScheme,
-        key_bits: u16,
-        exponent: u32,
-    },
-    Ecc {
-        symmetric: crate::data::TpmtSymDefObject,
-        scheme: crate::data::TpmtScheme,
-        curve_id: TpmEccCurve,
-        kdf: TpmtKdfScheme,
-    },
+    KeyedHash(TpmsKeyedhashParms),
+    SymCipher(TpmsSymcipherParms),
+    Rsa(TpmsRsaParms),
+    Ecc(TpmsEccParms),
     Null,
 }
 
@@ -250,20 +236,10 @@ impl TpmSized for TpmuPublicParms {
     const SIZE: usize = TPM_MAX_COMMAND_SIZE;
     fn len(&self) -> usize {
         match self {
-            Self::KeyedHash { details } => details.len(),
-            Self::SymCipher { details } => details.len(),
-            Self::Rsa {
-                symmetric,
-                scheme,
-                key_bits,
-                exponent,
-            } => symmetric.len() + scheme.len() + key_bits.len() + exponent.len(),
-            Self::Ecc {
-                symmetric,
-                scheme,
-                curve_id,
-                kdf,
-            } => symmetric.len() + scheme.len() + curve_id.len() + kdf.len(),
+            Self::KeyedHash(d) => d.len(),
+            Self::SymCipher(d) => d.len(),
+            Self::Rsa(d) => d.len(),
+            Self::Ecc(d) => d.len(),
             Self::Null => 0,
         }
     }
@@ -272,30 +248,10 @@ impl TpmSized for TpmuPublicParms {
 impl TpmBuild for TpmuPublicParms {
     fn build(&self, writer: &mut TpmWriter) -> TpmResult<()> {
         match self {
-            Self::KeyedHash { details } => details.build(writer),
-            Self::SymCipher { details } => details.build(writer),
-            Self::Rsa {
-                symmetric,
-                scheme,
-                key_bits,
-                exponent,
-            } => {
-                symmetric.build(writer)?;
-                scheme.build(writer)?;
-                key_bits.build(writer)?;
-                exponent.build(writer)
-            }
-            Self::Ecc {
-                symmetric,
-                scheme,
-                curve_id,
-                kdf,
-            } => {
-                symmetric.build(writer)?;
-                scheme.build(writer)?;
-                (*curve_id as u16).build(writer)?;
-                kdf.build(writer)
-            }
+            Self::KeyedHash(d) => d.build(writer),
+            Self::SymCipher(d) => d.build(writer),
+            Self::Rsa(d) => d.build(writer),
+            Self::Ecc(d) => d.build(writer),
             Self::Null => Ok(()),
         }
     }
@@ -306,47 +262,19 @@ impl TpmParseTagged for TpmuPublicParms {
         match tag {
             TpmAlgId::KeyedHash => {
                 let (details, buf) = TpmsKeyedhashParms::parse(buf)?;
-                Ok((Self::KeyedHash { details }, buf))
+                Ok((Self::KeyedHash(details), buf))
             }
             TpmAlgId::SymCipher => {
                 let (details, buf) = TpmsSymcipherParms::parse(buf)?;
-                Ok((Self::SymCipher { details }, buf))
+                Ok((Self::SymCipher(details), buf))
             }
             TpmAlgId::Rsa => {
-                let (symmetric, buf) = crate::data::TpmtSymDefObject::parse(buf)?;
-                let (scheme, buf) = crate::data::TpmtScheme::parse(buf)?;
-                let (key_bits, buf) = u16::parse(buf)?;
-                let (exponent, buf) = u32::parse(buf)?;
-                Ok((
-                    Self::Rsa {
-                        symmetric,
-                        scheme,
-                        key_bits,
-                        exponent,
-                    },
-                    buf,
-                ))
+                let (details, buf) = TpmsRsaParms::parse(buf)?;
+                Ok((Self::Rsa(details), buf))
             }
             TpmAlgId::Ecc => {
-                let (symmetric, buf) = crate::data::TpmtSymDefObject::parse(buf)?;
-                let (scheme, buf) = crate::data::TpmtScheme::parse(buf)?;
-                let (curve_id_raw, buf) = u16::parse(buf)?;
-                let curve_id = TpmEccCurve::try_from(curve_id_raw).map_err(|()| {
-                    TpmErrorKind::NotDiscriminant(
-                        "TpmEccCurve",
-                        TpmNotDiscriminant::Unsigned(u64::from(curve_id_raw)),
-                    )
-                })?;
-                let (kdf, buf) = TpmtKdfScheme::parse(buf)?;
-                Ok((
-                    Self::Ecc {
-                        symmetric,
-                        scheme,
-                        curve_id,
-                        kdf,
-                    },
-                    buf,
-                ))
+                let (details, buf) = TpmsEccParms::parse(buf)?;
+                Ok((Self::Ecc(details), buf))
             }
             TpmAlgId::Null => Ok((Self::Null, buf)),
             _ => Err(TpmErrorKind::InvalidValue),
@@ -719,6 +647,138 @@ impl TpmParseTagged for TpmuAttest {
                 expected: 0,
                 got: tag as u16,
             }),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum TpmuKeyedhashScheme {
+    Hmac(TpmsSchemeHash),
+    Xor(TpmsSchemeXor),
+    Null,
+}
+
+impl TpmTagged for TpmuKeyedhashScheme {
+    type Tag = TpmAlgId;
+    type Value = ();
+}
+
+impl TpmSized for TpmuKeyedhashScheme {
+    const SIZE: usize = TPM_MAX_COMMAND_SIZE;
+    fn len(&self) -> usize {
+        match self {
+            Self::Hmac(s) => s.len(),
+            Self::Xor(s) => s.len(),
+            Self::Null => 0,
+        }
+    }
+}
+
+impl TpmBuild for TpmuKeyedhashScheme {
+    fn build(&self, writer: &mut TpmWriter) -> TpmResult<()> {
+        match self {
+            Self::Hmac(s) => s.build(writer),
+            Self::Xor(s) => s.build(writer),
+            Self::Null => Ok(()),
+        }
+    }
+}
+
+impl TpmParseTagged for TpmuKeyedhashScheme {
+    fn parse_tagged(tag: TpmAlgId, buf: &[u8]) -> TpmResult<(Self, &[u8])> {
+        match tag {
+            TpmAlgId::Hmac => {
+                let (val, buf) = TpmsSchemeHash::parse(buf)?;
+                Ok((Self::Hmac(val), buf))
+            }
+            TpmAlgId::Xor => {
+                let (val, buf) = TpmsSchemeXor::parse(buf)?;
+                Ok((Self::Xor(val), buf))
+            }
+            TpmAlgId::Null => Ok((Self::Null, buf)),
+            _ => Err(TpmErrorKind::InvalidValue),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum TpmuSigScheme {
+    Any(TpmsSchemeHash),
+    Null,
+}
+
+impl TpmTagged for TpmuSigScheme {
+    type Tag = TpmAlgId;
+    type Value = ();
+}
+
+impl TpmSized for TpmuSigScheme {
+    const SIZE: usize = TPM_MAX_COMMAND_SIZE;
+    fn len(&self) -> usize {
+        match self {
+            Self::Any(s) => s.len(),
+            Self::Null => 0,
+        }
+    }
+}
+
+impl TpmBuild for TpmuSigScheme {
+    fn build(&self, writer: &mut TpmWriter) -> TpmResult<()> {
+        match self {
+            Self::Any(s) => s.build(writer),
+            Self::Null => Ok(()),
+        }
+    }
+}
+
+impl TpmParseTagged for TpmuSigScheme {
+    fn parse_tagged(tag: TpmAlgId, buf: &[u8]) -> TpmResult<(Self, &[u8])> {
+        if tag == TpmAlgId::Null {
+            Ok((Self::Null, buf))
+        } else {
+            let (val, buf) = TpmsSchemeHash::parse(buf)?;
+            Ok((Self::Any(val), buf))
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum TpmuAsymScheme {
+    Any(TpmsSchemeHash),
+    Null,
+}
+
+impl TpmTagged for TpmuAsymScheme {
+    type Tag = TpmAlgId;
+    type Value = ();
+}
+
+impl TpmSized for TpmuAsymScheme {
+    const SIZE: usize = TPM_MAX_COMMAND_SIZE;
+    fn len(&self) -> usize {
+        match self {
+            Self::Any(s) => s.len(),
+            Self::Null => 0,
+        }
+    }
+}
+
+impl TpmBuild for TpmuAsymScheme {
+    fn build(&self, writer: &mut TpmWriter) -> TpmResult<()> {
+        match self {
+            Self::Any(s) => s.build(writer),
+            Self::Null => Ok(()),
+        }
+    }
+}
+
+impl TpmParseTagged for TpmuAsymScheme {
+    fn parse_tagged(tag: TpmAlgId, buf: &[u8]) -> TpmResult<(Self, &[u8])> {
+        if tag == TpmAlgId::Null {
+            Ok((Self::Null, buf))
+        } else {
+            let (val, buf) = TpmsSchemeHash::parse(buf)?;
+            Ok((Self::Any(val), buf))
         }
     }
 }
