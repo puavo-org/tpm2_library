@@ -299,7 +299,7 @@ pub fn input_to_utf8(s: &str) -> Result<String, TpmError> {
 /// Resolves an object from the input stack into a transient handle.
 ///
 /// If the object is a context file, it is loaded into the TPM and its handle is
-/// returned. The loaded object is temporary and will be flushed on TPM reset.
+/// returned along with a flag indicating it needs to be flushed.
 ///
 /// # Errors
 ///
@@ -308,15 +308,14 @@ pub fn object_to_handle(
     chip: &mut TpmDevice,
     obj: &cli::Object,
     log_format: cli::LogFormat,
-) -> Result<TpmTransient, TpmError> {
+) -> Result<(TpmTransient, bool), TpmError> {
     let cli::Object::TpmObject(obj_str) = obj;
 
     if let Ok(handle) = parse_hex_u32(obj_str) {
-        if handle >= data::TpmRh::PersistentFirst as u32 {
-            return Ok(TpmTransient(handle));
-        }
-        if handle >= data::TpmRh::TransientFirst as u32 {
-            return Ok(TpmTransient(handle));
+        if handle >= data::TpmRh::PersistentFirst as u32
+            || handle >= data::TpmRh::TransientFirst as u32
+        {
+            return Ok((TpmTransient(handle), false));
         }
     }
 
@@ -330,7 +329,7 @@ pub fn object_to_handle(
             let load_resp = resp
                 .ContextLoad()
                 .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
-            return Ok(load_resp.loaded_handle);
+            return Ok((load_resp.loaded_handle, true));
         }
     }
 
@@ -353,7 +352,8 @@ pub(crate) fn build_to_vec<T: TpmBuild>(obj: &T) -> Result<Vec<u8>, TpmError> {
 /// Helper to consume the parent object from the pipeline and return its handle.
 ///
 /// It looks for a `Handle` or `Persistent` object in the input stream,
-/// loads it if necessary, and returns the transient handle.
+/// loads it if necessary, and returns the transient handle and a flag indicating
+/// whether it needs to be flushed.
 ///
 /// # Errors
 ///
@@ -362,7 +362,7 @@ pub fn consume_and_get_parent_handle<W: Write>(
     io: &mut CommandIo<W>,
     chip: &mut TpmDevice,
     log_format: cli::LogFormat,
-) -> Result<TpmTransient, TpmError> {
+) -> Result<(TpmTransient, bool), TpmError> {
     let parent_obj = io.consume_object(|obj| {
         let cli::Object::TpmObject(s) = obj;
         if let Ok(val) = json::parse(s) {

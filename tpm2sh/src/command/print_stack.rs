@@ -46,7 +46,7 @@ impl Command for PrintStack {
         let mut io = CommandIo::new(io::stdout(), log_format)?;
         let objects = io.consume_all_objects();
 
-        for (_i, obj) in objects.iter().rev().enumerate() {
+        for obj in objects.iter().rev() {
             let cli::Object::TpmObject(json_str) = obj;
             let json_val = json::parse(json_str)?;
 
