@@ -3,6 +3,7 @@
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 
 pub mod r#enum;
+pub mod integer;
 pub mod response;
 pub mod r#struct;
 
@@ -126,9 +127,9 @@ macro_rules! tpm_bool {
                 match val {
                     0 => Ok((Self(false), buf)),
                     1 => Ok((Self(true), buf)),
-                    _ => Err($crate::TpmErrorKind::InvalidDiscriminant {
+                    _ => Err($crate::TpmErrorKind::NotDiscriminant {
                         type_name: stringify!($name),
-                        value: u64::from(val),
+                        value: TpmNotDiscriminant::Unsigned(u64::from(val)),
                     }),
                 }
             }

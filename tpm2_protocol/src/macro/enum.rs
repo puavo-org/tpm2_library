@@ -77,9 +77,9 @@ macro_rules! tpm_enum {
         impl $crate::TpmParse for $name {
             fn parse(buf: &[u8]) -> $crate::TpmResult<(Self, &[u8])> {
                 let (val, buf) = <$repr>::parse(buf)?;
-                let enum_val = Self::try_from(val).map_err(|()| $crate::TpmErrorKind::InvalidDiscriminant {
+                let enum_val = Self::try_from(val).map_err(|()| $crate::TpmErrorKind::NotDiscriminant {
                     type_name: stringify!($name),
-                    value: u64::from(val)
+                    value: val.into(),
                 })?;
                 Ok((enum_val, buf))
             }

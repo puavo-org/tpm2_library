@@ -5,11 +5,11 @@
 use crate::{
     data::{
         Tpm2bDigest, Tpm2bEccParameter, Tpm2bPublicKeyRsa, Tpm2bSensitiveData, Tpm2bSymKey,
-        TpmAlgId, TpmCap, TpmEccCurve, TpmlAlgProperty, TpmlHandle, TpmlPcrSelection,
-        TpmsCertifyInfo, TpmsCommandAuditInfo, TpmsCreationInfo, TpmsEccPoint, TpmsKeyedhashParms,
-        TpmsNvCertifyInfo, TpmsNvDigestCertifyInfo, TpmsQuoteInfo, TpmsSessionAuditInfo,
-        TpmsSignatureEcc, TpmsSignatureRsa, TpmsSymcipherParms, TpmsTimeAttestInfo, TpmtHa,
-        TpmtKdfScheme,
+        TpmAlgId, TpmCap, TpmEccCurve, TpmNotDiscriminant, TpmlAlgProperty, TpmlHandle,
+        TpmlPcrSelection, TpmsCertifyInfo, TpmsCommandAuditInfo, TpmsCreationInfo, TpmsEccPoint,
+        TpmsKeyedhashParms, TpmsNvCertifyInfo, TpmsNvDigestCertifyInfo, TpmsQuoteInfo,
+        TpmsSessionAuditInfo, TpmsSignatureEcc, TpmsSignatureRsa, TpmsSymcipherParms,
+        TpmsTimeAttestInfo, TpmtHa, TpmtKdfScheme,
     },
     tpm_hash_size, TpmBuild, TpmErrorKind, TpmParse, TpmParseTagged, TpmResult, TpmSized,
     TpmTagged, TpmWriter, TPM_MAX_COMMAND_SIZE,
@@ -332,9 +332,9 @@ impl TpmParseTagged for TpmuPublicParms {
                 let (scheme, buf) = crate::data::TpmtScheme::parse(buf)?;
                 let (curve_id_raw, buf) = u16::parse(buf)?;
                 let curve_id = TpmEccCurve::try_from(curve_id_raw).map_err(|()| {
-                    TpmErrorKind::InvalidDiscriminant {
+                    TpmErrorKind::NotDiscriminant {
                         type_name: "TpmEccCurve",
-                        value: u64::from(curve_id_raw),
+                        value: TpmNotDiscriminant::Unsigned(u64::from(curve_id_raw)),
                     }
                 })?;
                 let (kdf, buf) = TpmtKdfScheme::parse(buf)?;

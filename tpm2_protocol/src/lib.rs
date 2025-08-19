@@ -32,7 +32,12 @@ pub mod message;
 pub mod parameters;
 
 use crate::data::TpmAlgId;
-use core::{convert::TryFrom, fmt, mem::size_of, result::Result};
+use core::{
+    convert::{From, TryFrom},
+    fmt,
+    mem::size_of,
+    result::Result,
+};
 
 pub use buffer::TpmBuffer;
 pub use list::TpmList;
@@ -55,13 +60,30 @@ tpm_handle! {
 pub const TPM_MAX_COMMAND_SIZE: usize = 4096;
 
 #[derive(Debug, PartialEq, Eq)]
+pub enum TpmNotDiscriminant {
+    Signed(i64),
+    Unsigned(u64),
+}
+
+impl fmt::LowerHex for TpmNotDiscriminant {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TpmNotDiscriminant::Signed(v) => write!(f, "{v:x}"),
+            TpmNotDiscriminant::Unsigned(v) => write!(f, "{v:x}"),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
 pub enum TpmErrorKind {
+    /// A command requires an authorization session but none was provided
+    AuthMissing,
     /// Insufficient amount of bytes available
     Boundary,
-    /// Trailing data after parsing
-    TrailingData,
-    /// Not a valid discriminant for the target enum
-    InvalidDiscriminant { type_name: &'static str, value: u64 },
+    /// An operation would exceed the fixed capacity of a container
+    CapacityExceeded,
+    /// An unresolvable internal error
+    InternalError,
     /// Invalid magic number for the data
     InvalidMagic { expected: u32, got: u32 },
     /// Invalid tag for the data
@@ -72,14 +94,15 @@ pub enum TpmErrorKind {
     },
     /// Invalid value
     InvalidValue,
+    /// Not a valid discriminant for the target enum
+    NotDiscriminant {
+        type_name: &'static str,
+        value: TpmNotDiscriminant,
+    },
+    /// Trailing data after parsing
+    TrailingData,
     /// A size or count in the buffer is larger than the maximum allowed value
     ValueTooLarge,
-    /// An operation would exceed the fixed capacity of a container
-    CapacityExceeded,
-    /// A command requires an authorization session but none was provided
-    AuthMissing,
-    /// An unexpected internal error
-    InternalError,
 }
 
 impl fmt::Display for TpmErrorKind {
@@ -87,7 +110,7 @@ impl fmt::Display for TpmErrorKind {
         match self {
             Self::Boundary => write!(f, "Insufficient data in buffer"),
             Self::TrailingData => write!(f, "Buffer has unexpected trailing data after parsing"),
-            Self::InvalidDiscriminant { type_name, value } => {
+            Self::NotDiscriminant { type_name, value } => {
                 write!(f, "Invalid discriminant 0x{value:x} for type '{type_name}'")
             }
             Self::InvalidMagic { expected, got } => {
@@ -204,7 +227,7 @@ pub trait TpmParse: Sized + TpmSized {
     /// # Errors
     ///
     /// * `TpmErrorKind::Boundary` if the buffer is too small to contain the object.
-    /// * `TpmErrorKind::InvalidDiscriminant` if a value in the buffer is invalid for the target type.
+    /// * `TpmErrorKind::NotDiscriminant` if a value in the buffer is invalid for the target type.
     fn parse(buf: &[u8]) -> TpmResult<(Self, &[u8])>;
 }
 
@@ -251,40 +274,17 @@ impl TpmParse for u8 {
     }
 }
 
-macro_rules! tpm_integer {
-    ($ty:ty) => {
-        impl TpmParse for $ty {
-            fn parse(buf: &[u8]) -> TpmResult<(Self, &[u8])> {
-                let size = size_of::<$ty>();
-                if buf.len() < size {
-                    return Err(TpmErrorKind::Boundary);
-                }
-                let (bytes, buf) = buf.split_at(size);
-                let array = bytes.try_into().map_err(|_| TpmErrorKind::InternalError)?;
-                let val = <$ty>::from_be_bytes(array);
-                Ok((val, buf))
-            }
-        }
-
-        impl TpmBuild for $ty {
-            fn build(&self, writer: &mut TpmWriter) -> TpmResult<()> {
-                writer.write_bytes(&self.to_be_bytes())
-            }
-        }
-
-        impl TpmSized for $ty {
-            const SIZE: usize = size_of::<$ty>();
-            fn len(&self) -> usize {
-                Self::SIZE
-            }
-        }
-    };
+impl From<u8> for TpmNotDiscriminant {
+    fn from(value: u8) -> Self {
+        Self::Unsigned(value.into())
+    }
 }
 
-tpm_integer!(i32);
-tpm_integer!(u16);
-tpm_integer!(u32);
-tpm_integer!(u64);
+tpm_integer!(i8, Signed);
+tpm_integer!(i32, Signed);
+tpm_integer!(u16, Unsigned);
+tpm_integer!(u32, Unsigned);
+tpm_integer!(u64, Unsigned);
 
 /// Builds a TPM2B sized buffer.
 ///

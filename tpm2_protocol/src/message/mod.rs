@@ -20,7 +20,9 @@ pub mod asymmetric;
 pub mod attached;
 pub mod attestation;
 pub mod build;
+pub mod clocks_and_timers;
 pub mod enhanced_authorization;
+pub mod field_upgrade;
 pub mod integrity;
 pub mod non_volatile;
 pub mod object;
@@ -32,7 +34,9 @@ pub use asymmetric::*;
 pub use attached::*;
 pub use attestation::*;
 pub use build::*;
+pub use clocks_and_timers::*;
 pub use enhanced_authorization::*;
+pub use field_upgrade::*;
 pub use integrity::*;
 pub use non_volatile::*;
 pub use object::*;
@@ -732,11 +736,14 @@ tpm_dispatch! {
     (TpmChangePpsCommand, TpmChangePpsResponse, ChangePps),
     (TpmClearCommand, TpmClearResponse, Clear),
     (TpmClearControlCommand, TpmClearControlResponse, ClearControl),
+    (TpmClockSetCommand, TpmClockSetResponse, ClockSet),
     (TpmHierarchyChangeAuthCommand, TpmHierarchyChangeAuthResponse, HierarchyChangeAuth),
     (TpmNvDefineSpaceCommand, TpmNvDefineSpaceResponse, NvDefineSpace),
     (TpmPcrAllocateCommand, TpmPcrAllocateResponse, PcrAllocate),
     (TpmPcrSetAuthPolicyCommand, TpmPcrSetAuthPolicyResponse, PcrSetAuthPolicy),
     (TpmSetPrimaryPolicyCommand, TpmSetPrimaryPolicyResponse, SetPrimaryPolicy),
+    (TpmFieldUpgradeStartCommand, TpmFieldUpgradeStartResponse, FieldUpgradeStart),
+    (TpmClockRateAdjustCommand, TpmClockRateAdjustResponse, ClockRateAdjust),
     (TpmCreatePrimaryCommand, TpmCreatePrimaryResponse, CreatePrimary),
     (TpmNvGlobalWriteLockCommand, TpmNvGlobalWriteLockResponse, NvGlobalWriteLock),
     (TpmGetCommandAuditDigestCommand, TpmGetCommandAuditDigestResponse, GetCommandAuditDigest),
@@ -750,6 +757,7 @@ tpm_dispatch! {
     (TpmPcrEventCommand, TpmPcrEventResponse, PcrEvent),
     (TpmPcrResetCommand, TpmPcrResetResponse, PcrReset),
     (TpmSequenceCompleteCommand, TpmSequenceCompleteResponse, SequenceComplete),
+    (TpmFieldUpgradeDataCommand, TpmFieldUpgradeDataResponse, FieldUpgradeData),
     (TpmIncrementalSelfTestCommand, TpmIncrementalSelfTestResponse, IncrementalSelfTest),
     (TpmSelfTestCommand, TpmSelfTestResponse, SelfTest),
     (TpmStartupCommand, TpmStartupResponse, Startup),
@@ -797,6 +805,7 @@ tpm_dispatch! {
     (TpmStartAuthSessionCommand, TpmStartAuthSessionResponse, StartAuthSession),
     (TpmVerifySignatureCommand, TpmVerifySignatureResponse, VerifySignature),
     (TpmEccParametersCommand, TpmEccParametersResponse, EccParameters),
+    (TpmFirmwareReadCommand, TpmFirmwareReadResponse, FirmwareRead),
     (TpmGetCapabilityCommand, TpmGetCapabilityResponse, GetCapability),
     (TpmGetRandomCommand, TpmGetRandomResponse, GetRandom),
     (TpmGetTestResultCommand, TpmGetTestResultResponse, GetTestResult),
@@ -804,6 +813,7 @@ tpm_dispatch! {
     (TpmPcrReadCommand, TpmPcrReadResponse, PcrRead),
     (TpmPolicyPcrCommand, TpmPolicyPcrResponse, PolicyPcr),
     (TpmPolicyRestartCommand, TpmPolicyRestartResponse, PolicyRestart),
+    (TpmReadClockCommand, TpmReadClockResponse, ReadClock),
     (TpmPcrExtendCommand, TpmPcrExtendResponse, PcrExtend),
     (TpmPcrSetAuthValueCommand, TpmPcrSetAuthValueResponse, PcrSetAuthValue),
     (TpmNvCertifyCommand, TpmNvCertifyResponse, NvCertify),

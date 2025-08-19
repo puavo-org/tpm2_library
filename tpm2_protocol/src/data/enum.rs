@@ -83,11 +83,14 @@ tpm_enum! {
         (ChangePps, 0x0000_0125, "TPM_CC_ChangePPS"),
         (Clear, 0x0000_0126, "TPM_CC_Clear"),
         (ClearControl, 0x0000_0127, "TPM_CC_ClearControl"),
+        (ClockSet, 0x0000_0128, "TPM_CC_ClockSet"),
         (HierarchyChangeAuth, 0x0000_0129, "TPM_CC_HierarchyChangeAuth"),
         (NvDefineSpace, 0x0000_012A, "TPM_CC_NV_DefineSpace"),
         (PcrAllocate, 0x0000_012B, "TPM_CC_PCR_Allocate"),
         (PcrSetAuthPolicy, 0x0000_012C, "TPM_CC_PCR_SetAuthPolicy"),
         (SetPrimaryPolicy, 0x0000_012E, "TPM_CC_SetPrimaryPolicy"),
+        (FieldUpgradeStart, 0x0000_012F, "TPM_CC_FieldUpgradeStart"),
+        (ClockRateAdjust, 0x0000_0130, "TPM_CC_ClockRateAdjust"),
         (CreatePrimary, 0x0000_0131, "TPM_CC_CreatePrimary"),
         (NvGlobalWriteLock, 0x0000_0132, "TPM_CC_NV_GlobalWriteLock"),
         (GetCommandAuditDigest, 0x0000_0133, "TPM_CC_GetCommandAuditDigest"),
@@ -101,6 +104,7 @@ tpm_enum! {
         (PcrEvent, 0x0000_013C, "TPM_CC_PCR_Event"),
         (PcrReset, 0x0000_013D, "TPM_CC_PCR_Reset"),
         (SequenceComplete, 0x0000_013E, "TPM_CC_SequenceComplete"),
+        (FieldUpgradeData, 0x0000_0141, "TPM_CC_FieldUpgradeData"),
         (IncrementalSelfTest, 0x0000_0142, "TPM_CC_IncrementalSelfTest"),
         (SelfTest, 0x0000_0143, "TPM_CC_SelfTest"),
         (Startup, 0x0000_0144, "TPM_CC_Startup"),
@@ -148,6 +152,7 @@ tpm_enum! {
         (StartAuthSession, 0x0000_0176, "TPM_CC_StartAuthSession"),
         (VerifySignature, 0x0000_0177, "TPM_CC_VerifySignature"),
         (EccParameters, 0x0000_0178, "TPM_CC_ECC_Parameters"),
+        (FirmwareRead, 0x0000_0179, "TPM_CC_FirmwareRead"),
         (GetCapability, 0x0000_017A, "TPM_CC_GetCapability"),
         (GetRandom, 0x0000_017B, "TPM_CC_GetRandom"),
         (GetTestResult, 0x0000_017C, "TPM_CC_GetTestResult"),
@@ -155,6 +160,7 @@ tpm_enum! {
         (PcrRead, 0x0000_017E, "TPM_CC_PCR_Read"),
         (PolicyPcr, 0x0000_017F, "TPM_CC_PolicyPCR"),
         (PolicyRestart, 0x0000_0180, "TPM_CC_PolicyRestart"),
+        (ReadClock, 0x0000_0181, "TPM_CC_ReadClock"),
         (PcrExtend, 0x0000_0182, "TPM_CC_PCR_Extend"),
         (PcrSetAuthValue, 0x0000_0183, "TPM_CC_PCR_SetAuthValue"),
         (NvCertify, 0x0000_0184, "TPM_CC_NV_Certify"),
@@ -175,6 +181,20 @@ tpm_enum! {
 }
 
 tpm_enum! {
+    #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Hash, Default)]
+    pub enum TpmClockAdjust(i8) {
+        (CoarseSlower, -3, "TPM_CLOCK_COARSE_SLOWER"),
+        (MediumSlower, -2, "TPM_CLOCK_MEDIUM_SLOWER"),
+        (FineSlower, -1, "TPM_CLOCK_FINE_SLOWER"),
+        #[default]
+        (NoChange, 0, "TPM_CLOCK_NO_CHANGE"),
+        (FineFaster, 1, "TPM_CLOCK_FINE_FASTER"),
+        (MediumFaster, 2, "TPM_CLOCK_MEDIUM_FASTER"),
+        (CoarseFaster, 3, "TPM_CLOCK_COARSE_FASTER"),
+    }
+}
+
+tpm_enum! {
     #[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
     pub enum TpmEccCurve(u16) {
         #[default]
@@ -184,6 +204,17 @@ tpm_enum! {
         (NistP256, 0x0003, "TPM_ECC_NIST_P256"),
         (NistP384, 0x0004, "TPM_ECC_NIST_P384"),
         (NistP521, 0x0005, "TPM_ECC_NIST_P521"),
+    }
+}
+
+tpm_enum! {
+    #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Hash, Default)]
+    pub enum TpmiEccKeyExchange(u16) {
+        #[default]
+        (None, 0x0000, "TPM_ECC_NONE"),
+        (Ecdh, 0x0019, "TPM_ALG_ECDH"),
+        (Ecmqv, 0x001D, "TPM_ALG_ECMQV"),
+        (Sm2, 0x001B, "TPM_ALG_SM2"),
     }
 }
 
@@ -242,16 +273,5 @@ tpm_enum! {
         (Clear, 0x0000, "TPM_SU_CLEAR"),
         #[default]
         (State, 0x0001, "TPM_SU_STATE"),
-    }
-}
-
-tpm_enum! {
-    #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Hash, Default)]
-    pub enum TpmiEccKeyExchange(u16) {
-        #[default]
-        (None, 0x0000, "TPM_ECC_NONE"),
-        (Ecdh, 0x0019, "TPM_ALG_ECDH"),
-        (Ecmqv, 0x001D, "TPM_ALG_ECMQV"),
-        (Sm2, 0x001B, "TPM_ALG_SM2"),
     }
 }

@@ -8,7 +8,7 @@ use super::{
 };
 use crate::{
     data::{TpmCc, TpmRc, TpmSt, TpmsAuthCommand, TpmsAuthResponse},
-    TpmErrorKind, TpmParse, TpmResult,
+    TpmErrorKind, TpmNotDiscriminant, TpmParse, TpmResult,
 };
 use core::convert::TryFrom;
 
@@ -21,7 +21,7 @@ pub type TpmParseResult<'a> = Result<(TpmRc, TpmResponseBody, TpmAuthResponses),
 /// # Errors
 ///
 /// * `TpmErrorKind::Boundary` if the buffer is too small
-/// * `TpmErrorKind::InvalidDiscriminant` if the buffer contains an unsupported command code or unexpected byte
+/// * `TpmErrorKind::NotDiscriminant` if the buffer contains an unsupported command code or unexpected byte
 /// * `TpmErrorKind::TrailingData` if the command has after spurious data left
 pub fn tpm_parse_command(buf: &[u8]) -> TpmResult<(TpmHandles, TpmCommandBody, TpmAuthCommands)> {
     if buf.len() < TPM_HEADER_SIZE {
@@ -30,9 +30,9 @@ pub fn tpm_parse_command(buf: &[u8]) -> TpmResult<(TpmHandles, TpmCommandBody, T
     let command_len = buf.len();
 
     let (tag_raw, buf) = u16::parse(buf)?;
-    let tag = TpmSt::try_from(tag_raw).map_err(|()| TpmErrorKind::InvalidDiscriminant {
+    let tag = TpmSt::try_from(tag_raw).map_err(|()| TpmErrorKind::NotDiscriminant {
         type_name: "TpmSt",
-        value: u64::from(tag_raw),
+        value: TpmNotDiscriminant::Unsigned(u64::from(tag_raw)),
     })?;
     let (size, buf) = u32::parse(buf)?;
     let (cc_raw, mut buf) = u32::parse(buf)?;
@@ -41,16 +41,16 @@ pub fn tpm_parse_command(buf: &[u8]) -> TpmResult<(TpmHandles, TpmCommandBody, T
         return Err(TpmErrorKind::Boundary);
     }
 
-    let cc = TpmCc::try_from(cc_raw).map_err(|()| TpmErrorKind::InvalidDiscriminant {
+    let cc = TpmCc::try_from(cc_raw).map_err(|()| TpmErrorKind::NotDiscriminant {
         type_name: "TpmCc",
-        value: u64::from(cc_raw),
+        value: TpmNotDiscriminant::Unsigned(u64::from(cc_raw)),
     })?;
     let dispatch = PARSE_COMMAND_MAP
         .binary_search_by_key(&cc, |d| d.0)
         .map(|index| &PARSE_COMMAND_MAP[index])
-        .map_err(|_| TpmErrorKind::InvalidDiscriminant {
+        .map_err(|_| TpmErrorKind::NotDiscriminant {
             type_name: "TpmCc",
-            value: u64::from(cc_raw),
+            value: TpmNotDiscriminant::Unsigned(u64::from(cc_raw)),
         })?;
 
     if tag == TpmSt::Sessions && !dispatch.2 {
@@ -115,7 +115,7 @@ pub fn tpm_parse_command(buf: &[u8]) -> TpmResult<(TpmHandles, TpmCommandBody, T
 ///
 /// * `TpmErrorKind::Boundary` if the buffer is too small
 /// * `TpmErrorKind::InvalidTag` if the tag in the buffer does not match expected
-/// * `TpmErrorKind::InvalidDiscriminant` if the buffer contains an unsupported command code
+/// * `TpmErrorKind::NotDiscriminant` if the buffer contains an unsupported command code
 /// * `TpmErrorKind::TrailingData` if the response has after spurious data left
 pub fn tpm_parse_response(cc: TpmCc, buf: &[u8]) -> TpmResult<TpmParseResult<'_>> {
     if buf.len() < TPM_HEADER_SIZE {
@@ -135,17 +135,17 @@ pub fn tpm_parse_response(cc: TpmCc, buf: &[u8]) -> TpmResult<TpmParseResult<'_>
         return Ok(Err((rc, body_buf)));
     }
 
-    let tag = TpmSt::try_from(tag_raw).map_err(|()| TpmErrorKind::InvalidDiscriminant {
+    let tag = TpmSt::try_from(tag_raw).map_err(|()| TpmErrorKind::NotDiscriminant {
         type_name: "TpmSt",
-        value: u64::from(tag_raw),
+        value: TpmNotDiscriminant::Unsigned(u64::from(tag_raw)),
     })?;
 
     let dispatch = PARSE_RESPONSE_MAP
         .binary_search_by_key(&cc, |d| d.0)
         .map(|index| &PARSE_RESPONSE_MAP[index])
-        .map_err(|_| TpmErrorKind::InvalidDiscriminant {
+        .map_err(|_| TpmErrorKind::NotDiscriminant {
             type_name: "TpmCc",
-            value: u64::from(cc as u32),
+            value: TpmNotDiscriminant::Unsigned(u64::from(cc as u32)),
         })?;
 
     let (body, mut session_area) = (dispatch.2)(body_buf)?;
