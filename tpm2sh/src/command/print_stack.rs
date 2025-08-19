@@ -25,13 +25,12 @@ impl Command for PrintStack {
     fn parse(parser: &mut lexopt::Parser) -> Result<Commands, TpmError> {
         if let Some(arg) = parser.next()? {
             if arg == Short('h') || arg == Long("help") {
+                if let Some(extra_arg) = parser.next()? {
+                    return Err(TpmError::from(extra_arg.unexpected()));
+                }
                 Self::help();
-            } else {
-                return Err(TpmError::from(arg.unexpected()));
+                return Err(TpmError::HelpDisplayed);
             }
-        }
-
-        if let Some(arg) = parser.next()? {
             return Err(TpmError::from(arg.unexpected()));
         }
 
