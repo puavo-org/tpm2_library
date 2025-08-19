@@ -1,11 +1,11 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3-0-or-later
 // Copyright (c) 2025 Opinsys Oy
 
 use crate::{
     arg_parser::{format_subcommand_help, CommandLineArgument, CommandLineOption},
     cli::{self, Commands, Object, Policy},
-    from_json_str, get_pcr_count, parse_pcr_selection, AuthSession, Command, CommandIo, Envelope,
-    SessionData, TpmDevice, TpmError,
+    from_json_str, get_pcr_count, parse_args, parse_pcr_selection, AuthSession, Command, CommandIo,
+    Envelope, SessionData, TpmDevice, TpmError,
 };
 use lexopt::prelude::*;
 use pest::iterators::{Pair, Pairs};
@@ -20,7 +20,6 @@ use tpm2_protocol::{
     },
     TpmParse, TpmSession,
 };
-
 #[derive(Parser)]
 #[grammar = "command/policy.pest"]
 pub struct PolicyParser;
@@ -45,7 +44,6 @@ const OPTIONS: &[CommandLineOption] = &[
     (None, "--auth", "<AUTH>", "Authorization value"),
     (Some("-h"), "--help", "", "Print help information"),
 ];
-
 fn parse_quoted_string(pair: &Pair<'_, Rule>) -> Result<String, TpmError> {
     if pair.as_rule() != Rule::quoted_string {
         return Err(TpmError::Parse("expected a quoted string".to_string()));
@@ -58,7 +56,6 @@ fn parse_policy_internal(mut pairs: Pairs<'_, Rule>) -> Result<PolicyAst, TpmErr
     let pair = pairs
         .next()
         .ok_or_else(|| TpmError::Parse("expected a policy expression".to_string()))?;
-
     let ast = match pair.as_rule() {
         Rule::pcr_expression => {
             let mut inner_pairs = pair.into_inner();
@@ -72,7 +69,6 @@ fn parse_policy_internal(mut pairs: Pairs<'_, Rule>) -> Result<PolicyAst, TpmErr
                 .map(|p| p.as_str().parse::<u32>())
                 .transpose()
                 .map_err(|e| TpmError::Parse(e.to_string()))?;
-
             PolicyAst::Pcr {
                 selection,
                 digest,
@@ -98,7 +94,6 @@ fn parse_policy_internal(mut pairs: Pairs<'_, Rule>) -> Result<PolicyAst, TpmErr
             )))
         }
     };
-
     if pairs.next().is_some() {
         return Err(TpmError::Parse("unexpected trailing input".to_string()));
     }
@@ -134,7 +129,6 @@ impl<W: Write> PolicyExecutor<'_, '_, W> {
             TpmError::Usage("PCR digest must be provided as an argument".to_string())
         })?)
         .map_err(|e| TpmError::Parse(e.to_string()))?;
-
         let pcr_selection = if selection_str.is_empty() {
             let selection_obj = self.io.consume_object(|obj| {
                 let cli::Object::TpmObject(s) = obj;
@@ -160,7 +154,6 @@ impl<W: Write> PolicyExecutor<'_, '_, W> {
         let sessions = crate::get_auth_sessions(&cmd, &handles, self.session.as_ref(), None)?;
         self.chip
             .execute(&cmd, Some(&handles), &sessions, self.log_format)?;
-
         Ok(())
     }
 
@@ -201,7 +194,6 @@ impl<W: Write> PolicyExecutor<'_, '_, W> {
                 cli::SessionType::Trial,
                 self.log_format,
             )?;
-
             self.execute_policy_ast(branch_handle, branch_ast)?;
 
             let digest = get_policy_digest(
@@ -222,7 +214,6 @@ impl<W: Write> PolicyExecutor<'_, '_, W> {
         let sessions = crate::get_auth_sessions(&cmd, &handles, self.session.as_ref(), None)?;
         self.chip
             .execute(&cmd, Some(&handles), &sessions, self.log_format)?;
-
         Ok(())
     }
 
@@ -254,7 +245,6 @@ fn start_trial_session(
     log_format: cli::LogFormat,
 ) -> Result<TpmSession, TpmError> {
     let auth_hash = session.map_or(TpmAlgId::Sha256, |s| s.auth_hash);
-
     let cmd = TpmStartAuthSessionCommand {
         nonce_caller: Tpm2b::default(),
         encrypted_salt: Tpm2b::default(),
@@ -314,19 +304,17 @@ impl Command for Policy {
         let mut args = Policy::default();
         let mut expression_arg: Option<String> = None;
 
-        while let Some(arg) = parser.next()? {
-            match arg {
-                Long("auth") => args.auth.auth = Some(parser.value()?.string()?),
-                Short('h') | Long("help") => {
-                    Self::help();
-                    return Err(TpmError::HelpDisplayed);
-                }
-                Value(val) if expression_arg.is_none() => {
-                    expression_arg = Some(val.string()?);
-                }
-                _ => return Err(TpmError::from(arg.unexpected())),
+        parse_args!(parser, arg, Self::help, {
+            Long("auth") => {
+                args.auth.auth = Some(parser.value()?.string()?);
             }
-        }
+            Value(val) if expression_arg.is_none() => {
+                expression_arg = Some(val.string()?);
+            }
+            _ => {
+                return Err(TpmError::from(arg.unexpected()));
+            }
+        });
 
         if let Some(expression) = expression_arg {
             args.expression = expression;
@@ -361,10 +349,8 @@ impl Command for Policy {
                 true,
             )
         };
-
         let ast = parse_policy_expression(&self.expression)
             .map_err(|e| TpmError::Parse(format!("failed to parse policy expression: {e}")))?;
-
         let pcr_count = get_pcr_count(chip, log_format)?;
 
         let mut executor = PolicyExecutor {
@@ -379,7 +365,6 @@ impl Command for Policy {
 
         let final_digest = get_policy_digest(chip, None, session_handle, log_format)?;
         session_data.policy_digest = hex::encode(&*final_digest);
-
         if is_trial {
             flush_session(chip, session_handle, log_format)?;
             println!("{}", session_data.policy_digest);

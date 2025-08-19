@@ -1,12 +1,12 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3-0-or-later
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 // Copyright (c) 2025 Opinsys Oy
 
 use crate::{
     arg_parser::{format_subcommand_help, CommandLineOption},
     cli::{self, Commands, Unseal},
-    get_auth_sessions, parse_parent_handle_from_json, pop_object_data, with_loaded_object, Command,
-    CommandIo, TpmDevice, TpmError,
+    get_auth_sessions, parse_args, parse_parent_handle_from_json, pop_object_data,
+    with_loaded_object, Command, CommandIo, TpmDevice, TpmError,
 };
 use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
 use lexopt::prelude::*;
@@ -16,14 +16,12 @@ use tpm2_protocol::{
     message::TpmUnsealCommand,
     TpmParse,
 };
-
 const ABOUT: &str = "Unseals a keyedhash object";
 const USAGE: &str = "tpm2sh unseal [OPTIONS]";
 const OPTIONS: &[CommandLineOption] = &[
     (None, "--auth", "<AUTH>", "Authorization value"),
     (Some("-h"), "--help", "", "Print help information"),
 ];
-
 impl Command for Unseal {
     fn help() {
         println!(
@@ -34,16 +32,14 @@ impl Command for Unseal {
 
     fn parse(parser: &mut lexopt::Parser) -> Result<Commands, TpmError> {
         let mut args = Unseal::default();
-        while let Some(arg) = parser.next()? {
-            match arg {
-                Long("auth") => args.auth.auth = Some(parser.value()?.string()?),
-                Short('h') | Long("help") => {
-                    Self::help();
-                    return Err(TpmError::HelpDisplayed);
-                }
-                _ => return Err(TpmError::from(arg.unexpected())),
+        parse_args!(parser, arg, Self::help, {
+            Long("auth") => {
+                args.auth.auth = Some(parser.value()?.string()?);
             }
-        }
+            _ => {
+                return Err(TpmError::from(arg.unexpected()));
+            }
+        });
         Ok(Commands::Unseal(args))
     }
 
@@ -70,10 +66,8 @@ impl Command for Unseal {
         let priv_bytes = base64_engine
             .decode(object_data.private)
             .map_err(|e| TpmError::Parse(e.to_string()))?;
-
         let (in_public, _) = Tpm2bPublic::parse(&pub_bytes)?;
         let (in_private, _) = Tpm2bPrivate::parse(&priv_bytes)?;
-
         let output = with_loaded_object(
             chip,
             parent_handle,
@@ -102,7 +96,6 @@ impl Command for Unseal {
                 Ok(unseal_resp.out_data.to_vec())
             },
         )?;
-
         io::stdout().write_all(&output)?;
 
         io.finalize()

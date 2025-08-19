@@ -1,11 +1,11 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3-0-or-later
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 // Copyright (c) 2025 Opinsys Oy
 
 use crate::{
     arg_parser::{format_subcommand_help, CommandLineArgument, CommandLineOption},
     cli::{self, Commands, PcrEvent},
-    get_auth_sessions, parse_hex_u32, Command, CommandIo, TpmDevice, TpmError,
+    get_auth_sessions, parse_args, parse_hex_u32, Command, CommandIo, TpmDevice, TpmError,
 };
 use lexopt::prelude::*;
 use tpm2_protocol::{data::Tpm2b, message::TpmPcrEventCommand};
@@ -23,7 +23,6 @@ const OPTIONS: &[CommandLineOption] = &[
     (None, "--auth", "<AUTH>", "Authorization value"),
     (Some("-h"), "--help", "", "Print help information"),
 ];
-
 impl Command for PcrEvent {
     fn help() {
         println!(
@@ -35,22 +34,20 @@ impl Command for PcrEvent {
     fn parse(parser: &mut lexopt::Parser) -> Result<Commands, TpmError> {
         let mut args = PcrEvent::default();
         let mut data_arg = None;
-        while let Some(arg) = parser.next()? {
-            match arg {
-                Long("pcr-handle") => {
-                    args.pcr_handle = parse_hex_u32(&parser.value()?.string()?)?;
-                }
-                Long("auth") => args.auth.auth = Some(parser.value()?.string()?),
-                Short('h') | Long("help") => {
-                    Self::help();
-                    return Err(TpmError::HelpDisplayed);
-                }
-                Value(val) if data_arg.is_none() => {
-                    data_arg = Some(val.string()?);
-                }
-                _ => return Err(TpmError::from(arg.unexpected())),
+        parse_args!(parser, arg, Self::help, {
+            Long("pcr-handle") => {
+                args.pcr_handle = parse_hex_u32(&parser.value()?.string()?)?;
             }
-        }
+            Long("auth") => {
+                args.auth.auth = Some(parser.value()?.string()?);
+            }
+            Value(val) if data_arg.is_none() => {
+                data_arg = Some(val.string()?);
+            }
+            _ => {
+                return Err(TpmError::from(arg.unexpected()));
+            }
+        });
 
         if let Some(data) = data_arg {
             args.data = data;
@@ -88,11 +85,9 @@ impl Command for PcrEvent {
             session.as_ref(),
             self.auth.auth.as_deref(),
         )?;
-
         let (resp, _) = chip.execute(&command, Some(&handles), &sessions, log_format)?;
         resp.PcrEvent()
             .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
-
         println!("{:#010x}", self.pcr_handle);
         Ok(())
     }

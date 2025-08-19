@@ -1,10 +1,10 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3-0-or-later
 // Copyright (c) 2025 Opinsys Oy
 
 use crate::{
     arg_parser::{format_subcommand_help, CommandLineArgument, CommandLineOption},
     cli::{self, Commands, Delete, Object},
-    get_auth_sessions, parse_hex_u32, Command, CommandIo, TpmDevice, TpmError,
+    get_auth_sessions, parse_args, parse_hex_u32, Command, CommandIo, TpmDevice, TpmError,
 };
 use lexopt::prelude::*;
 use tpm2_protocol::{
@@ -12,7 +12,6 @@ use tpm2_protocol::{
     message::{TpmEvictControlCommand, TpmFlushContextCommand},
     TpmPersistent, TpmTransient,
 };
-
 const ABOUT: &str = "Deletes a transient or persistent object";
 const USAGE: &str = "tpm2sh delete [OPTIONS] <HANDLE>";
 const ARGS: &[CommandLineArgument] = &[(
@@ -23,7 +22,6 @@ const OPTIONS: &[CommandLineOption] = &[
     (None, "--auth", "<AUTH>", "Authorization value"),
     (Some("-h"), "--help", "", "Print help information"),
 ];
-
 impl Command for Delete {
     fn help() {
         println!(
@@ -36,19 +34,17 @@ impl Command for Delete {
         let mut args = Delete::default();
         let mut handle_arg = None;
 
-        while let Some(arg) = parser.next()? {
-            match arg {
-                Long("auth") => args.auth.auth = Some(parser.value()?.string()?),
-                Short('h') | Long("help") => {
-                    Self::help();
-                    return Err(TpmError::HelpDisplayed);
-                }
-                Value(val) if handle_arg.is_none() => {
-                    handle_arg = Some(val.string()?);
-                }
-                _ => return Err(TpmError::from(arg.unexpected())),
+        parse_args!(parser, arg, Self::help, {
+            Long("auth") => {
+                args.auth.auth = Some(parser.value()?.string()?);
             }
-        }
+            Value(val) if handle_arg.is_none() => {
+                handle_arg = Some(val.string()?);
+            }
+            _ => {
+                return Err(TpmError::from(arg.unexpected()));
+            }
+        });
 
         if let Some(handle) = handle_arg {
             args.handle = handle;
@@ -81,7 +77,6 @@ impl Command for Delete {
             let auth_handle = TpmRh::Owner;
             let handles = [auth_handle as u32, persistent_handle.into()];
             let evict_cmd = TpmEvictControlCommand { persistent_handle };
-
             let sessions = get_auth_sessions(
                 &evict_cmd,
                 &handles,

@@ -1,11 +1,11 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3-0-or-later
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 // Copyright (c) 2025 Opinsys Oy
 
 use crate::{
     arg_parser::{format_subcommand_help, CommandLineOption},
     cli::{self, Commands, Load},
-    get_auth_sessions,
+    get_auth_sessions, parse_args,
     util::{consume_and_get_parent_handle, pop_object_data},
     Command, CommandIo, TpmDevice, TpmError,
 };
@@ -18,7 +18,6 @@ use tpm2_protocol::{
     message::{TpmFlushContextCommand, TpmLoadCommand},
     TpmParse,
 };
-
 const ABOUT: &str = "Loads a TPM key";
 const USAGE: &str = "tpm2sh load [OPTIONS]";
 const OPTIONS: &[CommandLineOption] = &[
@@ -30,7 +29,6 @@ const OPTIONS: &[CommandLineOption] = &[
     ),
     (Some("-h"), "--help", "", "Print help information"),
 ];
-
 impl Command for Load {
     fn help() {
         println!(
@@ -41,16 +39,14 @@ impl Command for Load {
 
     fn parse(parser: &mut lexopt::Parser) -> Result<Commands, TpmError> {
         let mut args = Load::default();
-        while let Some(arg) = parser.next()? {
-            match arg {
-                Long("auth") => args.parent_auth.auth = Some(parser.value()?.string()?),
-                Short('h') | Long("help") => {
-                    Self::help();
-                    return Err(TpmError::HelpDisplayed);
-                }
-                _ => return Err(TpmError::from(arg.unexpected())),
+        parse_args!(parser, arg, Self::help, {
+            Long("auth") => {
+                args.parent_auth.auth = Some(parser.value()?.string()?);
             }
-        }
+            _ => {
+                return Err(TpmError::from(arg.unexpected()));
+            }
+        });
         Ok(Commands::Load(args))
     }
 
@@ -67,10 +63,8 @@ impl Command for Load {
 
         let mut io = CommandIo::new(io::stdout(), log_format)?;
         let session = io.take_session()?;
-
         let (parent_handle, needs_flush) =
             consume_and_get_parent_handle(&mut io, chip, log_format)?;
-
         let result = (|| {
             let object_data = pop_object_data(&mut io)?;
 
@@ -107,7 +101,6 @@ impl Command for Load {
 
             io.finalize()
         })();
-
         if needs_flush {
             let flush_cmd = TpmFlushContextCommand {
                 flush_handle: parent_handle.into(),

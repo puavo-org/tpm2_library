@@ -5,7 +5,7 @@
 use crate::{
     arg_parser::{format_subcommand_help, CommandLineOption},
     cli::{self, Algorithms, Commands},
-    enumerate_all, Command, TpmDevice, TpmError, TPM_CAP_PROPERTY_MAX,
+    enumerate_all, parse_args, Command, TpmDevice, TpmError, TPM_CAP_PROPERTY_MAX,
 };
 use lexopt::prelude::*;
 use regex::Regex;
@@ -23,7 +23,6 @@ const OPTIONS: &[CommandLineOption] = &[
     ),
     (Some("-h"), "--help", "", "Print help information"),
 ];
-
 fn get_chip_algorithms(
     device: &mut TpmDevice,
     log_format: cli::LogFormat,
@@ -52,16 +51,14 @@ impl Command for Algorithms {
 
     fn parse(parser: &mut lexopt::Parser) -> Result<Commands, TpmError> {
         let mut args = Algorithms { filter: None };
-        while let Some(arg) = parser.next()? {
-            match arg {
-                Long("filter") => args.filter = Some(parser.value()?.string()?),
-                Short('h') | Long("help") => {
-                    Self::help();
-                    return Err(TpmError::HelpDisplayed);
-                }
-                _ => return Err(TpmError::from(arg.unexpected())),
+        parse_args!(parser, arg, Self::help, {
+            Long("filter") => {
+                args.filter = Some(parser.value()?.string()?);
             }
-        }
+            _ => {
+                return Err(TpmError::from(arg.unexpected()));
+            }
+        });
         Ok(Commands::Algorithms(args))
     }
 
@@ -78,7 +75,6 @@ impl Command for Algorithms {
             .into_iter()
             .filter(|alg| chip_algorithms.contains(&alg.object_type))
             .collect();
-
         let filtered_algorithms: Vec<_> = if let Some(pattern) = &self.filter {
             let re =
                 Regex::new(pattern).map_err(|e| TpmError::Usage(format!("invalid regex: {e}")))?;
@@ -89,7 +85,6 @@ impl Command for Algorithms {
         } else {
             supported_algorithms
         };
-
         let mut sorted_names: Vec<_> = filtered_algorithms
             .into_iter()
             .map(|alg| alg.name)

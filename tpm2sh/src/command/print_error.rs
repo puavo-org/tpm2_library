@@ -1,11 +1,11 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3-0-or-later
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 // Copyright (c) 2025 Opinsys Oy
 
 use crate::{
     arg_parser::{format_subcommand_help, CommandLineArgument, CommandLineOption},
     cli::{self, Commands, PrintError},
-    parse_tpm_rc, Command, TpmDevice, TpmError,
+    parse_args, parse_tpm_rc, Command, TpmDevice, TpmError,
 };
 use lexopt::prelude::*;
 
@@ -13,7 +13,6 @@ const ABOUT: &str = "Encodes and print a TPM error code";
 const USAGE: &str = "tpm2sh print-error <RC>";
 const ARGS: &[CommandLineArgument] = &[("<RC>", "TPM error code")];
 const OPTIONS: &[CommandLineOption] = &[(Some("-h"), "--help", "", "Print help information")];
-
 impl Command for PrintError {
     fn help() {
         println!(
@@ -23,20 +22,13 @@ impl Command for PrintError {
     }
 
     fn parse(parser: &mut lexopt::Parser) -> Result<Commands, TpmError> {
-        let mut rc_str = None;
-
-        while let Some(arg) = parser.next()? {
-            match arg {
-                Short('h') | Long("help") => {
-                    Self::help();
-                    return Err(TpmError::HelpDisplayed);
-                }
-                Value(val) if rc_str.is_none() => {
-                    rc_str = Some(val.string()?);
-                }
-                _ => return Err(TpmError::from(arg.unexpected())),
+        let mut rc_str: Option<String> = None;
+        parse_args!(parser, arg, Self::help, {
+            Value(val) if rc_str.is_none() => {
+                rc_str = Some(val.string()?);
             }
-        }
+            _ => return Err(TpmError::from(arg.unexpected())),
+        });
 
         if let Some(s) = rc_str {
             Ok(Commands::PrintError(PrintError {

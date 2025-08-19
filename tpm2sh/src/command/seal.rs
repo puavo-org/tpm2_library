@@ -1,11 +1,11 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3-0-or-later
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 // Copyright (c) 2025 Opinsys Oy
 
 use crate::{
     arg_parser::{format_subcommand_help, CommandLineOption},
     cli::{self, Commands, Object, Seal},
-    get_auth_sessions, input_to_bytes,
+    get_auth_sessions, input_to_bytes, parse_args,
     util::{build_to_vec, consume_and_get_parent_handle},
     Command, CommandIo, Envelope, ObjectData, TpmDevice, TpmError, ID_SEALED_DATA,
 };
@@ -21,7 +21,6 @@ use tpm2_protocol::{
     },
     message::{TpmCreateCommand, TpmFlushContextCommand},
 };
-
 const ABOUT: &str = "Seals a keyedhash object";
 const USAGE: &str = "tpm2sh seal [OPTIONS]";
 const OPTIONS: &[CommandLineOption] = &[
@@ -50,17 +49,17 @@ impl Command for Seal {
 
     fn parse(parser: &mut lexopt::Parser) -> Result<Commands, TpmError> {
         let mut args = Seal::default();
-        while let Some(arg) = parser.next()? {
-            match arg {
-                Long("parent-auth") => args.parent_auth.auth = Some(parser.value()?.string()?),
-                Long("object-auth") => args.object_auth.auth = Some(parser.value()?.string()?),
-                Short('h') | Long("help") => {
-                    Self::help();
-                    return Err(TpmError::HelpDisplayed);
-                }
-                _ => return Err(TpmError::from(arg.unexpected())),
+        parse_args!(parser, arg, Self::help, {
+            Long("parent-auth") => {
+                args.parent_auth.auth = Some(parser.value()?.string()?);
             }
-        }
+            Long("object-auth") => {
+                args.object_auth.auth = Some(parser.value()?.string()?);
+            }
+            _ => {
+                return Err(TpmError::from(arg.unexpected()));
+            }
+        });
         Ok(Commands::Seal(args))
     }
 
@@ -77,10 +76,8 @@ impl Command for Seal {
 
         let mut io = CommandIo::new(io::stdout(), log_format)?;
         let session = io.take_session()?;
-
         let (parent_handle, needs_flush) =
             consume_and_get_parent_handle(&mut io, chip, log_format)?;
-
         let result = (|| {
             let data_to_seal_obj = io.consume_object(|_| true)?;
             let Object::TpmObject(data_str) = data_to_seal_obj;
@@ -117,7 +114,6 @@ impl Command for Seal {
                 outside_info: Tpm2b::default(),
                 creation_pcr: TpmlPcrSelection::default(),
             };
-
             let handles = [parent_handle.into()];
             let sessions = get_auth_sessions(
                 &cmd,
@@ -125,13 +121,11 @@ impl Command for Seal {
                 session.as_ref(),
                 self.parent_auth.auth.as_deref(),
             )?;
-
             let (resp, _) = chip.execute(&cmd, Some(&handles), &sessions, log_format)?;
 
             let create_resp = resp.Create().map_err(|e| {
                 TpmError::Execution(format!("unexpected response type for Create: {e:?}"))
             })?;
-
             let pub_bytes = build_to_vec(&create_resp.out_public)?;
             let priv_bytes = build_to_vec(&create_resp.out_private)?;
 
@@ -142,7 +136,6 @@ impl Command for Seal {
                 public: base64_engine.encode(pub_bytes),
                 private: base64_engine.encode(priv_bytes),
             };
-
             let new_object = Object::TpmObject(
                 Envelope {
                     version: 1,
@@ -152,11 +145,9 @@ impl Command for Seal {
                 .to_json()
                 .dump(),
             );
-
             io.push_object(new_object);
             io.finalize()
         })();
-
         if needs_flush {
             let flush_cmd = TpmFlushContextCommand {
                 flush_handle: parent_handle.into(),

@@ -1,12 +1,12 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3-0-or-later
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 // Copyright (c) 2025 Opinsys Oy
 
 use crate::{
     arg_parser::{format_subcommand_help, CommandLineOption},
     cli::{self, Commands, Object, Save},
-    get_auth_sessions, parse_hex_u32, parse_persistent_handle, Command, CommandIo, TpmDevice,
-    TpmError,
+    get_auth_sessions, parse_args, parse_hex_u32, parse_persistent_handle, Command, CommandIo,
+    TpmDevice, TpmError,
 };
 use lexopt::prelude::*;
 use std::io::IsTerminal;
@@ -30,7 +30,6 @@ const OPTIONS: &[CommandLineOption] = &[
     (None, "--auth", "<AUTH>", "Authorization value"),
     (Some("-h"), "--help", "", "Print help information"),
 ];
-
 impl Command for Save {
     fn help() {
         println!(
@@ -41,22 +40,20 @@ impl Command for Save {
 
     fn parse(parser: &mut lexopt::Parser) -> Result<Commands, TpmError> {
         let mut args = Save::default();
-        while let Some(arg) = parser.next()? {
-            match arg {
-                Long("object-handle") => {
-                    args.object_handle = parse_hex_u32(&parser.value()?.string()?)?;
-                }
-                Long("persistent-handle") => {
-                    args.persistent_handle = parse_persistent_handle(&parser.value()?.string()?)?;
-                }
-                Long("auth") => args.auth.auth = Some(parser.value()?.string()?),
-                Short('h') | Long("help") => {
-                    Self::help();
-                    return Err(TpmError::HelpDisplayed);
-                }
-                _ => return Err(TpmError::from(arg.unexpected())),
+        parse_args!(parser, arg, Self::help, {
+            Long("object-handle") => {
+                args.object_handle = parse_hex_u32(&parser.value()?.string()?)?;
             }
-        }
+            Long("persistent-handle") => {
+                args.persistent_handle = parse_persistent_handle(&parser.value()?.string()?)?;
+            }
+            Long("auth") => {
+                args.auth.auth = Some(parser.value()?.string()?);
+            }
+            _ => {
+                return Err(TpmError::from(arg.unexpected()));
+            }
+        });
         Ok(Commands::Save(args))
     }
     /// Runs `save`.
@@ -72,7 +69,6 @@ impl Command for Save {
 
         let mut io = CommandIo::new(std::io::stdout(), log_format)?;
         let session = io.take_session()?;
-
         let object_handle = if self.object_handle != 0 {
             self.object_handle
         } else {
@@ -83,22 +79,18 @@ impl Command for Save {
 
         let auth_handle = TpmRh::Owner;
         let handles = [auth_handle as u32, object_handle];
-
         let evict_cmd = TpmEvictControlCommand {
             persistent_handle: self.persistent_handle,
         };
-
         let sessions = get_auth_sessions(
             &evict_cmd,
             &handles,
             session.as_ref(),
             self.auth.auth.as_deref(),
         )?;
-
         let (resp, _) = chip.execute(&evict_cmd, Some(&handles), &sessions, log_format)?;
         resp.EvictControl()
             .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
-
         let obj = Object::TpmObject(format!("{:#010x}", self.persistent_handle));
         io.push_object(obj);
         io.finalize()

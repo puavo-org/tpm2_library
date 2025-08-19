@@ -1,11 +1,11 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3-0-or-later
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 // Copyright (c) 2025 Opinsys Oy
 
 use crate::{
     arg_parser::{format_subcommand_help, CommandLineOption},
     cli::{self, Commands, Object, StartSession},
-    Command, Envelope, SessionData, TpmDevice, TpmError,
+    parse_args, Command, Envelope, SessionData, TpmDevice, TpmError,
 };
 use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
 use lexopt::prelude::*;
@@ -15,7 +15,6 @@ use tpm2_protocol::{
     data::{Tpm2b, TpmAlgId, TpmRh, TpmaSession, TpmtSymDefObject},
     message::TpmStartAuthSessionCommand,
 };
-
 const ABOUT: &str = "Starts an authorization session";
 const USAGE: &str = "tpm2sh start-session [OPTIONS]";
 const OPTIONS: &[CommandLineOption] = &[
@@ -44,17 +43,17 @@ impl Command for StartSession {
 
     fn parse(parser: &mut lexopt::Parser) -> Result<Commands, TpmError> {
         let mut args = StartSession::default();
-        while let Some(arg) = parser.next()? {
-            match arg {
-                Long("session-type") => args.session_type = parser.value()?.string()?.parse()?,
-                Long("hash-alg") => args.hash_alg = parser.value()?.string()?.parse()?,
-                Short('h') | Long("help") => {
-                    Self::help();
-                    return Err(TpmError::HelpDisplayed);
-                }
-                _ => return Err(TpmError::from(arg.unexpected())),
+        parse_args!(parser, arg, Self::help, {
+            Long("session-type") => {
+                args.session_type = parser.value()?.string()?.parse()?;
             }
-        }
+            Long("hash-alg") => {
+                args.hash_alg = parser.value()?.string()?.parse()?;
+            }
+            _ => {
+                return Err(TpmError::from(arg.unexpected()));
+            }
+        });
         Ok(Commands::StartSession(args))
     }
 
@@ -69,7 +68,6 @@ impl Command for StartSession {
 
         let auth_hash = TpmAlgId::from(self.hash_alg);
         let session_type = self.session_type;
-
         let cmd = TpmStartAuthSessionCommand {
             nonce_caller: Tpm2b::try_from(nonce_bytes.as_slice())?,
             encrypted_salt: Tpm2b::default(),
@@ -77,17 +75,13 @@ impl Command for StartSession {
             symmetric: TpmtSymDefObject::default(),
             auth_hash,
         };
-
         let handles = [TpmRh::Null as u32, TpmRh::Null as u32];
         let (response, _) = chip.execute(&cmd, Some(&handles), &[], log_format)?;
-
         let start_auth_session_resp = response
             .StartAuthSession()
             .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
-
         let digest_len = tpm2_protocol::tpm_hash_size(&auth_hash)
             .ok_or_else(|| TpmError::Execution("Unsupported hash algorithm".to_string()))?;
-
         let data = SessionData {
             handle: start_auth_session_resp.session_handle.into(),
             nonce_tpm: base64_engine.encode(&*start_auth_session_resp.nonce_tpm),
@@ -96,13 +90,11 @@ impl Command for StartSession {
             auth_hash: cmd.auth_hash as u16,
             policy_digest: hex::encode(vec![0; digest_len]),
         };
-
         let envelope = Envelope {
             version: 1,
             object_type: "session".to_string(),
             data: data.to_json(),
         };
-
         let final_json = envelope.to_json();
         if std::io::stdout().is_terminal() {
             println!("{}", final_json.pretty(2));

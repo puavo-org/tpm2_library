@@ -1,18 +1,16 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3-0-or-later
 // Copyright (c) 2025 Opinsys Oy
 
 use crate::{
     arg_parser::{format_subcommand_help, CommandLineOption},
     cli::{self, Commands, Objects},
-    Command, TpmDevice, TpmError,
+    parse_args, Command, TpmDevice, TpmError,
 };
-use lexopt::prelude::*;
 use tpm2_protocol::data::TpmRh;
 
 const ABOUT: &str = "Lists objects in volatile and non-volatile memory";
 const USAGE: &str = "tpm2sh objects";
 const OPTIONS: &[CommandLineOption] = &[(Some("-h"), "--help", "", "Print help information")];
-
 impl Command for Objects {
     fn help() {
         println!(
@@ -22,15 +20,11 @@ impl Command for Objects {
     }
 
     fn parse(parser: &mut lexopt::Parser) -> Result<Commands, TpmError> {
-        if let Some(arg) = parser.next()? {
-            match arg {
-                Short('h') | Long("help") => {
-                    Self::help();
-                    return Err(TpmError::HelpDisplayed);
-                }
-                _ => return Err(TpmError::from(arg.unexpected())),
+        parse_args!(parser, arg, Self::help, {
+            _ => {
+                return Err(TpmError::from(arg.unexpected()));
             }
-        }
+        });
         Ok(Commands::Objects(Objects {}))
     }
 

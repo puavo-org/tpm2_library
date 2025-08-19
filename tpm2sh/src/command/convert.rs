@@ -1,11 +1,11 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3-0-or-later
 // Copyright (c) 2025 Opinsys Oy
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 
 use crate::{
     arg_parser::{format_subcommand_help, CommandLineOption},
     cli::{self, Commands, Convert, KeyFormat},
-    from_json_str, Command, Envelope, ObjectData, TpmDevice, TpmError, TpmKey,
+    from_json_str, parse_args, Command, Envelope, ObjectData, TpmDevice, TpmError, TpmKey,
 };
 use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
 use lexopt::prelude::*;
@@ -13,7 +13,6 @@ use std::{
     fs::File,
     io::{self, Read, Write},
 };
-
 const ABOUT: &str = "Converts keys between ASN.1 and JSON format";
 const USAGE: &str = "tpm2sh convert [OPTIONS]";
 const OPTIONS: &[CommandLineOption] = &[
@@ -36,7 +35,6 @@ const OPTIONS: &[CommandLineOption] = &[
 fn json_to_tpm_key(json_str: &str) -> Result<TpmKey, TpmError> {
     let json_value = from_json_str(json_str, "object")?;
     let data = ObjectData::from_json(&json_value)?;
-
     Ok(TpmKey {
         oid: data
             .oid
@@ -101,17 +99,17 @@ impl Command for Convert {
 
     fn parse(parser: &mut lexopt::Parser) -> Result<Commands, TpmError> {
         let mut args = Convert::default();
-        while let Some(arg) = parser.next()? {
-            match arg {
-                Long("from") => args.from = parser.value()?.string()?.parse()?,
-                Long("to") => args.to = parser.value()?.string()?.parse()?,
-                Short('h') | Long("help") => {
-                    Self::help();
-                    return Err(TpmError::HelpDisplayed);
-                }
-                _ => return Err(TpmError::from(arg.unexpected())),
+        parse_args!(parser, arg, Self::help, {
+            Long("from") => {
+                args.from = parser.value()?.string()?.parse()?;
             }
-        }
+            Long("to") => {
+                args.to = parser.value()?.string()?.parse()?;
+            }
+            _ => {
+                return Err(TpmError::from(arg.unexpected()));
+            }
+        });
         Ok(Commands::Convert(args))
     }
 

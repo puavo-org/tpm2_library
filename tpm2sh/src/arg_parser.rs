@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3-0-or-later
 // Copyright (c) 2025 Opinsys Oy
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 
@@ -15,6 +15,21 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub type CommandLineOption<'a> = (Option<&'a str>, &'a str, &'a str, &'a str);
 pub type CommandLineArgument<'a> = (&'a str, &'a str);
+
+#[macro_export]
+macro_rules! parse_args {
+    ($parser:ident, $arg:ident, $help_fn:expr, { $($matcher:tt)* }) => {
+        while let Some($arg) = $parser.next()? {
+            match $arg {
+                lexopt::Arg::Short('h') | lexopt::Arg::Long("help") => {
+                    $help_fn();
+                    return Err($crate::TpmError::HelpDisplayed);
+                }
+                $($matcher)*
+            }
+        }
+    };
+}
 
 fn format_help_section(title: &str, items: &[(String, &str)], max_len: usize) -> String {
     let mut output = format!("\n{title}:\n");
@@ -33,12 +48,10 @@ pub fn format_subcommand_help(
     options: &[CommandLineOption],
 ) -> String {
     let mut output = format!("tpm2sh-{name}\n{about}\n\nUSAGE:\n    {usage}");
-
     let arg_items: Vec<(String, &str)> = args
         .iter()
         .map(|(name, desc)| ((*name).to_string(), *desc))
         .collect();
-
     let opt_items: Vec<(String, &str)> = options
         .iter()
         .map(|(short, long, val, desc)| {
@@ -55,14 +68,12 @@ pub fn format_subcommand_help(
             (left, *desc)
         })
         .collect();
-
     let max_len = arg_items
         .iter()
         .chain(opt_items.iter())
         .map(|(left, _)| left.len())
         .max()
         .unwrap_or(0);
-
     if !args.is_empty() {
         output.push_str(&format_help_section("ARGS", &arg_items, max_len));
     }
@@ -148,7 +159,6 @@ const SUBCOMMANDS: &[Subcommand] = &[
         about: "Unseals a keyedhash object",
     },
 ];
-
 const GLOBAL_OPTIONS: &[CommandLineOption] = &[
     (Some("-d"), "--device", "<DEVICE>", "[default: /dev/tpmrm0]"),
     (
@@ -160,11 +170,9 @@ const GLOBAL_OPTIONS: &[CommandLineOption] = &[
     (Some("-h"), "--help", "", "Print help information"),
     (Some("-V"), "--version", "", "Print version information"),
 ];
-
 fn print_usage() {
     let mut output =
         format!("tpm2sh {VERSION}\nTPM 2.0 shell\n\nUSAGE:\n    tpm2sh [OPTIONS] <COMMAND>");
-
     let opt_items: Vec<(String, &str)> = GLOBAL_OPTIONS
         .iter()
         .map(|(short, long, val, desc)| {
@@ -181,7 +189,6 @@ fn print_usage() {
             (left, *desc)
         })
         .collect();
-
     let max_len = opt_items
         .iter()
         .map(|(left, _)| left.len())
@@ -239,7 +246,6 @@ fn dispatch_subcommand(
 /// Returns a `TpmError::Execute` on a failure.
 pub fn parse_cli() -> Result<Option<Cli>, TpmError> {
     use lexopt::prelude::*;
-
     let mut cli = Cli {
         device: "/dev/tpmrm0".to_string(),
         ..Default::default()

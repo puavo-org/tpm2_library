@@ -1,11 +1,11 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3-0-or-later
 // Copyright (c) 2025 Opinsys Oy
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 
 use crate::{
     arg_parser::{format_subcommand_help, CommandLineOption},
     cli::{self, Commands, CreatePrimary, Object},
-    get_auth_sessions, parse_persistent_handle,
+    get_auth_sessions, parse_args, parse_persistent_handle,
     util::build_to_vec,
     Alg, AlgInfo, Command, ContextData, Envelope, TpmDevice, TpmError,
 };
@@ -26,7 +26,6 @@ use tpm2_protocol::{
     },
     TpmBuffer, TpmTransient,
 };
-
 const ABOUT: &str = "Creates a primary key";
 const USAGE: &str = "tpm2sh create-primary [OPTIONS] --alg <ALG>";
 const OPTIONS: &[CommandLineOption] = &[
@@ -56,13 +55,11 @@ const OPTIONS: &[CommandLineOption] = &[
     ),
     (Some("-h"), "--help", "", "Print help information"),
 ];
-
 fn build_public_template(alg_desc: &Alg) -> TpmtPublic {
     let mut object_attributes = TpmaObject::USER_WITH_AUTH
         | TpmaObject::FIXED_TPM
         | TpmaObject::FIXED_PARENT
         | TpmaObject::SENSITIVE_DATA_ORIGIN;
-
     let (parameters, unique) = match alg_desc.params {
         AlgInfo::Rsa { key_bits } => {
             object_attributes |= TpmaObject::DECRYPT | TpmaObject::RESTRICTED;
@@ -105,7 +102,6 @@ fn build_public_template(alg_desc: &Alg) -> TpmtPublic {
             TpmuPublicId::KeyedHash(TpmBuffer::default()),
         ),
     };
-
     TpmtPublic {
         object_type: alg_desc.object_type,
         name_alg: alg_desc.name_alg,
@@ -133,7 +129,6 @@ pub fn save_key_context(
     let save_resp = resp
         .ContextSave()
         .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
-
     let context_bytes = build_to_vec(&save_resp.context)?;
 
     let data = ContextData {
@@ -158,26 +153,25 @@ impl Command for CreatePrimary {
     fn parse(parser: &mut lexopt::Parser) -> Result<Commands, TpmError> {
         let mut args = CreatePrimary::default();
         let mut alg_set = false;
-        while let Some(arg) = parser.next()? {
-            match arg {
-                Short('H') | Long("hierarchy") => {
-                    args.hierarchy = parser.value()?.string()?.parse()?;
-                }
-                Long("alg") => {
-                    args.alg = parser.value()?.string()?.parse().map_err(TpmError::Parse)?;
-                    alg_set = true;
-                }
-                Long("persistent") => {
-                    args.persistent = Some(parse_persistent_handle(&parser.value()?.string()?)?);
-                }
-                Long("auth") => args.auth.auth = Some(parser.value()?.string()?),
-                Short('h') | Long("help") => {
-                    Self::help();
-                    return Err(TpmError::HelpDisplayed);
-                }
-                _ => return Err(TpmError::from(arg.unexpected())),
+        parse_args!(parser, arg, Self::help, {
+            Short('H') | Long("hierarchy") => {
+                args.hierarchy = parser.value()?.string()?.parse()?;
             }
-        }
+            Long("alg") => {
+                args.alg = parser.value()?.string()?.parse().map_err(TpmError::Parse)?;
+                alg_set = true;
+            }
+            Long("persistent") => {
+                args.persistent = Some(parse_persistent_handle(&parser.value()?.string()?)?);
+            }
+            Long("auth") => {
+                args.auth.auth = Some(parser.value()?.string()?);
+            }
+            _ => {
+                return Err(TpmError::from(arg.unexpected()));
+            }
+        });
+
         if !alg_set {
             Self::help();
             return Err(TpmError::HelpDisplayed);
@@ -212,7 +206,6 @@ impl Command for CreatePrimary {
             outside_info: Tpm2b::default(),
             creation_pcr: TpmlPcrSelection::default(),
         };
-
         let sessions =
             get_auth_sessions(&cmd, &handles, session.as_ref(), self.auth.auth.as_deref())?;
         let (resp, _) = chip.execute(&cmd, Some(&handles), &sessions, log_format)?;
@@ -250,7 +243,6 @@ impl Command for CreatePrimary {
             }
             Ok(())
         })();
-
         if result.is_err() || self.persistent.is_none() {
             let flush_cmd = TpmFlushContextCommand {
                 flush_handle: object_handle.into(),

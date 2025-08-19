@@ -1,11 +1,11 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3-0-or-later
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 // Copyright (c) 2025 Opinsys Oy
 
 use crate::{
     arg_parser::{format_subcommand_help, CommandLineOption},
     cli::{self, Commands, Import, Object},
-    create_import_blob, get_auth_sessions, read_public,
+    create_import_blob, get_auth_sessions, parse_args, read_public,
     util::{build_to_vec, consume_and_get_parent_handle},
     Command, CommandIo, Envelope, ObjectData, PrivateKey, TpmDevice, TpmError, ID_IMPORTABLE_KEY,
 };
@@ -15,7 +15,6 @@ use log::warn;
 use std::io;
 use tpm2_protocol::data::{Tpm2bPublic, TpmAlgId, TpmtSymDef, TpmuSymKeyBits, TpmuSymMode};
 use tpm2_protocol::message::{TpmFlushContextCommand, TpmImportCommand};
-
 const ABOUT: &str = "Imports an external key";
 const USAGE: &str = "tpm2sh import [OPTIONS]";
 const OPTIONS: &[CommandLineOption] = &[
@@ -27,7 +26,6 @@ const OPTIONS: &[CommandLineOption] = &[
     ),
     (Some("-h"), "--help", "", "Print help information"),
 ];
-
 impl Command for Import {
     fn help() {
         println!(
@@ -38,16 +36,14 @@ impl Command for Import {
 
     fn parse(parser: &mut lexopt::Parser) -> Result<Commands, TpmError> {
         let mut args = Import::default();
-        while let Some(arg) = parser.next()? {
-            match arg {
-                Long("auth") => args.parent_auth.auth = Some(parser.value()?.string()?),
-                Short('h') | Long("help") => {
-                    Self::help();
-                    return Err(TpmError::HelpDisplayed);
-                }
-                _ => return Err(TpmError::from(arg.unexpected())),
+        parse_args!(parser, arg, Self::help, {
+            Long("auth") => {
+                args.parent_auth.auth = Some(parser.value()?.string()?);
             }
-        }
+            _ => {
+                return Err(TpmError::from(arg.unexpected()));
+            }
+        });
         Ok(Commands::Import(args))
     }
 
@@ -63,7 +59,6 @@ impl Command for Import {
 
         let (parent_handle, needs_flush) =
             consume_and_get_parent_handle(&mut io, chip, log_format)?;
-
         let result = (|| {
             let (parent_public, parent_name) = read_public(chip, parent_handle, log_format)?;
             let parent_name_alg = parent_public.name_alg;
@@ -99,7 +94,6 @@ impl Command for Import {
                     mode: TpmuSymMode::Aes(TpmAlgId::Cfb),
                 },
             };
-
             let handles = [parent_handle.into()];
             let sessions = get_auth_sessions(
                 &import_cmd,
@@ -107,15 +101,12 @@ impl Command for Import {
                 session.as_ref(),
                 self.parent_auth.auth.as_deref(),
             )?;
-
             let (resp, _) = chip.execute(&import_cmd, Some(&handles), &sessions, log_format)?;
             let import_resp = resp.Import().map_err(|e| {
                 TpmError::Execution(format!("unexpected response type for Import: {e:?}"))
             })?;
-
             let pub_key_bytes = build_to_vec(&Tpm2bPublic { inner: public })?;
             let priv_key_bytes = build_to_vec(&import_resp.out_private)?;
-
             let data = ObjectData {
                 oid: ID_IMPORTABLE_KEY.to_string(),
                 empty_auth: false,
@@ -133,11 +124,9 @@ impl Command for Import {
                 .to_json()
                 .dump(),
             );
-
             io.push_object(new_object);
             io.finalize()
         })();
-
         if needs_flush {
             let flush_cmd = TpmFlushContextCommand {
                 flush_handle: parent_handle.into(),
