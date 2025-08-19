@@ -30,9 +30,8 @@ pub fn tpm_parse_command(buf: &[u8]) -> TpmResult<(TpmHandles, TpmCommandBody, T
     let command_len = buf.len();
 
     let (tag_raw, buf) = u16::parse(buf)?;
-    let tag = TpmSt::try_from(tag_raw).map_err(|()| TpmErrorKind::NotDiscriminant {
-        type_name: "TpmSt",
-        value: TpmNotDiscriminant::Unsigned(u64::from(tag_raw)),
+    let tag = TpmSt::try_from(tag_raw).map_err(|()| {
+        TpmErrorKind::NotDiscriminant("TpmSt", TpmNotDiscriminant::Unsigned(u64::from(tag_raw)))
     })?;
     let (size, buf) = u32::parse(buf)?;
     let (cc_raw, mut buf) = u32::parse(buf)?;
@@ -41,16 +40,14 @@ pub fn tpm_parse_command(buf: &[u8]) -> TpmResult<(TpmHandles, TpmCommandBody, T
         return Err(TpmErrorKind::Boundary);
     }
 
-    let cc = TpmCc::try_from(cc_raw).map_err(|()| TpmErrorKind::NotDiscriminant {
-        type_name: "TpmCc",
-        value: TpmNotDiscriminant::Unsigned(u64::from(cc_raw)),
+    let cc = TpmCc::try_from(cc_raw).map_err(|()| {
+        TpmErrorKind::NotDiscriminant("TpmCc", TpmNotDiscriminant::Unsigned(u64::from(cc_raw)))
     })?;
     let dispatch = PARSE_COMMAND_MAP
         .binary_search_by_key(&cc, |d| d.0)
         .map(|index| &PARSE_COMMAND_MAP[index])
-        .map_err(|_| TpmErrorKind::NotDiscriminant {
-            type_name: "TpmCc",
-            value: TpmNotDiscriminant::Unsigned(u64::from(cc_raw)),
+        .map_err(|_| {
+            TpmErrorKind::NotDiscriminant("TpmCc", TpmNotDiscriminant::Unsigned(u64::from(cc_raw)))
         })?;
 
     if tag == TpmSt::Sessions && !dispatch.2 {
@@ -135,17 +132,18 @@ pub fn tpm_parse_response(cc: TpmCc, buf: &[u8]) -> TpmResult<TpmParseResult<'_>
         return Ok(Err((rc, body_buf)));
     }
 
-    let tag = TpmSt::try_from(tag_raw).map_err(|()| TpmErrorKind::NotDiscriminant {
-        type_name: "TpmSt",
-        value: TpmNotDiscriminant::Unsigned(u64::from(tag_raw)),
+    let tag = TpmSt::try_from(tag_raw).map_err(|()| {
+        TpmErrorKind::NotDiscriminant("TpmSt", TpmNotDiscriminant::Unsigned(u64::from(tag_raw)))
     })?;
 
     let dispatch = PARSE_RESPONSE_MAP
         .binary_search_by_key(&cc, |d| d.0)
         .map(|index| &PARSE_RESPONSE_MAP[index])
-        .map_err(|_| TpmErrorKind::NotDiscriminant {
-            type_name: "TpmCc",
-            value: TpmNotDiscriminant::Unsigned(u64::from(cc as u32)),
+        .map_err(|_| {
+            TpmErrorKind::NotDiscriminant(
+                "TpmCc",
+                TpmNotDiscriminant::Unsigned(u64::from(cc as u32)),
+            )
         })?;
 
     let (body, mut session_area) = (dispatch.2)(body_buf)?;

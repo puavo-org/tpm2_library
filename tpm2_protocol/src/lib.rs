@@ -95,10 +95,7 @@ pub enum TpmErrorKind {
     /// Invalid value
     InvalidValue,
     /// Not a valid discriminant for the target enum
-    NotDiscriminant {
-        type_name: &'static str,
-        value: TpmNotDiscriminant,
-    },
+    NotDiscriminant(&'static str, TpmNotDiscriminant),
     /// Trailing data after parsing
     TrailingData,
     /// A size or count in the buffer is larger than the maximum allowed value
@@ -110,7 +107,7 @@ impl fmt::Display for TpmErrorKind {
         match self {
             Self::Boundary => write!(f, "Insufficient data in buffer"),
             Self::TrailingData => write!(f, "Buffer has unexpected trailing data after parsing"),
-            Self::NotDiscriminant { type_name, value } => {
+            Self::NotDiscriminant(type_name, value) => {
                 write!(f, "Invalid discriminant 0x{value:x} for type '{type_name}'")
             }
             Self::InvalidMagic { expected, got } => {

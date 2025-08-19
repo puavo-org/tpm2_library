@@ -332,10 +332,10 @@ impl TpmParseTagged for TpmuPublicParms {
                 let (scheme, buf) = crate::data::TpmtScheme::parse(buf)?;
                 let (curve_id_raw, buf) = u16::parse(buf)?;
                 let curve_id = TpmEccCurve::try_from(curve_id_raw).map_err(|()| {
-                    TpmErrorKind::NotDiscriminant {
-                        type_name: "TpmEccCurve",
-                        value: TpmNotDiscriminant::Unsigned(u64::from(curve_id_raw)),
-                    }
+                    TpmErrorKind::NotDiscriminant(
+                        "TpmEccCurve",
+                        TpmNotDiscriminant::Unsigned(u64::from(curve_id_raw)),
+                    )
                 })?;
                 let (kdf, buf) = TpmtKdfScheme::parse(buf)?;
                 Ok((

@@ -81,9 +81,11 @@ impl TpmRc {
     /// to a known base error code.
     pub fn base(self) -> Result<TpmRcBase, TpmErrorKind> {
         let base_code = get_base_code(self.0);
-        TpmRcBase::try_from(base_code).map_err(|()| TpmErrorKind::NotDiscriminant {
-            type_name: "TpmRcBase",
-            value: TpmNotDiscriminant::Unsigned(u64::from(base_code)),
+        TpmRcBase::try_from(base_code).map_err(|()| {
+            TpmErrorKind::NotDiscriminant(
+                "TpmRcBase",
+                TpmNotDiscriminant::Unsigned(u64::from(base_code)),
+            )
         })
     }
 
@@ -143,9 +145,11 @@ impl TryFrom<u32> for TpmRc {
     type Error = TpmErrorKind;
     fn try_from(value: u32) -> Result<Self, Self::Error> {
         let base_code = get_base_code(value);
-        TpmRcBase::try_from(base_code).map_err(|()| TpmErrorKind::NotDiscriminant {
-            type_name: "TpmRcBase",
-            value: TpmNotDiscriminant::Unsigned(u64::from(base_code)),
+        TpmRcBase::try_from(base_code).map_err(|()| {
+            TpmErrorKind::NotDiscriminant(
+                "TpmRcBase",
+                TpmNotDiscriminant::Unsigned(u64::from(base_code)),
+            )
         })?;
         Ok(Self(value))
     }
