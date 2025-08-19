@@ -56,6 +56,7 @@ fn test_policy_parser_valid(#[case] input: &str) {
 #[case("or(pcr(\"s:0\"), )")]
 #[case("foo(\"bar\")")]
 #[case("pcr(\"unterminated string)")]
+#[case("")]
 fn test_policy_parser_invalid(#[case] input: &str) {
     assert!(PolicyParser::parse(PolicyRule::policy_expression, input).is_err());
 }
