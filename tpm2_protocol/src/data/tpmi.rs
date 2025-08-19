@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2025 Opinsys Oy
 
-use crate::{tpm_bool, tpm_enum, TpmNotDiscriminant};
+use crate::{
+    data::{TpmAlgId, TpmSt},
+    tpm_bool, tpm_enum, tpm_handle, TpmNotDiscriminant,
+};
 
 tpm_bool! {
     #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -17,4 +20,28 @@ tpm_enum! {
         (Ecmqv, 0x001D, "TPM_ALG_ECMQV"),
         (Sm2, 0x001B, "TPM_ALG_SM2"),
     }
+}
+
+pub type TpmiAlgHash = TpmAlgId;
+pub type TpmiAlgSymObject = TpmAlgId;
+pub type TpmiStCommandTag = TpmSt;
+
+tpm_handle! {
+    #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+    TpmiDhObject
+}
+
+tpm_handle! {
+    #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+    TpmiDhParent
+}
+
+tpm_handle! {
+    #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+    TpmiShAuthSession
+}
+
+tpm_handle! {
+    #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+    TpmiRhHierarchy
 }
