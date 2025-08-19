@@ -1106,11 +1106,11 @@ dependencies = [
 
 [[package]]
 name = "tpm2-protocol"
-version = "0.8.0"
+version = "0.9.0"
 
 [[package]]
 name = "tpm2sh"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "aes",
  "base64",
