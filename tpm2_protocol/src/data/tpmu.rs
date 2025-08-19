@@ -5,11 +5,11 @@
 use crate::{
     data::{
         Tpm2bDigest, Tpm2bEccParameter, Tpm2bPublicKeyRsa, Tpm2bSensitiveData, Tpm2bSymKey,
-        TpmAlgId, TpmCap, TpmlAlgProperty, TpmlHandle, TpmlPcrSelection, TpmsCertifyInfo,
+        TpmAlgId, TpmCap, TpmHt, TpmlAlgProperty, TpmlHandle, TpmlPcrSelection, TpmsCertifyInfo,
         TpmsCommandAuditInfo, TpmsCreationInfo, TpmsEccParms, TpmsEccPoint, TpmsKeyedhashParms,
-        TpmsNvCertifyInfo, TpmsNvDigestCertifyInfo, TpmsQuoteInfo, TpmsRsaParms, TpmsSchemeHash,
-        TpmsSchemeXor, TpmsSessionAuditInfo, TpmsSignatureEcc, TpmsSignatureRsa,
-        TpmsSymcipherParms, TpmsTimeAttestInfo, TpmtHa,
+        TpmsNvCertifyInfo, TpmsNvDigestCertifyInfo, TpmsNvPublic, TpmsNvPublicExpAttr,
+        TpmsQuoteInfo, TpmsRsaParms, TpmsSchemeHash, TpmsSchemeXor, TpmsSessionAuditInfo,
+        TpmsSignatureEcc, TpmsSignatureRsa, TpmsSymcipherParms, TpmsTimeAttestInfo, TpmtHa,
     },
     tpm_hash_size, TpmBuild, TpmErrorKind, TpmParse, TpmParseTagged, TpmResult, TpmSized,
     TpmTagged, TpmWriter, TPM_MAX_COMMAND_SIZE,
@@ -779,6 +779,59 @@ impl TpmParseTagged for TpmuAsymScheme {
         } else {
             let (val, buf) = TpmsSchemeHash::parse(buf)?;
             Ok((Self::Any(val), buf))
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum TpmuNvPublic2 {
+    NvIndex(TpmsNvPublic),
+    ExternalNv(TpmsNvPublicExpAttr),
+    PermanentNv(TpmsNvPublic),
+}
+
+impl TpmTagged for TpmuNvPublic2 {
+    type Tag = TpmHt;
+    type Value = ();
+}
+
+#[allow(clippy::match_same_arms)]
+impl TpmSized for TpmuNvPublic2 {
+    const SIZE: usize = TPM_MAX_COMMAND_SIZE;
+    fn len(&self) -> usize {
+        match self {
+            Self::NvIndex(s) => s.len(),
+            Self::ExternalNv(s) => s.len(),
+            Self::PermanentNv(s) => s.len(),
+        }
+    }
+}
+
+impl TpmBuild for TpmuNvPublic2 {
+    fn build(&self, writer: &mut TpmWriter) -> TpmResult<()> {
+        match self {
+            Self::ExternalNv(s) => s.build(writer),
+            Self::NvIndex(s) | Self::PermanentNv(s) => s.build(writer),
+        }
+    }
+}
+
+impl TpmParseTagged for TpmuNvPublic2 {
+    fn parse_tagged(tag: TpmHt, buf: &[u8]) -> TpmResult<(Self, &[u8])> {
+        match tag {
+            TpmHt::NvIndex => {
+                let (val, buf) = TpmsNvPublic::parse(buf)?;
+                Ok((Self::NvIndex(val), buf))
+            }
+            TpmHt::ExternalNv => {
+                let (val, buf) = TpmsNvPublicExpAttr::parse(buf)?;
+                Ok((Self::ExternalNv(val), buf))
+            }
+            TpmHt::PermanentNv => {
+                let (val, buf) = TpmsNvPublic::parse(buf)?;
+                Ok((Self::PermanentNv(val), buf))
+            }
+            _ => Err(TpmErrorKind::InvalidValue),
         }
     }
 }

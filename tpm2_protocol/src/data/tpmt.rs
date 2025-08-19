@@ -4,10 +4,10 @@
 
 use super::{
     tpmu::{
-        TpmuHa, TpmuKeyedhashScheme, TpmuPublicId, TpmuPublicParms, TpmuSensitiveComposite,
-        TpmuSigScheme, TpmuSymKeyBits, TpmuSymMode,
+        TpmuHa, TpmuKeyedhashScheme, TpmuNvPublic2, TpmuPublicId, TpmuPublicParms,
+        TpmuSensitiveComposite, TpmuSigScheme, TpmuSymKeyBits, TpmuSymMode,
     },
-    Tpm2bAuth, Tpm2bDigest, TpmAlgId, TpmRh, TpmSt, TpmaObject,
+    Tpm2bAuth, Tpm2bDigest, TpmAlgId, TpmHt, TpmRh, TpmSt, TpmaObject,
 };
 use crate::{
     tpm_struct, tpm_tagged_struct, TpmBuild, TpmErrorKind, TpmParse, TpmParseTagged, TpmResult,
@@ -267,6 +267,14 @@ impl TpmParse for TpmtSymDef {
 }
 
 pub type TpmtSymDefObject = TpmtSymDef;
+
+tpm_tagged_struct! {
+    #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+    pub struct TpmtNvPublic2 {
+        pub handle_type: TpmHt,
+        pub public_area: TpmuNvPublic2,
+    }
+}
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone, Default)]

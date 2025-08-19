@@ -6,8 +6,8 @@ use crate::{
     data::{
         Tpm2b, Tpm2bAuth, Tpm2bData, Tpm2bDigest, Tpm2bEccParameter, Tpm2bMaxNvBuffer, Tpm2bName,
         Tpm2bNonce, Tpm2bSensitiveData, TpmAlgId, TpmAt, TpmCap, TpmEccCurve, TpmRh, TpmSt,
-        TpmaAlgorithm, TpmaLocality, TpmaNv, TpmaSession, TpmiAlgHash, TpmiYesNo, TpmlPcrSelection,
-        TpmtKdfScheme, TpmtScheme, TpmtSymDefObject, TpmuCapabilities,
+        TpmaAlgorithm, TpmaLocality, TpmaNv, TpmaNvExp, TpmaSession, TpmiAlgHash, TpmiRhNvExpIndex,
+        TpmiYesNo, TpmlPcrSelection, TpmtKdfScheme, TpmtScheme, TpmtSymDefObject, TpmuCapabilities,
     },
     tpm_struct, TpmBuffer, TpmBuild, TpmErrorKind, TpmParse, TpmParseTagged, TpmResult, TpmSized,
     TpmTagged, TpmWriter,
@@ -144,6 +144,17 @@ tpm_struct! {
         pub nv_index: u32,
         pub name_alg: TpmAlgId,
         pub attributes: TpmaNv,
+        pub auth_policy: Tpm2bDigest,
+        pub data_size: u16,
+    }
+}
+
+tpm_struct! {
+    #[derive(Debug, PartialEq, Eq, Clone, Copy, Default)]
+    pub struct TpmsNvPublicExpAttr {
+        pub nv_index: TpmiRhNvExpIndex,
+        pub name_alg: TpmAlgId,
+        pub attributes: TpmaNvExp,
         pub auth_policy: Tpm2bDigest,
         pub data_size: u16,
     }

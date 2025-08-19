@@ -9,7 +9,7 @@ use crate::{
         Tpm2bAttest, Tpm2bAuth, Tpm2bData, Tpm2bMaxNvBuffer, Tpm2bName, Tpm2bNvPublic, TpmCc,
         TpmtSignature,
     },
-    tpm_struct,
+    tpm_response, tpm_struct,
 };
 use core::fmt::Debug;
 
@@ -26,13 +26,12 @@ tpm_struct!(
     }
 );
 
-tpm_struct!(
+tpm_response!(
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmNvDefineSpaceResponse,
     TpmCc::NvDefineSpace,
     false,
     true,
-    0,
     {}
 );
 
@@ -46,13 +45,12 @@ tpm_struct!(
     {}
 );
 
-tpm_struct!(
+tpm_response!(
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmNvUndefineSpaceResponse,
     TpmCc::NvUndefineSpace,
     false,
     true,
-    0,
     {}
 );
 
@@ -66,13 +64,12 @@ tpm_struct!(
     {}
 );
 
-tpm_struct!(
+tpm_response!(
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmNvUndefineSpaceSpecialResponse,
     TpmCc::NvUndefineSpaceSpecial,
     false,
     true,
-    0,
     {}
 );
 
@@ -86,13 +83,12 @@ tpm_struct!(
     {}
 );
 
-tpm_struct!(
+tpm_response!(
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmNvReadPublicResponse,
     TpmCc::NvReadPublic,
     true,
     false,
-    0,
     {
         pub nv_public: Tpm2bNvPublic,
         pub nv_name: Tpm2bName,
@@ -112,13 +108,12 @@ tpm_struct!(
     }
 );
 
-tpm_struct!(
+tpm_response!(
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmNvWriteResponse,
     TpmCc::NvWrite,
     false,
     true,
-    0,
     {}
 );
 
@@ -132,13 +127,12 @@ tpm_struct!(
     {}
 );
 
-tpm_struct!(
+tpm_response!(
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmNvIncrementResponse,
     TpmCc::NvIncrement,
     false,
     true,
-    0,
     {}
 );
 
@@ -154,13 +148,12 @@ tpm_struct!(
     }
 );
 
-tpm_struct!(
+tpm_response!(
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmNvExtendResponse,
     TpmCc::NvExtend,
     false,
     true,
-    0,
     {}
 );
 
@@ -176,13 +169,12 @@ tpm_struct!(
     }
 );
 
-tpm_struct!(
+tpm_response!(
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmNvSetBitsResponse,
     TpmCc::NvSetBits,
     false,
     true,
-    0,
     {}
 );
 
@@ -196,13 +188,12 @@ tpm_struct!(
     {}
 );
 
-tpm_struct!(
+tpm_response!(
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmNvWriteLockResponse,
     TpmCc::NvWriteLock,
     false,
     true,
-    0,
     {}
 );
 
@@ -216,13 +207,12 @@ tpm_struct!(
     {}
 );
 
-tpm_struct!(
+tpm_response!(
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmNvGlobalWriteLockResponse,
     TpmCc::NvGlobalWriteLock,
     false,
     true,
-    0,
     {}
 );
 
@@ -239,13 +229,12 @@ tpm_struct!(
     }
 );
 
-tpm_struct!(
+tpm_response!(
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
     TpmNvReadResponse,
     TpmCc::NvRead,
     false,
     true,
-    0,
     {
         pub data: Tpm2bMaxNvBuffer,
     }
@@ -261,13 +250,12 @@ tpm_struct!(
     {}
 );
 
-tpm_struct!(
+tpm_response!(
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmNvReadLockResponse,
     TpmCc::NvReadLock,
     false,
     true,
-    0,
     {}
 );
 
@@ -283,13 +271,12 @@ tpm_struct!(
     }
 );
 
-tpm_struct!(
+tpm_response!(
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmNvChangeAuthResponse,
     TpmCc::NvChangeAuth,
     false,
     true,
-    0,
     {}
 );
 
@@ -308,15 +295,58 @@ tpm_struct!(
     }
 );
 
-tpm_struct! {
+tpm_response! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmNvCertifyResponse,
     TpmCc::NvCertify,
     false,
     true,
-    0,
     {
         pub certify_info: Tpm2bAttest,
         pub signature: TpmtSignature,
+    }
+}
+
+tpm_struct! {
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmNvDefineSpace2Command,
+    TpmCc::NvDefineSpace2,
+    false,
+    true,
+    1,
+    {
+        pub auth: Tpm2bAuth,
+        pub public_info: crate::data::Tpm2bNvPublic2,
+    }
+}
+
+tpm_response! {
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmNvDefineSpace2Response,
+    TpmCc::NvDefineSpace2,
+    false,
+    true,
+    {}
+}
+
+tpm_struct! {
+    #[derive(Debug, PartialEq, Eq, Copy, Clone)]
+    TpmNvReadPublic2Command,
+    TpmCc::NvReadPublic2,
+    true,
+    false,
+    1,
+    {}
+}
+
+tpm_response! {
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmNvReadPublic2Response,
+    TpmCc::NvReadPublic2,
+    true,
+    false,
+    {
+        pub nv_public: crate::data::Tpm2bNvPublic2,
+        pub nv_name: Tpm2bName,
     }
 }

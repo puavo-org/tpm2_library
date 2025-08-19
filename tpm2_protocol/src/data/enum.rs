@@ -112,6 +112,7 @@ tpm_enum! {
         (StirRandom, 0x0000_0146, "TPM_CC_StirRandom"),
         (ActivateCredential, 0x0000_0147, "TPM_CC_ActivateCredential"),
         (Certify, 0x0000_0148, "TPM_CC_Certify"),
+        (PolicyNv, 0x0000_0149, "TPM_CC_PolicyNV"),
         (CertifyCreation, 0x0000_014A, "TPM_CC_CertifyCreation"),
         (Duplicate, 0x0000_014B, "TPM_CC_Duplicate"),
         (GetTime, 0x0000_014C, "TPM_CC_GetTime"),
@@ -141,10 +142,13 @@ tpm_enum! {
         (LoadExternal, 0x0000_0167, "TPM_CC_LoadExternal"),
         (MakeCredential, 0x0000_0168, "TPM_CC_MakeCredential"),
         (NvReadPublic, 0x0000_0169, "TPM_CC_NV_ReadPublic"),
+        (PolicyAuthorize, 0x0000_016A, "TPM_CC_PolicyAuthorize"),
         (PolicyAuthValue, 0x0000_016B, "TPM_CC_PolicyAuthValue"),
         (PolicyCommandCode, 0x0000_016C, "TPM_CC_PolicyCommandCode"),
+        (PolicyCounterTimer, 0x0000_016D, "TPM_CC_PolicyCounterTimer"),
         (PolicyCpHash, 0x0000_016E, "TPM_CC_PolicyCpHash"),
         (PolicyLocality, 0x0000_016F, "TPM_CC_PolicyLocality"),
+        (PolicyNameHash, 0x0000_0170, "TPM_CC_PolicyNameHash"),
         (PolicyOR, 0x0000_0171, "TPM_CC_PolicyOR"),
         (PolicyTicket, 0x0000_0172, "TPM_CC_PolicyTicket"),
         (ReadPublic, 0x0000_0173, "TPM_CC_ReadPublic"),
@@ -167,15 +171,22 @@ tpm_enum! {
         (EventSequenceComplete, 0x0000_0185, "TPM_CC_EventSequenceComplete"),
         (HashSequenceStart, 0x0000_0186, "TPM_CC_HashSequenceStart"),
         (PolicyPhysicalPresence, 0x0000_0187, "TPM_CC_PolicyPhysicalPresence"),
+        (PolicyDuplicationSelect, 0x0000_0188, "TPM_CC_PolicyDuplicationSelect"),
         (PolicyGetDigest, 0x0000_0189, "TPM_CC_PolicyGetDigest"),
         (PolicyPassword, 0x0000_018C, "TPM_CC_PolicyPassword"),
+        (PolicyNvWritten, 0x0000_018F, "TPM_CC_PolicyNvWritten"),
+        (PolicyTemplate, 0x0000_0190, "TPM_CC_PolicyTemplate"),
+        (PolicyAuthorizeNv, 0x0000_0192, "TPM_CC_PolicyAuthorizeNV"),
         (EncryptDecrypt2, 0x0000_0193, "TPM_CC_EncryptDecrypt2"),
         (AcGetCapability, 0x0000_0194, "TPM_CC_AcGetCapability"),
         (AcSend, 0x0000_0195, "TPM_CC_AcSend"),
         (PolicyAcSendSelect, 0x0000_0196, "TPM_CC_Policy_AC_SendSelect"),
         (ActSetTimeout, 0x0000_0198, "TPM2_ACT_SetTimeout"),
+        (PolicyCapability, 0x0000_019B, "TPM_CC_PolicyCapability"),
+        (PolicyParameters, 0x0000_019C, "TPM_CC_PolicyParameters"),
         (NvDefineSpace2, 0x0000_019D, "TPM_CC_NV_DefineSpace2"),
         (NvReadPublic2, 0x0000_019E, "TPM_CC_NV_ReadPublic2"),
+        (PolicyTransportSpdm, 0x0000_01A1, "TPM_CC_Policy_TransportSPDM"),
         (VendorTcgTest, 0x2000_0000, "TPM_CC_Vendor_TCG_Test"),
     }
 }
@@ -195,6 +206,25 @@ tpm_enum! {
 }
 
 tpm_enum! {
+    #[derive(Debug, PartialEq, Eq, Copy, Clone, Default)]
+    pub enum TpmEo(u16) {
+        #[default]
+        (Eq, 0x0000, "TPM_EO_EQ"),
+        (Neq, 0x0001, "TPM_EO_NEQ"),
+        (SignedGt, 0x0002, "TPM_EO_SIGNED_GT"),
+        (UnsignedGt, 0x0003, "TPM_EO_UNSIGNED_GT"),
+        (SignedLt, 0x0004, "TPM_EO_SIGNED_LT"),
+        (UnsignedLt, 0x0005, "TPM_EO_UNSIGNED_LT"),
+        (SignedGe, 0x0006, "TPM_EO_SIGNED_GE"),
+        (UnsignedGe, 0x0007, "TPM_EO_UNSIGNED_GE"),
+        (SignedLe, 0x0008, "TPM_EO_SIGNED_LE"),
+        (UnsignedLe, 0x0009, "TPM_EO_UNSIGNED_LE"),
+        (Bitset, 0x000A, "TPM_EO_BITSET"),
+        (Bitclear, 0x000B, "TPM_EO_BITCLEAR"),
+    }
+}
+
+tpm_enum! {
     #[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
     pub enum TpmEccCurve(u16) {
         #[default]
@@ -204,6 +234,23 @@ tpm_enum! {
         (NistP256, 0x0003, "TPM_ECC_NIST_P256"),
         (NistP384, 0x0004, "TPM_ECC_NIST_P384"),
         (NistP521, 0x0005, "TPM_ECC_NIST_P521"),
+    }
+}
+
+tpm_enum! {
+    #[derive(Debug, PartialEq, Eq, Copy, Clone, Default)]
+    pub enum TpmHt(u8) {
+        (Pcr, 0x00, "TPM_HT_PCR"),
+        (NvIndex, 0x01, "TPM_HT_NV_INDEX"),
+        #[default]
+        (HmacSession, 0x02, "TPM_HT_HMAC_SESSION"),
+        (PolicySession, 0x03, "TPM_HT_POLICY_SESSION"),
+        (ExternalNv, 0x11, "TPM_HT_EXTERNAL_NV"),
+        (PermanentNv, 0x12, "TPM_HT_PERMANENT_NV"),
+        (Permanent, 0x40, "TPM_HT_PERMANENT"),
+        (Transient, 0x80, "TPM_HT_TRANSIENT"),
+        (Persistent, 0x81, "TPM_HT_PERSISTENT"),
+        (Ac, 0x90, "TPM_HT_AC"),
     }
 }
 

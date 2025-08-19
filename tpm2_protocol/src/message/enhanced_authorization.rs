@@ -6,8 +6,9 @@
 
 use crate::{
     data::{
-        Tpm2b, Tpm2bDigest, Tpm2bName, Tpm2bNonce, Tpm2bTimeout, TpmAlgId, TpmCc, TpmaLocality,
-        TpmlDigest, TpmlPcrSelection, TpmtSignature, TpmtTkAuth,
+        Tpm2b, Tpm2bDigest, Tpm2bMaxBuffer, Tpm2bName, Tpm2bNonce, Tpm2bTimeout, TpmAlgId, TpmCap,
+        TpmCc, TpmEo, TpmaLocality, TpmiYesNo, TpmlDigest, TpmlPcrSelection, TpmtSignature,
+        TpmtTkAuth, TpmtTkVerified,
     },
     tpm_response, tpm_struct,
 };
@@ -321,3 +322,245 @@ tpm_response!(
     true,
     {}
 );
+
+tpm_struct! {
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmPolicyNvCommand,
+    TpmCc::PolicyNv,
+    false,
+    true,
+    3,
+    {
+        pub operand_b: Tpm2bMaxBuffer,
+        pub offset: u16,
+        pub operation: TpmEo,
+    }
+}
+
+tpm_response! {
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmPolicyNvResponse,
+    TpmCc::PolicyNv,
+    false,
+    true,
+    {}
+}
+
+tpm_struct! {
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmPolicyCounterTimerCommand,
+    TpmCc::PolicyCounterTimer,
+    false,
+    true,
+    1,
+    {
+        pub operand_b: Tpm2bMaxBuffer,
+        pub offset: u16,
+        pub operation: TpmEo,
+    }
+}
+
+tpm_response! {
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmPolicyCounterTimerResponse,
+    TpmCc::PolicyCounterTimer,
+    false,
+    true,
+    {}
+}
+
+tpm_struct! {
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmPolicyNameHashCommand,
+    TpmCc::PolicyNameHash,
+    false,
+    true,
+    1,
+    {
+        pub name_hash: Tpm2bDigest,
+    }
+}
+
+tpm_response! {
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmPolicyNameHashResponse,
+    TpmCc::PolicyNameHash,
+    false,
+    true,
+    {}
+}
+
+tpm_struct! {
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmPolicyDuplicationSelectCommand,
+    TpmCc::PolicyDuplicationSelect,
+    false,
+    true,
+    1,
+    {
+        pub object_name: Tpm2bName,
+        pub new_parent_name: Tpm2bName,
+        pub include_object: TpmiYesNo,
+    }
+}
+
+tpm_response! {
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmPolicyDuplicationSelectResponse,
+    TpmCc::PolicyDuplicationSelect,
+    false,
+    true,
+    {}
+}
+
+tpm_struct! {
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmPolicyAuthorizeCommand,
+    TpmCc::PolicyAuthorize,
+    false,
+    true,
+    1,
+    {
+        pub approved_policy: Tpm2bDigest,
+        pub policy_ref: Tpm2bNonce,
+        pub key_sign: Tpm2bName,
+        pub check_ticket: TpmtTkVerified,
+    }
+}
+
+tpm_response! {
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmPolicyAuthorizeResponse,
+    TpmCc::PolicyAuthorize,
+    false,
+    true,
+    {}
+}
+
+tpm_struct! {
+    #[derive(Debug, PartialEq, Eq, Copy, Clone)]
+    TpmPolicyNvWrittenCommand,
+    TpmCc::PolicyNvWritten,
+    false,
+    true,
+    1,
+    {
+        pub written_set: TpmiYesNo,
+    }
+}
+
+tpm_response! {
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmPolicyNvWrittenResponse,
+    TpmCc::PolicyNvWritten,
+    false,
+    true,
+    {}
+}
+
+tpm_struct! {
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmPolicyTemplateCommand,
+    TpmCc::PolicyTemplate,
+    false,
+    true,
+    1,
+    {
+        pub template_hash: Tpm2bDigest,
+    }
+}
+
+tpm_response! {
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmPolicyTemplateResponse,
+    TpmCc::PolicyTemplate,
+    false,
+    true,
+    {}
+}
+
+tpm_struct! {
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmPolicyAuthorizeNvCommand,
+    TpmCc::PolicyAuthorizeNv,
+    false,
+    true,
+    3,
+    {}
+}
+
+tpm_response! {
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmPolicyAuthorizeNvResponse,
+    TpmCc::PolicyAuthorizeNv,
+    false,
+    true,
+    {}
+}
+
+tpm_struct! {
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmPolicyCapabilityCommand,
+    TpmCc::PolicyCapability,
+    false,
+    true,
+    1,
+    {
+        pub capability: TpmCap,
+        pub property: u32,
+        pub op: TpmEo,
+        pub operand_b: Tpm2bMaxBuffer,
+    }
+}
+
+tpm_response! {
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmPolicyCapabilityResponse,
+    TpmCc::PolicyCapability,
+    false,
+    true,
+    {}
+}
+
+tpm_struct! {
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmPolicyParametersCommand,
+    TpmCc::PolicyParameters,
+    false,
+    true,
+    1,
+    {
+        pub p_hash: Tpm2bDigest,
+    }
+}
+
+tpm_response! {
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmPolicyParametersResponse,
+    TpmCc::PolicyParameters,
+    false,
+    true,
+    {}
+}
+
+tpm_struct! {
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmPolicyTransportSpdmCommand,
+    TpmCc::PolicyTransportSpdm,
+    false,
+    true,
+    1,
+    {
+        pub req_key_name: Tpm2bName,
+        pub tpm_key_name: Tpm2bName,
+    }
+}
+
+tpm_response! {
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmPolicyTransportSpdmResponse,
+    TpmCc::PolicyTransportSpdm,
+    false,
+    true,
+    {}
+}

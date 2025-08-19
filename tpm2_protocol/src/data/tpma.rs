@@ -62,6 +62,16 @@ tpm_bitflags! {
 }
 
 tpm_bitflags! {
+    /// `TPMA_NV_EXP` (Table 234)
+    #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct TpmaNvExp(u64) {
+        const ENCRYPTION = 0x0000_0001_0000_0000, "ENCRYPTION";
+        const INTEGRITY = 0x0000_0002_0000_0000, "INTEGRITY";
+        const ANTIROLLBACK = 0x0000_0004_0000_0000, "ANTIROLLBACK";
+    }
+}
+
+tpm_bitflags! {
     /// `TPMA_OBJECT`
     #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
     pub struct TpmaObject(u32) {

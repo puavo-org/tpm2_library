@@ -45,3 +45,8 @@ tpm_handle! {
     #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
     TpmiRhHierarchy
 }
+
+tpm_handle! {
+    #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+    TpmiRhNvExpIndex
+}

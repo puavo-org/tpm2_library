@@ -39,6 +39,7 @@ tpm2b!(Tpm2bMaxBuffer, MAX_BUFFER_SIZE);
 tpm2b!(Tpm2bMaxNvBuffer, MAX_NV_BUFFER_SIZE);
 tpm2b!(Tpm2bName, { MAX_DIGEST_SIZE + 2 });
 tpm2b!(Tpm2bNonce, MAX_DIGEST_SIZE);
+tpm2b!(Tpm2bOperand, MAX_DIGEST_SIZE);
 tpm2b!(Tpm2bPrivate, MAX_PRIVATE_SIZE);
 tpm2b!(Tpm2bPrivateKeyRsa, MAX_RSA_KEY_BYTES);
 tpm2b!(Tpm2bPublicKeyRsa, MAX_RSA_KEY_BYTES);
@@ -82,10 +83,17 @@ tpm2b_struct! {
     Tpm2bIdObject,
     TpmsIdObject
 }
+
 tpm2b_struct! {
-    #[derive(Debug, PartialEq, Eq, Clone, Copy, Default)]
+    #[derive(Debug, PartialEq, Eq, Clone, Copy)]
     Tpm2bEccPoint,
     TpmsEccPoint
+}
+
+tpm2b_struct! {
+    #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+    Tpm2bNvPublic2,
+    TpmtNvPublic2
 }
 
 tpml!(TpmlAcCapabilities, TpmsAcOutput, 64);
