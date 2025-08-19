@@ -5,6 +5,7 @@
 pub mod r#enum;
 pub mod tpm_rc;
 pub mod tpma;
+pub mod tpmi;
 pub mod tpms;
 pub mod tpmt;
 pub mod tpmu;
@@ -12,11 +13,12 @@ pub mod tpmu;
 pub use r#enum::*;
 pub use tpm_rc::*;
 pub use tpma::*;
+pub use tpmi::*;
 pub use tpms::*;
 pub use tpmt::*;
 pub use tpmu::*;
 
-use crate::{tpm2b, tpm2b_struct, tpm_bool, tpml, TpmNotDiscriminant, TPM_MAX_COMMAND_SIZE};
+use crate::{tpm2b, tpm2b_struct, tpml, TpmNotDiscriminant, TPM_MAX_COMMAND_SIZE};
 use core::{convert::TryFrom, fmt::Debug};
 
 pub const MAX_DIGEST_SIZE: usize = 64;
@@ -84,11 +86,6 @@ tpm2b_struct! {
     #[derive(Debug, PartialEq, Eq, Clone, Copy, Default)]
     Tpm2bEccPoint,
     TpmsEccPoint
-}
-
-tpm_bool! {
-    #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-    pub struct TpmiYesNo(bool);
 }
 
 tpml!(TpmlAcCapabilities, TpmsAcOutput, 64);
