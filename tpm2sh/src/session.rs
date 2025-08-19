@@ -3,12 +3,12 @@
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 
 use crate::{create_auth, util, TpmError};
+use log::debug;
 use rand::RngCore;
 use tpm2_protocol::{
     data::{self, Tpm2bAuth, TpmRh},
     message::TpmHeader,
 };
-use tracing::debug;
 
 /// Manages the state of an active authorization session.
 #[derive(Debug, Clone)]
@@ -29,7 +29,7 @@ pub struct AuthSession {
 pub fn build_password_session(auth: Option<&str>) -> Result<Vec<data::TpmsAuthCommand>, TpmError> {
     match auth {
         Some(password) => {
-            debug!(auth_len = password.len(), "building password session");
+            debug!(target: "cli::session", "building password session: auth_len = {}", password.len());
             Ok(vec![data::TpmsAuthCommand {
                 session_handle: tpm2_protocol::TpmSession(TpmRh::Password as u32),
                 nonce: data::Tpm2bNonce::default(),

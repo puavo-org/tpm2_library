@@ -3,6 +3,7 @@
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 
 use crate::{cli, get_auth_sessions, session::AuthSession, TpmDevice, TpmError};
+use log::debug;
 use std::{cmp::Ordering, str::FromStr};
 use tpm2_protocol::{
     data::{self, TpmAlgId, TpmEccCurve, TpmtPublic},
@@ -271,7 +272,10 @@ where
     let flush_err = chip.execute(&flush_cmd, Some(&[]), &[], log_format).err();
 
     if let Some(e) = flush_err {
-        tracing::debug!(handle = ?object_handle, error = %e, "failed to flush object context after operation");
+        debug!(
+            target: "cli::device",
+            "failed to flush object context after operation: handle = {object_handle:?}, error = {e}"
+        );
         if op_result.is_ok() {
             return Err(e);
         }

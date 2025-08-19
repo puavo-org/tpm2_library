@@ -42,6 +42,9 @@ pub enum TpmError {
 
     #[error("Unexpected response type from TPM: {0}")]
     UnexpectedResponse(String),
+
+    #[error("{0}")]
+    Usage(String),
 }
 
 impl From<base64::DecodeError> for TpmError {

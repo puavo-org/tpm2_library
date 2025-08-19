@@ -3,6 +3,7 @@
 
 use crate::{ContextData, ObjectData, PcrOutput, SessionData};
 use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
+use log::trace;
 use std::vec::Vec;
 use tpm2_protocol::{
     data::{
@@ -25,7 +26,6 @@ use tpm2_protocol::{
     },
     TpmBuffer, TpmList, TpmParse, TpmPersistent, TpmSession, TpmTransient,
 };
-use tracing::trace;
 
 const INDENT: usize = 2;
 
@@ -293,7 +293,7 @@ impl PrettyTrace for TpmuHa {
 impl PrettyTrace for TpmtHa {
     fn pretty_trace(&self, name: &str, indent: usize) {
         let prefix = " ".repeat(indent * INDENT);
-        trace!(target: "cli::device", "{}{}:", prefix, name);
+        trace!(target: "cli::device", "{prefix}{name}:");
         self.hash_alg.pretty_trace("hashAlg", indent + 1);
         self.digest.pretty_trace("digest", indent + 1);
     }
@@ -302,7 +302,7 @@ impl PrettyTrace for TpmtHa {
 impl PrettyTrace for TpmsCapabilityData {
     fn pretty_trace(&self, name: &str, indent: usize) {
         let prefix = " ".repeat(indent * INDENT);
-        trace!(target: "cli::device", "{}{}:", prefix, name);
+        trace!(target: "cli::device", "{prefix}{name}:");
         self.capability.pretty_trace("capability", indent + 1);
         self.data.pretty_trace("data", indent + 1);
     }
@@ -321,7 +321,7 @@ impl PrettyTrace for TpmuCapabilities {
 impl PrettyTrace for TpmtPublic {
     fn pretty_trace(&self, name: &str, indent: usize) {
         let prefix = " ".repeat(indent * INDENT);
-        trace!(target: "cli::device", "{}{}:", prefix, name);
+        trace!(target: "cli::device", "{prefix}{name}:");
         self.object_type.pretty_trace("type", indent + 1);
         self.name_alg.pretty_trace("nameAlg", indent + 1);
         self.object_attributes
@@ -388,7 +388,7 @@ impl PrettyTrace for TpmtSymDef {
             self.algorithm.pretty_trace(name, indent);
         } else {
             let prefix = " ".repeat(indent * INDENT);
-            trace!(target: "cli::device", "{}{}:", prefix, name);
+            trace!(target: "cli::device", "{prefix}{name}:");
             self.algorithm.pretty_trace("algorithm", indent + 1);
             self.key_bits.pretty_trace("keyBits", indent + 1);
             self.mode.pretty_trace("mode", indent + 1);
@@ -461,7 +461,7 @@ impl PrettyTrace for TpmCommandBody {
             Self::PcrEvent(cmd) => cmd.pretty_trace(name, indent),
             _ => {
                 let prefix = " ".repeat(indent * INDENT);
-                trace!(target: "cli::device", "{prefix}{name}: {:?} (unimplemented pretty trace)", self);
+                trace!(target: "cli::device", "{prefix}{name}: {self:?} (unimplemented pretty trace)");
             }
         }
     }
@@ -475,7 +475,7 @@ impl PrettyTrace for TpmResponseBody {
             Self::StartAuthSession(resp) => resp.pretty_trace(name, indent),
             _ => {
                 let prefix = " ".repeat(indent * INDENT);
-                trace!(target: "cli::device", "{prefix}{name}: {:?} (unimplemented pretty trace)", self);
+                trace!(target: "cli::device", "{prefix}{name}: {self:?} (unimplemented pretty trace)");
             }
         }
     }

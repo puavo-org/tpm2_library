@@ -80,8 +80,8 @@ impl Command for Algorithms {
             .collect();
 
         let filtered_algorithms: Vec<_> = if let Some(pattern) = &self.filter {
-            let re = Regex::new(pattern)
-                .map_err(|e| TpmError::Execution(format!("invalid regex: {e}")))?;
+            let re =
+                Regex::new(pattern).map_err(|e| TpmError::Usage(format!("invalid regex: {e}")))?;
             supported_algorithms
                 .into_iter()
                 .filter(|alg| re.is_match(&alg.name))

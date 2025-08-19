@@ -147,7 +147,7 @@ impl Command for Convert {
                 io::stdout().write_all(&input)?;
             }
             _ => {
-                return Err(TpmError::Execution(
+                return Err(TpmError::Usage(
                     "unsupported conversion direction".to_string(),
                 ));
             }

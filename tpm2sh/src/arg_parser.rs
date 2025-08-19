@@ -227,8 +227,8 @@ fn dispatch_subcommand(
         Some("seal") => Seal::parse(parser),
         Some("start-session") => StartSession::parse(parser),
         Some("unseal") => Unseal::parse(parser),
-        Some(cmd) => Err(TpmError::Execution(format!("unknown command '{cmd}'"))),
-        None => Err(TpmError::Execution("invalid non-UTF8 command".to_string())),
+        Some(cmd) => Err(TpmError::Usage(format!("unknown command '{cmd}'"))),
+        None => Err(TpmError::Usage("invalid non-UTF8 command".to_string())),
     }
 }
 

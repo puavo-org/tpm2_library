@@ -4,6 +4,7 @@
 
 use crate::{cli, pretty_printer::PrettyTrace, TpmError};
 use indicatif::{ProgressBar, ProgressStyle};
+use log::{debug, trace, warn};
 use std::{
     collections::HashSet,
     fs::{File, OpenOptions},
@@ -21,7 +22,6 @@ use tpm2_protocol::{
     },
     TpmWriter, TPM_MAX_COMMAND_SIZE,
 };
-use tracing::{trace, warn};
 
 pub const TPM_CAP_PROPERTY_MAX: u32 = 128;
 
@@ -46,7 +46,7 @@ impl TpmDevice {
                     io::Error::new(e.kind(), "could not open device node"),
                 )
             })?;
-        tracing::debug!(device_path = %path, "opening");
+        debug!(target: "cli::device", "opening device_path = {path}");
         Ok(TpmDevice { file })
     }
 
@@ -114,7 +114,9 @@ impl TpmDevice {
                 trace!(target: "cli::device", "{}", C::COMMAND);
                 command.pretty_trace("", 1);
             }
-            cli::LogFormat::Plain => trace!(command = %hex::encode(command_bytes), "Command"),
+            cli::LogFormat::Plain => {
+                trace!(target: "cli::device", "Command: {}", hex::encode(command_bytes));
+            }
         }
         self.file.write_all(command_bytes)?;
         self.file.flush()?;
@@ -151,21 +153,23 @@ impl TpmDevice {
         match &result {
             Ok((rc, response_body, _)) => match log_format {
                 cli::LogFormat::Pretty => {
-                    trace!(target: "cli::device", "Response (rc={})", rc);
+                    trace!(target: "cli::device", "Response (rc={rc})");
                     response_body.pretty_trace("", 1);
                 }
-                cli::LogFormat::Plain => trace!(response = %hex::encode(&resp_buf), "Response"),
+                cli::LogFormat::Plain => {
+                    trace!(target: "cli::device", "Response: {}", hex::encode(&resp_buf));
+                }
             },
             Err((rc, _)) => {
-                trace!(target: "cli::device", "Error Response (rc={})", rc);
-                trace!(response = %hex::encode(&resp_buf));
+                trace!(target: "cli::device", "Error Response (rc={rc})");
+                trace!(target: "cli::device", "Response: {}", hex::encode(&resp_buf));
             }
         }
 
         match result {
             Ok((rc, response, auth)) => {
                 if rc.is_warning() {
-                    warn!(rc = %rc, "TPM command completed with a warning");
+                    warn!(target: "cli::device", "TPM command completed with a warning: rc = {rc}");
                 }
                 Ok((response, auth))
             }

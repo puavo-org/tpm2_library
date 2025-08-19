@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3-0-or-later
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 // Copyright (c) 2025 Opinsys Oy
 
@@ -71,7 +71,7 @@ impl Command for PcrEvent {
         let session = io.take_session()?;
 
         if session.is_none() && self.auth.auth.is_none() {
-            return Err(TpmError::Execution(
+            return Err(TpmError::Usage(
                 "Authorization is required for pcr-event. Use --auth or pipeline session."
                     .to_string(),
             ));

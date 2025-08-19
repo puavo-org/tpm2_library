@@ -54,7 +54,7 @@ impl FromStr for LogFormat {
         match s {
             "plain" => Ok(Self::Plain),
             "pretty" => Ok(Self::Pretty),
-            _ => Err(TpmError::Execution(format!("invalid log format: {s}"))),
+            _ => Err(TpmError::Usage(format!("invalid log format: {s}"))),
         }
     }
 }
@@ -81,7 +81,7 @@ impl FromStr for Hierarchy {
             "owner" => Ok(Hierarchy::Owner),
             "platform" => Ok(Hierarchy::Platform),
             "endorsement" => Ok(Hierarchy::Endorsement),
-            _ => Err(TpmError::Execution(format!("invalid hierarchy: {s}"))),
+            _ => Err(TpmError::Usage(format!("invalid hierarchy: {s}"))),
         }
     }
 }
@@ -111,7 +111,7 @@ impl FromStr for SessionType {
             "hmac" => Ok(SessionType::Hmac),
             "policy" => Ok(SessionType::Policy),
             "trial" => Ok(SessionType::Trial),
-            _ => Err(TpmError::Execution(format!("invalid session type: {s}"))),
+            _ => Err(TpmError::Usage(format!("invalid session type: {s}"))),
         }
     }
 }
@@ -141,7 +141,7 @@ impl FromStr for SessionHashAlg {
             "sha256" => Ok(SessionHashAlg::Sha256),
             "sha384" => Ok(SessionHashAlg::Sha384),
             "sha512" => Ok(SessionHashAlg::Sha512),
-            _ => Err(TpmError::Execution(format!(
+            _ => Err(TpmError::Usage(format!(
                 "invalid session hash algorithm: {s}"
             ))),
         }
@@ -173,7 +173,7 @@ impl FromStr for KeyFormat {
             "json" => Ok(KeyFormat::Json),
             "pem" => Ok(KeyFormat::Pem),
             "der" => Ok(KeyFormat::Der),
-            _ => Err(TpmError::Execution(format!("invalid key format: {s}"))),
+            _ => Err(TpmError::Usage(format!("invalid key format: {s}"))),
         }
     }
 }

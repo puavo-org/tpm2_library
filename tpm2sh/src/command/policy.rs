@@ -131,7 +131,7 @@ impl<W: Write> PolicyExecutor<'_, '_, W> {
         _count: Option<&u32>,
     ) -> Result<(), TpmError> {
         let pcr_digest_bytes = hex::decode(digest.ok_or_else(|| {
-            TpmError::Execution("PCR digest must be provided as an argument".to_string())
+            TpmError::Usage("PCR digest must be provided as an argument".to_string())
         })?)
         .map_err(|e| TpmError::Parse(e.to_string()))?;
 

@@ -3,20 +3,21 @@
 // Copyright (c) 2025 Opinsys Oy
 
 use cli::{execute_cli, TpmError};
+use log::error;
 use std::error::Error;
-use tracing::error;
-use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
 fn main() {
-    let subscriber = FmtSubscriber::builder()
-        .with_env_filter(EnvFilter::from_default_env())
-        .with_writer(std::io::stderr)
-        .finish();
-    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
+        .format_timestamp_micros()
+        .init();
 
     match execute_cli() {
         Ok(()) => {}
         Err(TpmError::HelpDisplayed) => {}
+        Err(TpmError::Usage(msg)) => {
+            eprintln!("Error: {msg}");
+            std::process::exit(1);
+        }
         Err(err) => {
             error!("{err}");
             let mut source = err.source();
