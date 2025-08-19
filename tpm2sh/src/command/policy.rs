@@ -46,12 +46,12 @@ const OPTIONS: &[CommandLineOption] = &[
     (Some("-h"), "--help", "", "Print help information"),
 ];
 
-fn parse_quoted_string(pair: Pair<'_, Rule>) -> Result<String, TpmError> {
+fn parse_quoted_string(pair: &Pair<'_, Rule>) -> Result<String, TpmError> {
     if pair.as_rule() != Rule::quoted_string {
         return Err(TpmError::Parse("expected a quoted string".to_string()));
     }
-    let inner_str = pair.into_inner().next().unwrap().as_str();
-    Ok(inner_str.to_string())
+    let s = pair.as_str();
+    Ok(s[1..s.len() - 1].to_string())
 }
 
 fn parse_policy_internal(mut pairs: Pairs<'_, Rule>) -> Result<PolicyAst, TpmError> {
@@ -62,8 +62,11 @@ fn parse_policy_internal(mut pairs: Pairs<'_, Rule>) -> Result<PolicyAst, TpmErr
     let ast = match pair.as_rule() {
         Rule::pcr_expression => {
             let mut inner_pairs = pair.into_inner();
-            let selection = parse_quoted_string(inner_pairs.next().unwrap())?;
-            let digest = inner_pairs.next().map(parse_quoted_string).transpose()?;
+            let selection = parse_quoted_string(&inner_pairs.next().unwrap())?;
+            let digest = inner_pairs
+                .next()
+                .map(|p| parse_quoted_string(&p))
+                .transpose()?;
             let count = inner_pairs
                 .next()
                 .map(|p| p.as_str().parse::<u32>())
@@ -77,7 +80,7 @@ fn parse_policy_internal(mut pairs: Pairs<'_, Rule>) -> Result<PolicyAst, TpmErr
             }
         }
         Rule::secret_expression => {
-            let auth_handle = parse_quoted_string(pair.into_inner().next().unwrap())?;
+            let auth_handle = parse_quoted_string(&pair.into_inner().next().unwrap())?;
             PolicyAst::Secret { auth_handle }
         }
         Rule::or_expression => {
