@@ -6,7 +6,7 @@ use crate::{
     data::{
         Tpm2b, Tpm2bAuth, Tpm2bData, Tpm2bDigest, Tpm2bEccParameter, Tpm2bMaxNvBuffer, Tpm2bName,
         Tpm2bNonce, Tpm2bSensitiveData, TpmAlgId, TpmAt, TpmCap, TpmEccCurve, TpmRh, TpmSt,
-        TpmaAlgorithm, TpmaLocality, TpmaNv, TpmaSession, TpmiYesNo, TpmlPcrSelection,
+        TpmaAlgorithm, TpmaLocality, TpmaNv, TpmaSession, TpmiAlgHash, TpmiYesNo, TpmlPcrSelection,
         TpmtKdfScheme, TpmtScheme, TpmtSymDefObject, TpmuCapabilities,
     },
     tpm_struct, TpmBuffer, TpmBuild, TpmErrorKind, TpmParse, TpmParseTagged, TpmResult, TpmSized,
@@ -400,5 +400,40 @@ impl TpmParse for TpmsAttest {
             },
             buf,
         ))
+    }
+}
+
+tpm_struct! {
+    #[derive(Debug, PartialEq, Eq, Clone, Copy, Default)]
+    pub struct TpmsSchemeHash {
+        pub hash_alg: TpmiAlgHash,
+    }
+}
+
+tpm_struct! {
+    #[derive(Debug, PartialEq, Eq, Clone, Copy, Default)]
+    pub struct TpmsSchemeXor {
+        pub hash_alg: TpmiAlgHash,
+        pub kdf: TpmtKdfScheme,
+    }
+}
+
+tpm_struct! {
+    #[derive(Debug, PartialEq, Eq, Clone, Copy, Default)]
+    pub struct TpmsRsaParms {
+        pub symmetric: TpmtSymDefObject,
+        pub scheme: TpmtScheme,
+        pub key_bits: u16,
+        pub exponent: u32,
+    }
+}
+
+tpm_struct! {
+    #[derive(Debug, PartialEq, Eq, Clone, Copy, Default)]
+    pub struct TpmsEccParms {
+        pub symmetric: TpmtSymDefObject,
+        pub scheme: TpmtScheme,
+        pub curve_id: TpmEccCurve,
+        pub kdf: TpmtKdfScheme,
     }
 }
