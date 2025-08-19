@@ -37,7 +37,7 @@ use sha2::{Digest, Sha256, Sha384, Sha512};
 use std::str::Utf8Error;
 use tpm2_protocol::{
     data::{
-        Tpm2b, Tpm2bDigest, Tpm2bEccParameter, Tpm2bEncryptedSecret, Tpm2bPrivate,
+        Tpm2bData, Tpm2bDigest, Tpm2bEccParameter, Tpm2bEncryptedSecret, Tpm2bPrivate,
         Tpm2bPublicKeyRsa, TpmAlgId, TpmCc, TpmEccCurve, TpmaObject, TpmsAuthCommand, TpmsEccParms,
         TpmsEccPoint, TpmsRsaParms, TpmtKdfScheme, TpmtPublic, TpmtScheme, TpmtSymDefObject,
         TpmuPublicId, TpmuPublicParms,
@@ -451,7 +451,7 @@ fn kdfa(
 fn protect_seed_with_rsa(
     parent_public: &TpmtPublic,
     seed: &[u8; 32],
-) -> Result<(Tpm2bEncryptedSecret, Tpm2b), TpmError> {
+) -> Result<(Tpm2bEncryptedSecret, Tpm2bData), TpmError> {
     let n = match &parent_public.unique {
         TpmuPublicId::Rsa(data) => Ok(data.as_ref()),
         _ => Err(TpmError::Execution(
@@ -491,7 +491,7 @@ fn protect_seed_with_rsa(
 
     Ok((
         Tpm2bEncryptedSecret::try_from(encrypted_seed.as_slice())?,
-        Tpm2b::default(),
+        Tpm2bData::default(),
     ))
 }
 
@@ -553,7 +553,7 @@ macro_rules! ecdh_protect_seed {
 fn protect_seed_with_ecc(
     parent_public: &TpmtPublic,
     seed: &[u8; 32],
-) -> Result<(Tpm2bEncryptedSecret, Tpm2b), TpmError> {
+) -> Result<(Tpm2bEncryptedSecret, Tpm2bData), TpmError> {
     let (parent_point, curve_id) = match (&parent_public.unique, &parent_public.parameters) {
         (TpmuPublicId::Ecc(point), TpmuPublicParms::Ecc(params)) => Ok((point, params.curve_id)),
         _ => Err(TpmError::Execution(
@@ -616,7 +616,7 @@ fn protect_seed_with_ecc(
 
     Ok((
         Tpm2bEncryptedSecret::try_from(encrypted_seed.as_slice())?,
-        Tpm2b::try_from(
+        Tpm2bData::try_from(
             build_to_vec(&TpmsEccPoint {
                 x: Tpm2bEccParameter::try_from(x)?,
                 y: Tpm2bEccParameter::try_from(y)?,
@@ -640,7 +640,7 @@ pub fn create_import_blob(
     object_alg: TpmAlgId,
     private_bytes: &[u8],
     parent_name: &[u8],
-) -> Result<(Tpm2bPrivate, Tpm2bEncryptedSecret, Tpm2b), TpmError> {
+) -> Result<(Tpm2bPrivate, Tpm2bEncryptedSecret, Tpm2bData), TpmError> {
     let mut seed = [0u8; 32];
     thread_rng().fill_bytes(&mut seed);
     let parent_name_alg = parent_public.name_alg;

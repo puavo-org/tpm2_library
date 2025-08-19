@@ -8,7 +8,7 @@ use crate::{
     get_auth_sessions, parse_args, parse_hex_u32, Command, CommandIo, TpmDevice, TpmError,
 };
 use lexopt::prelude::*;
-use tpm2_protocol::{data::Tpm2b, message::TpmPcrEventCommand};
+use tpm2_protocol::{data::Tpm2bEvent, message::TpmPcrEventCommand};
 
 const ABOUT: &str = "Extends a PCR with an event";
 const USAGE: &str = "tpm2sh pcr-event [OPTIONS] <DATA>";
@@ -76,7 +76,7 @@ impl Command for PcrEvent {
 
         let handles = [self.pcr_handle];
 
-        let event_data = Tpm2b::try_from(self.data.as_bytes())?;
+        let event_data = Tpm2bEvent::try_from(self.data.as_bytes())?;
         let command = TpmPcrEventCommand { event_data };
 
         let sessions = get_auth_sessions(

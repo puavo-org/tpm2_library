@@ -12,7 +12,7 @@ use lexopt::prelude::*;
 use rand::{thread_rng, RngCore};
 use std::io::IsTerminal;
 use tpm2_protocol::{
-    data::{Tpm2b, TpmAlgId, TpmRh, TpmaSession, TpmtSymDefObject},
+    data::{Tpm2b, Tpm2bNonce, TpmAlgId, TpmRh, TpmaSession, TpmtSymDefObject},
     message::TpmStartAuthSessionCommand,
 };
 const ABOUT: &str = "Starts an authorization session";
@@ -69,7 +69,7 @@ impl Command for StartSession {
         let auth_hash = TpmAlgId::from(self.hash_alg);
         let session_type = self.session_type;
         let cmd = TpmStartAuthSessionCommand {
-            nonce_caller: Tpm2b::try_from(nonce_bytes.as_slice())?,
+            nonce_caller: Tpm2bNonce::try_from(nonce_bytes.as_slice())?,
             encrypted_salt: Tpm2b::default(),
             session_type: session_type.into(),
             symmetric: TpmtSymDefObject::default(),

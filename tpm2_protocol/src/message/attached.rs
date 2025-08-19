@@ -23,12 +23,13 @@ tpm_struct! {
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmAcGetCapabilityResponse,
     TpmCc::AcGetCapability,
     true,
     false,
+    0,
     {
         pub more_data: TpmiYesNo,
         pub capabilities_data: TpmlAcCapabilities,

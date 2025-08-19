@@ -20,12 +20,13 @@ tpm_struct! {
     {}
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmReadClockResponse,
     TpmCc::ReadClock,
     true,
     false,
+    0,
     {
         pub current_time: TpmsTimeInfo,
     }

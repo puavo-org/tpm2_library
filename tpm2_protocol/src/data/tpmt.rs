@@ -13,7 +13,6 @@ use crate::{
     tpm_struct, tpm_tagged_struct, TpmBuild, TpmErrorKind, TpmParse, TpmParseTagged, TpmResult,
     TpmSized, TpmTagged, TpmWriter, TPM_MAX_COMMAND_SIZE,
 };
-
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct TpmtPublic {
     pub object_type: TpmAlgId,
@@ -60,7 +59,6 @@ impl TpmParse for TpmtPublic {
         let (auth_policy, buf) = Tpm2bDigest::parse(buf)?;
         let (parameters, buf) = TpmuPublicParms::parse_tagged(object_type, buf)?;
         let (unique, buf) = TpmuPublicId::parse_tagged(object_type, buf)?;
-
         let public_area = Self {
             object_type,
             name_alg,
@@ -69,7 +67,6 @@ impl TpmParse for TpmtPublic {
             parameters,
             unique,
         };
-
         Ok((public_area, buf))
     }
 }
@@ -84,6 +81,14 @@ impl Default for TpmtPublic {
             parameters: TpmuPublicParms::Null,
             unique: TpmuPublicId::Null,
         }
+    }
+}
+
+tpm_tagged_struct! {
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    pub struct TpmtPublicParms {
+        pub object_type: TpmAlgId,
+        pub parameters: TpmuPublicParms,
     }
 }
 
@@ -151,7 +156,6 @@ impl TpmtSensitive {
             }
             _ => return Err(TpmErrorKind::InvalidValue),
         };
-
         Ok(Self {
             sensitive_type: key_alg,
             auth_value: Tpm2bAuth::default(),
@@ -192,7 +196,6 @@ impl TpmParse for TpmtSensitive {
         let (auth_value, buf) = Tpm2bAuth::parse(buf)?;
         let (seed_value, buf) = Tpm2bDigest::parse(buf)?;
         let (sensitive, buf) = TpmuSensitiveComposite::parse_tagged(sensitive_type, buf)?;
-
         Ok((
             Self {
                 sensitive_type,

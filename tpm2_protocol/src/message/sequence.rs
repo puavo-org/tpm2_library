@@ -2,7 +2,7 @@
 // Copyright (c) 2025 Opinsys Oy
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 
-//! 25 Enhanced Authorization (EA) Commands
+//! 17 Hash/HMAC/Event Sequences
 
 use crate::{
     data::{
@@ -13,7 +13,55 @@ use crate::{
 };
 use core::fmt::Debug;
 
-tpm_struct!(
+use super::symmetric::TpmiAlgMacScheme;
+
+tpm_struct! {
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmHmacStartCommand,
+    TpmCc::HmacStart,
+    false,
+    true,
+    1,
+    {
+        pub auth: Tpm2bAuth,
+        pub hash_alg: TpmAlgId,
+    }
+}
+
+tpm_response! {
+    #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+    TpmHmacStartResponse,
+    TpmCc::HmacStart,
+    false,
+    true,
+    pub sequence_handle: TpmTransient,
+    {}
+}
+
+tpm_struct! {
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmMacStartCommand,
+    TpmCc::HmacStart,
+    false,
+    true,
+    1,
+    {
+        pub auth: Tpm2bAuth,
+        pub in_scheme: TpmiAlgMacScheme,
+    }
+}
+
+tpm_response! {
+    #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+    TpmMacStartResponse,
+    TpmCc::HmacStart,
+    false,
+    true,
+    pub sequence_handle: TpmTransient,
+    {}
+}
+
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmHashSequenceStartCommand,
     TpmCc::HashSequenceStart,
@@ -24,9 +72,9 @@ tpm_struct!(
         pub auth: Tpm2bAuth,
         pub hash_alg: TpmAlgId,
     }
-);
+}
 
-tpm_response!(
+tpm_response! {
     #[derive(Debug, PartialEq, Eq, Clone, Copy)]
     TpmHashSequenceStartResponse,
     TpmCc::HashSequenceStart,
@@ -34,9 +82,9 @@ tpm_response!(
     true,
     pub sequence_handle: TpmTransient,
     {}
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmSequenceUpdateCommand,
     TpmCc::SequenceUpdate,
@@ -46,18 +94,18 @@ tpm_struct!(
     {
         pub buffer: Tpm2bMaxBuffer,
     }
-);
+}
 
-tpm_response!(
+tpm_response! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmSequenceUpdateResponse,
     TpmCc::SequenceUpdate,
     true,
     true,
     {}
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmSequenceCompleteCommand,
     TpmCc::SequenceComplete,
@@ -68,9 +116,9 @@ tpm_struct!(
         pub buffer: Tpm2bMaxBuffer,
         pub hierarchy: TpmRh,
     }
-);
+}
 
-tpm_response!(
+tpm_response! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmSequenceCompleteResponse,
     TpmCc::SequenceComplete,
@@ -80,9 +128,9 @@ tpm_response!(
         pub result: Tpm2bDigest,
         pub validation: TpmtTkHashcheck,
     }
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmEventSequenceCompleteCommand,
     TpmCc::EventSequenceComplete,
@@ -92,9 +140,9 @@ tpm_struct!(
     {
         pub buffer: Tpm2bMaxBuffer,
     }
-);
+}
 
-tpm_response!(
+tpm_response! {
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
     TpmEventSequenceCompleteResponse,
     TpmCc::EventSequenceComplete,
@@ -103,4 +151,4 @@ tpm_response!(
     {
         pub results: TpmlDigestValues,
     }
-);
+}

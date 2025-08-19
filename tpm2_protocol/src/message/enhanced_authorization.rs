@@ -1,191 +1,41 @@
-// SPDX-License-Identifier: MIT OR Apache-2.0
-// Copyright (c) 2025 Opinsys Oy
+// SPDX-License-Identifier: MIT OR Apache-2.0 Copyright (c) 2025 Opinsys Oy
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 
-//! 28 Policy Commands
+//! 23 Enhanced Authorization (EA) Commands
+//!
+//! 23.3 `TPM2_PolicySigned`
+//! 23.4 `TPM2_PolicySecret`
+//! 23.5 `TPM2_PolicyTicket`
+//! 23.6 `TPM2_PolicyOR`
+//! 23.7 `TPM2_PolicyPCR`
+//! 23.8 `TPM2_PolicyLocality`
+//! 23.9 `TPM2_PolicyNV`
+//! 23.10 `TPM2_PolicyCounterTimer`
+//! 23.11 `TPM2_PolicyCommandCode`
+//! 23.12 `TPM2_PolicyPhysicalPresence`
+//! 23.13 `TPM2_PolicyCpHash`
+//! 23.14 `TPM2_PolicyNameHash`
+//! 23.15 `TPM2_PolicyDuplicationSelect`
+//! 23.16 `TPM2_PolicyAuthorize`
+//! 23.17 `TPM2_PolicyAuthValue`
+//! 23.18 `TPM2_PolicyPassword`
+//! 23.19 `TPM2_PolicyGetDigest`
+//! 23.20 `TPM2_PolicyNvWritten`
+//! 23.21 `TPM2_PolicyTemplate`
+//! 23.22 `TPM2_PolicyAuthorizeNV`
+//! 23.23 `TPM2_PolicyCapability`
+//! 23.24 `TPM2_PolicyParameters`
+//! 23.25 `TPM2_PolicyTransportSPDM`
 
 use crate::{
     data::{
-        Tpm2b, Tpm2bDigest, Tpm2bMaxBuffer, Tpm2bName, Tpm2bNonce, Tpm2bTimeout, TpmAlgId, TpmCap,
-        TpmCc, TpmEo, TpmaLocality, TpmiYesNo, TpmlDigest, TpmlPcrSelection, TpmtSignature,
-        TpmtTkAuth, TpmtTkVerified,
+        Tpm2bDigest, Tpm2bMaxBuffer, Tpm2bName, Tpm2bNonce, Tpm2bTimeout, TpmCap, TpmCc, TpmEo,
+        TpmaLocality, TpmiYesNo, TpmlDigest, TpmlPcrSelection, TpmtSignature, TpmtTkAuth,
+        TpmtTkVerified,
     },
     tpm_response, tpm_struct,
 };
 use core::fmt::Debug;
-
-tpm_struct!(
-    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPolicyAuthValueCommand,
-    TpmCc::PolicyAuthValue,
-    false,
-    true,
-    1,
-    {}
-);
-
-tpm_struct!(
-    #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmPolicyCommandCodeCommand,
-    TpmCc::PolicyCommandCode,
-    false,
-    true,
-    1,
-    {
-        pub code: TpmCc,
-    }
-);
-
-tpm_struct!(
-    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPolicyGetDigestCommand,
-    TpmCc::PolicyGetDigest,
-    false,
-    true,
-    1,
-    {}
-);
-
-tpm_struct!(
-    #[derive(Debug, Default, PartialEq, Eq, Clone)]
-    TpmPolicyOrCommand,
-    TpmCc::PolicyOR,
-    false,
-    true,
-    1,
-    {
-        pub p_hash_list: TpmlDigest,
-    }
-);
-
-tpm_struct!(
-    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPolicyPasswordCommand,
-    TpmCc::PolicyPassword,
-    false,
-    true,
-    1,
-    {}
-);
-
-tpm_struct!(
-    #[derive(Debug, Default, PartialEq, Eq, Clone)]
-    TpmPolicyPcrCommand,
-    TpmCc::PolicyPcr,
-    false,
-    true,
-    1,
-    {
-        pub pcr_digest: Tpm2bDigest,
-        pub pcrs: TpmlPcrSelection,
-    }
-);
-
-tpm_struct!(
-    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPolicyRestartCommand,
-    TpmCc::PolicyRestart,
-    false,
-    true,
-    0,
-    {}
-);
-
-tpm_struct!(
-    #[derive(Debug, Default, PartialEq, Eq, Clone)]
-    TpmPolicySecretCommand,
-    TpmCc::PolicySecret,
-    false,
-    true,
-    2,
-    {
-        pub nonce_tpm: Tpm2b,
-        pub cp_hash_a: Tpm2bDigest,
-        pub policy_ref: Tpm2b,
-        pub expiration: i32,
-    }
-);
-
-tpm_response!(
-    #[derive(Debug, Default, PartialEq, Eq, Clone)]
-    TpmPolicyGetDigestResponse,
-    TpmCc::PolicyGetDigest,
-    false,
-    true,
-    {
-        pub policy_digest: Tpm2bDigest,
-    }
-);
-
-tpm_struct!(
-    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPolicyAuthValueResponse,
-    TpmCc::PolicyAuthValue,
-    false,
-    true,
-    0,
-    {}
-);
-
-tpm_struct!(
-    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPolicyCommandCodeResponse,
-    TpmCc::PolicyCommandCode,
-    false,
-    true,
-    0,
-    {}
-);
-
-tpm_struct!(
-    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPolicyOrResponse,
-    TpmCc::PolicyOR,
-    false,
-    true,
-    0,
-    {}
-);
-
-tpm_struct!(
-    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPolicyPasswordResponse,
-    TpmCc::PolicyPassword,
-    false,
-    true,
-    0,
-    {}
-);
-
-tpm_struct!(
-    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPolicyPcrResponse,
-    TpmCc::PolicyPcr,
-    false,
-    true,
-    0,
-    {}
-);
-
-tpm_struct!(
-    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPolicyRestartResponse,
-    TpmCc::PolicyRestart,
-    false,
-    true,
-    0,
-    {}
-);
-
-tpm_struct!(
-    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPolicySecretResponse,
-    TpmCc::PolicySecret,
-    false,
-    true,
-    0,
-    {}
-);
 
 tpm_struct! (
     #[derive(Debug, PartialEq, Eq, Clone)]
@@ -215,6 +65,31 @@ tpm_response!(
     }
 );
 
+tpm_struct!(
+    #[derive(Debug, Default, PartialEq, Eq, Clone)]
+    TpmPolicySecretCommand,
+    TpmCc::PolicySecret,
+    false,
+    true,
+    2,
+    {
+        pub nonce_tpm: Tpm2bNonce,
+        pub cp_hash_a: Tpm2bDigest,
+        pub policy_ref: Tpm2bNonce,
+        pub expiration: i32,
+    }
+);
+
+tpm_struct!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmPolicySecretResponse,
+    TpmCc::PolicySecret,
+    false,
+    true,
+    0,
+    {}
+);
+
 tpm_struct! (
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmPolicyTicketCommand,
@@ -240,6 +115,51 @@ tpm_response!(
     {}
 );
 
+tpm_struct!(
+    #[derive(Debug, Default, PartialEq, Eq, Clone)]
+    TpmPolicyOrCommand,
+    TpmCc::PolicyOR,
+    false,
+    true,
+    1,
+    {
+        pub p_hash_list: TpmlDigest,
+    }
+);
+
+tpm_struct!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmPolicyOrResponse,
+    TpmCc::PolicyOR,
+    false,
+    true,
+    0,
+    {}
+);
+
+tpm_struct!(
+    #[derive(Debug, Default, PartialEq, Eq, Clone)]
+    TpmPolicyPcrCommand,
+    TpmCc::PolicyPcr,
+    false,
+    true,
+    1,
+    {
+        pub pcr_digest: Tpm2bDigest,
+        pub pcrs: TpmlPcrSelection,
+    }
+);
+
+tpm_struct!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmPolicyPcrResponse,
+    TpmCc::PolicyPcr,
+    false,
+    true,
+    0,
+    {}
+);
+
 tpm_struct! (
     #[derive(Debug, PartialEq, Eq, Copy, Clone)]
     TpmPolicyLocalityCommand,
@@ -256,68 +176,6 @@ tpm_response!(
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
     TpmPolicyLocalityResponse,
     TpmCc::PolicyLocality,
-    false,
-    true,
-    {}
-);
-
-tpm_struct! (
-    #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmPolicyCpHashCommand,
-    TpmCc::PolicyCpHash,
-    false,
-    true,
-    1,
-    {
-        pub cp_hash_a: Tpm2bDigest,
-    }
-);
-
-tpm_response!(
-    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPolicyCpHashResponse,
-    TpmCc::PolicyCpHash,
-    false,
-    true,
-    {}
-);
-
-tpm_struct!(
-    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPolicyPhysicalPresenceCommand,
-    TpmCc::PolicyPhysicalPresence,
-    false,
-    true,
-    1,
-    {}
-);
-
-tpm_response!(
-    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPolicyPhysicalPresenceResponse,
-    TpmCc::PolicyPhysicalPresence,
-    false,
-    true,
-    {}
-);
-
-tpm_struct!(
-    #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmSetPrimaryPolicyCommand,
-    TpmCc::SetPrimaryPolicy,
-    false,
-    true,
-    1,
-    {
-        pub auth_policy: Tpm2bDigest,
-        pub hash_alg: TpmAlgId,
-    }
-);
-
-tpm_response!(
-    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmSetPrimaryPolicyResponse,
-    TpmCc::SetPrimaryPolicy,
     false,
     true,
     {}
@@ -368,6 +226,68 @@ tpm_response! {
     true,
     {}
 }
+
+tpm_struct!(
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmPolicyCommandCodeCommand,
+    TpmCc::PolicyCommandCode,
+    false,
+    true,
+    1,
+    {
+        pub code: TpmCc,
+    }
+);
+
+tpm_struct!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmPolicyCommandCodeResponse,
+    TpmCc::PolicyCommandCode,
+    false,
+    true,
+    0,
+    {}
+);
+
+tpm_struct!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmPolicyPhysicalPresenceCommand,
+    TpmCc::PolicyPhysicalPresence,
+    false,
+    true,
+    1,
+    {}
+);
+
+tpm_response!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmPolicyPhysicalPresenceResponse,
+    TpmCc::PolicyPhysicalPresence,
+    false,
+    true,
+    {}
+);
+
+tpm_struct! (
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmPolicyCpHashCommand,
+    TpmCc::PolicyCpHash,
+    false,
+    true,
+    1,
+    {
+        pub cp_hash_a: Tpm2bDigest,
+    }
+);
+
+tpm_response!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmPolicyCpHashResponse,
+    TpmCc::PolicyCpHash,
+    false,
+    true,
+    {}
+);
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
@@ -436,6 +356,67 @@ tpm_response! {
     true,
     {}
 }
+
+tpm_struct!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmPolicyAuthValueCommand,
+    TpmCc::PolicyAuthValue,
+    false,
+    true,
+    1,
+    {}
+);
+
+tpm_struct!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmPolicyAuthValueResponse,
+    TpmCc::PolicyAuthValue,
+    false,
+    true,
+    0,
+    {}
+);
+
+tpm_struct!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmPolicyPasswordCommand,
+    TpmCc::PolicyPassword,
+    false,
+    true,
+    1,
+    {}
+);
+
+tpm_struct!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmPolicyPasswordResponse,
+    TpmCc::PolicyPassword,
+    false,
+    true,
+    0,
+    {}
+);
+
+tpm_response!(
+    #[derive(Debug, Default, PartialEq, Eq, Clone)]
+    TpmPolicyGetDigestResponse,
+    TpmCc::PolicyGetDigest,
+    false,
+    true,
+    {
+        pub policy_digest: Tpm2bDigest,
+    }
+);
+
+tpm_struct!(
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    TpmPolicyGetDigestCommand,
+    TpmCc::PolicyGetDigest,
+    false,
+    true,
+    1,
+    {}
+);
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Copy, Clone)]

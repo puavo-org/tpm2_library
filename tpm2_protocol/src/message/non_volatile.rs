@@ -83,12 +83,13 @@ tpm_struct!(
     {}
 );
 
-tpm_response!(
+tpm_struct!(
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmNvReadPublicResponse,
     TpmCc::NvReadPublic,
     true,
     false,
+    0,
     {
         pub nv_public: Tpm2bNvPublic,
         pub nv_name: Tpm2bName,
@@ -339,12 +340,13 @@ tpm_struct! {
     {}
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmNvReadPublic2Response,
     TpmCc::NvReadPublic2,
     true,
     false,
+    0,
     {
         pub nv_public: crate::data::Tpm2bNvPublic2,
         pub nv_name: Tpm2bName,

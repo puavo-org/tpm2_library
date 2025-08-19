@@ -13,7 +13,10 @@ use pest::Parser;
 use pest_derive::Parser;
 use std::io::{self, Write};
 use tpm2_protocol::{
-    data::{Tpm2b, Tpm2bDigest, TpmAlgId, TpmRh, TpmlDigest, TpmlPcrSelection, TpmtSymDefObject},
+    data::{
+        Tpm2b, Tpm2bDigest, Tpm2bNonce, TpmAlgId, TpmRh, TpmlDigest, TpmlPcrSelection,
+        TpmtSymDefObject,
+    },
     message::{
         TpmFlushContextCommand, TpmPolicyGetDigestCommand, TpmPolicyOrCommand, TpmPolicyPcrCommand,
         TpmPolicySecretCommand, TpmStartAuthSessionCommand,
@@ -164,9 +167,9 @@ impl<W: Write> PolicyExecutor<'_, '_, W> {
     ) -> Result<(), TpmError> {
         let auth_handle = crate::parse_hex_u32(auth_handle_str)?;
         let cmd = TpmPolicySecretCommand {
-            nonce_tpm: Tpm2b::default(),
+            nonce_tpm: Tpm2bNonce::default(),
             cp_hash_a: Tpm2bDigest::default(),
-            policy_ref: Tpm2b::default(),
+            policy_ref: Tpm2bNonce::default(),
             expiration: 0,
         };
         let handles = [auth_handle, session_handle.into()];
@@ -246,7 +249,7 @@ fn start_trial_session(
 ) -> Result<TpmSession, TpmError> {
     let auth_hash = session.map_or(TpmAlgId::Sha256, |s| s.auth_hash);
     let cmd = TpmStartAuthSessionCommand {
-        nonce_caller: Tpm2b::default(),
+        nonce_caller: Tpm2bNonce::default(),
         encrypted_salt: Tpm2b::default(),
         session_type: session_type.into(),
         symmetric: TpmtSymDefObject::default(),

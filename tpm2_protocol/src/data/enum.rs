@@ -3,7 +3,6 @@
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 
 use crate::tpm_enum;
-
 tpm_enum! {
     #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Hash, Default)]
     pub enum TpmAlgId(u16) {
@@ -73,8 +72,9 @@ tpm_enum! {
 }
 
 tpm_enum! {
-    #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone)]
+    #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Default)]
     pub enum TpmCc(u32) {
+        #[default]
         (NvUndefineSpaceSpecial, 0x0000_011F, "TPM_CC_NV_UndefineSpaceSpecial"),
         (EvictControl, 0x0000_0120, "TPM_CC_EvictControl"),
         (HierarchyControl, 0x0000_0121, "TPM_CC_HierarchyControl"),
@@ -88,6 +88,7 @@ tpm_enum! {
         (NvDefineSpace, 0x0000_012A, "TPM_CC_NV_DefineSpace"),
         (PcrAllocate, 0x0000_012B, "TPM_CC_PCR_Allocate"),
         (PcrSetAuthPolicy, 0x0000_012C, "TPM_CC_PCR_SetAuthPolicy"),
+        (PpCommands, 0x0000_012D, "TPM_CC_PP_Commands"),
         (SetPrimaryPolicy, 0x0000_012E, "TPM_CC_SetPrimaryPolicy"),
         (FieldUpgradeStart, 0x0000_012F, "TPM_CC_FieldUpgradeStart"),
         (ClockRateAdjust, 0x0000_0130, "TPM_CC_ClockRateAdjust"),
@@ -100,10 +101,13 @@ tpm_enum! {
         (NvWrite, 0x0000_0137, "TPM_CC_NV_Write"),
         (NvWriteLock, 0x0000_0138, "TPM_CC_NV_WriteLock"),
         (DictionaryAttackLockReset, 0x0000_0139, "TPM_CC_DictionaryAttackLockReset"),
+        (DictionaryAttackParameters, 0x0000_013A, "TPM_CC_DictionaryAttackParameters"),
         (NvChangeAuth, 0x0000_013B, "TPM_CC_NV_ChangeAuth"),
         (PcrEvent, 0x0000_013C, "TPM_CC_PCR_Event"),
         (PcrReset, 0x0000_013D, "TPM_CC_PCR_Reset"),
         (SequenceComplete, 0x0000_013E, "TPM_CC_SequenceComplete"),
+        (SetAlgorithmSet, 0x0000_013F, "TPM_CC_SetAlgorithmSet"),
+        (SetCommandCodeAuditStatus, 0x0000_0140, "TPM_CC_SetCommandCodeAuditStatus"),
         (FieldUpgradeData, 0x0000_0141, "TPM_CC_FieldUpgradeData"),
         (IncrementalSelfTest, 0x0000_0142, "TPM_CC_IncrementalSelfTest"),
         (SelfTest, 0x0000_0143, "TPM_CC_SelfTest"),
@@ -124,13 +128,12 @@ tpm_enum! {
         (Rewrap, 0x0000_0152, "TPM_CC_Rewrap"),
         (Create, 0x0000_0153, "TPM_CC_Create"),
         (EcdhZGen, 0x0000_0154, "TPM_CC_ECDH_ZGen"),
-        (ZGen2Phase, 0x0000_0155, "TPM_CC_ZGen_2Phase"),
+        (Hmac, 0x0000_0155, "TPM_CC_HMAC"),
         (Import, 0x0000_0156, "TPM_CC_Import"),
         (Load, 0x0000_0157, "TPM_CC_Load"),
         (Quote, 0x0000_0158, "TPM_CC_Quote"),
         (RsaDecrypt, 0x0000_0159, "TPM_CC_RSA_Decrypt"),
-        (EccEncrypt, 0x0000_015A, "TPM_CC_ECC_Encrypt"),
-        (EccDecrypt, 0x0000_015B, "TPM_CC_ECC_Decrypt"),
+        (HmacStart, 0x0000_015B, "TPM_CC_HMAC_Start"),
         (SequenceUpdate, 0x0000_015C, "TPM_CC_SequenceUpdate"),
         (Sign, 0x0000_015D, "TPM_CC_Sign"),
         (Unseal, 0x0000_015E, "TPM_CC_Unseal"),
@@ -138,6 +141,7 @@ tpm_enum! {
         (ContextLoad, 0x0000_0161, "TPM_CC_ContextLoad"),
         (ContextSave, 0x0000_0162, "TPM_CC_ContextSave"),
         (EcdhKeyGen, 0x0000_0163, "TPM_CC_ECDH_KeyGen"),
+        (EncryptDecrypt, 0x0000_0164, "TPM_CC_EncryptDecrypt"),
         (FlushContext, 0x0000_0165, "TPM_CC_FlushContext"),
         (LoadExternal, 0x0000_0167, "TPM_CC_LoadExternal"),
         (MakeCredential, 0x0000_0168, "TPM_CC_MakeCredential"),
@@ -173,19 +177,28 @@ tpm_enum! {
         (PolicyPhysicalPresence, 0x0000_0187, "TPM_CC_PolicyPhysicalPresence"),
         (PolicyDuplicationSelect, 0x0000_0188, "TPM_CC_PolicyDuplicationSelect"),
         (PolicyGetDigest, 0x0000_0189, "TPM_CC_PolicyGetDigest"),
+        (TestParms, 0x0000_018A, "TPM_CC_TestParms"),
+        (Commit, 0x0000_018B, "TPM_CC_Commit"),
         (PolicyPassword, 0x0000_018C, "TPM_CC_PolicyPassword"),
+        (ZGen2Phase, 0x0000_018D, "TPM_CC_ZGen_2Phase"),
+        (EcEphemeral, 0x0000_018E, "TPM_CC_EC_Ephemeral"),
         (PolicyNvWritten, 0x0000_018F, "TPM_CC_PolicyNvWritten"),
         (PolicyTemplate, 0x0000_0190, "TPM_CC_PolicyTemplate"),
+        (CreateLoaded, 0x0000_0191, "TPM_CC_CreateLoaded"),
         (PolicyAuthorizeNv, 0x0000_0192, "TPM_CC_PolicyAuthorizeNV"),
         (EncryptDecrypt2, 0x0000_0193, "TPM_CC_EncryptDecrypt2"),
         (AcGetCapability, 0x0000_0194, "TPM_CC_AcGetCapability"),
         (AcSend, 0x0000_0195, "TPM_CC_AcSend"),
         (PolicyAcSendSelect, 0x0000_0196, "TPM_CC_Policy_AC_SendSelect"),
         (ActSetTimeout, 0x0000_0198, "TPM2_ACT_SetTimeout"),
+        (EccEncrypt, 0x0000_0199, "TPM_CC_ECC_Encrypt"),
+        (EccDecrypt, 0x0000_019A, "TPM_CC_ECC_Decrypt"),
         (PolicyCapability, 0x0000_019B, "TPM_CC_PolicyCapability"),
         (PolicyParameters, 0x0000_019C, "TPM_CC_PolicyParameters"),
         (NvDefineSpace2, 0x0000_019D, "TPM_CC_NV_DefineSpace2"),
         (NvReadPublic2, 0x0000_019E, "TPM_CC_NV_ReadPublic2"),
+        (SetCapability, 0x0000_019F, "TPM_CC_SetCapability"),
+        (ReadOnlyControl, 0x0000_01A0, "TPM_CC_ReadOnlyControl"),
         (PolicyTransportSpdm, 0x0000_01A1, "TPM_CC_Policy_TransportSPDM"),
         (VendorTcgTest, 0x2000_0000, "TPM_CC_Vendor_TCG_Test"),
     }

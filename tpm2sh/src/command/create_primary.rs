@@ -15,7 +15,7 @@ use log::warn;
 use std::io::IsTerminal;
 use tpm2_protocol::{
     data::{
-        Tpm2b, Tpm2bAuth, Tpm2bDigest, Tpm2bPublic, Tpm2bSensitiveCreate, Tpm2bSensitiveData,
+        Tpm2bAuth, Tpm2bData, Tpm2bDigest, Tpm2bPublic, Tpm2bSensitiveCreate, Tpm2bSensitiveData,
         TpmAlgId, TpmRh, TpmaObject, TpmlPcrSelection, TpmsEccParms, TpmsEccPoint,
         TpmsKeyedhashParms, TpmsRsaParms, TpmsSensitiveCreate, TpmtKdfScheme, TpmtPublic,
         TpmtScheme, TpmtSymDefObject, TpmuPublicId, TpmuPublicParms, TpmuSymKeyBits, TpmuSymMode,
@@ -203,7 +203,7 @@ impl Command for CreatePrimary {
             in_public: Tpm2bPublic {
                 inner: public_template,
             },
-            outside_info: Tpm2b::default(),
+            outside_info: Tpm2bData::default(),
             creation_pcr: TpmlPcrSelection::default(),
         };
         let sessions =

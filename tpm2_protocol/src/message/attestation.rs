@@ -5,7 +5,9 @@
 //! 18 Attestation Commands
 
 use crate::{
-    data::{Tpm2bAttest, Tpm2bData, Tpm2bDigest, TpmCc, TpmtSignature, TpmtTkCreation},
+    data::{
+        Tpm2bAttest, Tpm2bData, Tpm2bDigest, TpmCc, TpmlPcrSelection, TpmtSignature, TpmtTkCreation,
+    },
     tpm_response, tpm_struct,
 };
 use core::fmt::Debug;
@@ -22,6 +24,7 @@ tpm_struct! {
         pub in_scheme: TpmtSignature,
     }
 }
+
 tpm_response! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     TpmCertifyResponse,
@@ -57,6 +60,32 @@ tpm_response! {
     true,
     {
         pub certify_info: Tpm2bAttest,
+        pub signature: TpmtSignature,
+    }
+}
+
+tpm_struct! {
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmQuoteCommand,
+    TpmCc::Quote,
+    false,
+    true,
+    1,
+    {
+        pub qualifying_data: Tpm2bData,
+        pub in_scheme: TpmtSignature,
+        pub pcr_select: TpmlPcrSelection,
+    }
+}
+
+tpm_response! {
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmQuoteResponse,
+    TpmCc::Quote,
+    false,
+    true,
+    {
+        pub quoted: Tpm2bAttest,
         pub signature: TpmtSignature,
     }
 }

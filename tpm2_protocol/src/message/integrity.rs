@@ -6,7 +6,7 @@
 
 use crate::{
     data::{
-        Tpm2b, Tpm2bDigest, TpmAlgId, TpmCc, TpmRh, TpmiYesNo, TpmlDigest, TpmlDigestValues,
+        Tpm2bDigest, Tpm2bEvent, TpmAlgId, TpmCc, TpmRh, TpmiYesNo, TpmlDigest, TpmlDigestValues,
         TpmlPcrSelection,
     },
     tpm_response, tpm_struct,
@@ -21,7 +21,7 @@ tpm_struct!(
     true,
     1,
     {
-        pub event_data: Tpm2b,
+        pub event_data: Tpm2bEvent,
     }
 );
 

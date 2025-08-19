@@ -2,15 +2,19 @@
 // Copyright (c) 2025 Opinsys Oy
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 
+//! Object Commands
+
 use crate::{
     data::{
-        Tpm2b, Tpm2bAuth, Tpm2bCreationData, Tpm2bDigest, Tpm2bEncryptedSecret, Tpm2bIdObject,
-        Tpm2bName, Tpm2bPrivate, Tpm2bPublic, Tpm2bSensitive, Tpm2bSensitiveCreate, TpmCc, TpmRh,
-        TpmlPcrSelection, TpmtTkCreation,
+        Tpm2bAuth, Tpm2bCreationData, Tpm2bData, Tpm2bDigest, Tpm2bEncryptedSecret, Tpm2bIdObject,
+        Tpm2bName, Tpm2bPrivate, Tpm2bPublic, Tpm2bSensitive, Tpm2bSensitiveCreate,
+        Tpm2bSensitiveData, TpmCc, TpmRh, TpmlPcrSelection, TpmtTkCreation,
     },
     tpm_response, tpm_struct, TpmTransient,
 };
 use core::fmt::Debug;
+
+pub type Tpm2bTemplate = Tpm2bPublic;
 
 tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
@@ -22,7 +26,7 @@ tpm_struct! {
     {
         pub in_sensitive: Tpm2bSensitiveCreate,
         pub in_public: Tpm2bPublic,
-        pub outside_info: Tpm2b,
+        pub outside_info: Tpm2bData,
         pub creation_pcr: TpmlPcrSelection,
     }
 }
@@ -39,6 +43,33 @@ tpm_response! {
         pub creation_data: Tpm2bCreationData,
         pub creation_hash: Tpm2bDigest,
         pub creation_ticket: TpmtTkCreation,
+    }
+}
+
+tpm_struct! {
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmCreateLoadedCommand,
+    TpmCc::CreateLoaded,
+    false,
+    true,
+    1,
+    {
+        pub in_sensitive: Tpm2bSensitiveCreate,
+        pub in_public: Tpm2bTemplate,
+    }
+}
+
+tpm_response! {
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    TpmCreateLoadedResponse,
+    TpmCc::CreateLoaded,
+    false,
+    true,
+    pub object_handle: TpmTransient,
+    {
+        pub out_private: Tpm2bPrivate,
+        pub out_public: Tpm2bPublic,
+        pub name: Tpm2bName,
     }
 }
 
@@ -103,12 +134,13 @@ tpm_struct! {
     {}
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
     TpmReadPublicResponse,
     TpmCc::ReadPublic,
     true,
     false,
+    0,
     {
         pub out_public: Tpm2bPublic,
         pub name: Tpm2bName,
@@ -182,7 +214,7 @@ tpm_response! {
     false,
     true,
     {
-        pub out_data: Tpm2b,
+        pub out_data: Tpm2bSensitiveData,
     }
 }
 
