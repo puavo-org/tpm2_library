@@ -46,13 +46,9 @@ impl Command for PrintStack {
         let mut io = CommandIo::new(io::stdout(), log_format)?;
         let objects = io.consume_all_objects();
 
-        for (i, obj) in objects.iter().enumerate() {
+        for (_i, obj) in objects.iter().rev().enumerate() {
             let cli::Object::TpmObject(json_str) = obj;
             let json_val = json::parse(json_str)?;
-
-            if i > 0 {
-                println!("{}", "-".repeat(40));
-            }
 
             pretty_print_json_object_to_stdout(&json_val, 0);
         }

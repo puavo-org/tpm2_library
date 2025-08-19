@@ -5,11 +5,10 @@
 use crate::{
     arg_parser::{format_subcommand_help, CommandLineArgument, CommandLineOption},
     cli::{self, Commands, Object, PcrRead},
-    get_pcr_count, parse_pcr_selection, pcr_response_to_output, Command, Envelope, TpmDevice,
-    TpmError,
+    get_pcr_count, parse_pcr_selection, pcr_response_to_output, Command, CommandIo, Envelope,
+    TpmDevice, TpmError,
 };
 use lexopt::prelude::*;
-use std::io::IsTerminal;
 use tpm2_protocol::message::TpmPcrReadCommand;
 
 const ABOUT: &str = "Reads PCR values from the TPM";
@@ -55,6 +54,8 @@ impl Command for PcrRead {
     ///
     /// Returns a `TpmError` if the execution fails
     fn run(&self, chip: &mut TpmDevice, log_format: cli::LogFormat) -> Result<(), TpmError> {
+        let mut io = CommandIo::new(std::io::stdout(), log_format)?;
+
         let pcr_count = get_pcr_count(chip, log_format)?;
         let pcr_selection_in = parse_pcr_selection(&self.selection, pcr_count)?;
 
@@ -70,15 +71,9 @@ impl Command for PcrRead {
             object_type: "pcr-values".to_string(),
             data: pcr_output.to_json(),
         };
+        let new_object = Object::TpmObject(envelope.to_json().dump());
 
-        let final_json = envelope.to_json();
-        if std::io::stdout().is_terminal() {
-            println!("{}", final_json.dump());
-        } else {
-            let pipe_obj = Object::TpmObject(final_json.dump());
-            println!("{}", pipe_obj.to_json().dump());
-        }
-
-        Ok(())
+        io.push_object(new_object);
+        io.finalize()
     }
 }
