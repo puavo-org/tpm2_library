@@ -11,6 +11,7 @@ use crate::{
 };
 use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
 use lexopt::prelude::*;
+use std::io::IsTerminal;
 use tpm2_protocol::{
     data::{
         Tpm2b, Tpm2bAuth, Tpm2bDigest, Tpm2bPublic, Tpm2bSensitiveCreate, Tpm2bSensitiveData,
@@ -188,8 +189,7 @@ impl Command for CreatePrimary {
     ///
     /// Returns a `TpmError` if the execution fails
     fn run(&self, chip: &mut TpmDevice, log_format: cli::LogFormat) -> Result<(), TpmError> {
-        let mut io =
-            crate::command_io::CommandIo::new(std::io::stdin(), std::io::stdout(), log_format)?;
+        let mut io = crate::command_io::CommandIo::new(std::io::stdout(), log_format)?;
         let session = io.take_session()?;
 
         let primary_handle: TpmRh = self.hierarchy.into();
@@ -237,9 +237,13 @@ impl Command for CreatePrimary {
             let obj = Object::TpmObject(format!("{persistent_handle:#010x}"));
             println!("{}", obj.to_json().dump());
         } else {
-            let context_json = save_key_context(chip, object_handle, log_format)?;
-            let obj = Object::TpmObject(context_json.dump());
-            println!("{}", obj.to_json().dump());
+            let final_json = save_key_context(chip, object_handle, log_format)?;
+            if std::io::stdout().is_terminal() {
+                println!("{}", final_json.pretty(2));
+            } else {
+                let pipe_obj = Object::TpmObject(final_json.dump());
+                println!("{}", pipe_obj.to_json().dump());
+            }
         }
 
         Ok(())

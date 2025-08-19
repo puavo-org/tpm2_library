@@ -9,6 +9,7 @@ use crate::{
     TpmError,
 };
 use lexopt::prelude::*;
+use std::io::IsTerminal;
 use tpm2_protocol::message::TpmPcrReadCommand;
 
 const ABOUT: &str = "Reads PCR values from the TPM";
@@ -70,8 +71,13 @@ impl Command for PcrRead {
             data: pcr_output.to_json(),
         };
 
-        let obj = Object::TpmObject(envelope.to_json().dump());
-        println!("{}", obj.to_json().dump());
+        let final_json = envelope.to_json();
+        if std::io::stdout().is_terminal() {
+            println!("{}", final_json.dump());
+        } else {
+            let pipe_obj = Object::TpmObject(final_json.dump());
+            println!("{}", pipe_obj.to_json().dump());
+        }
 
         Ok(())
     }

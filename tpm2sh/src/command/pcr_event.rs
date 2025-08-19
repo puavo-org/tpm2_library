@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3-0-or-later
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 // Copyright (c) 2025 Opinsys Oy
 
@@ -67,7 +67,7 @@ impl Command for PcrEvent {
     ///
     /// Returns a `TpmError` if the execution fails
     fn run(&self, chip: &mut TpmDevice, log_format: cli::LogFormat) -> Result<(), TpmError> {
-        let mut io = CommandIo::new(std::io::stdin(), std::io::stdout(), log_format)?;
+        let mut io = CommandIo::new(std::io::stdout(), log_format)?;
         let session = io.take_session()?;
 
         if session.is_none() && self.auth.auth.is_none() {

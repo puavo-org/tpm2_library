@@ -46,7 +46,7 @@ impl Command for ResetLock {
     ///
     /// Returns a `TpmError` if the execution fails
     fn run(&self, chip: &mut TpmDevice, log_format: cli::LogFormat) -> Result<(), TpmError> {
-        let mut io = CommandIo::new(std::io::stdin(), std::io::stdout(), log_format)?;
+        let mut io = CommandIo::new(std::io::stdout(), log_format)?;
         let session = io.take_session()?;
 
         let command = TpmDictionaryAttackLockResetCommand {};

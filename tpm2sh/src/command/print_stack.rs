@@ -44,7 +44,7 @@ impl Command for PrintStack {
     ///
     /// Returns a `TpmError` if the execution fails.
     fn run(&self, _device: &mut TpmDevice, log_format: cli::LogFormat) -> Result<(), TpmError> {
-        let mut io = CommandIo::new(io::stdin(), io::stdout(), log_format)?;
+        let mut io = CommandIo::new(io::stdout(), log_format)?;
         let objects = io.consume_all_objects();
 
         for (i, obj) in objects.iter().enumerate() {

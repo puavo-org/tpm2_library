@@ -103,13 +103,12 @@ impl Command for StartSession {
             data: data.to_json(),
         };
 
-        let envelope_string = envelope.to_json().dump();
-        let output_object = Object::TpmObject(envelope_string);
-
+        let final_json = envelope.to_json();
         if std::io::stdout().is_terminal() {
-            println!("{}", output_object.to_json().pretty(2));
+            println!("{}", final_json.pretty(2));
         } else {
-            println!("{}", output_object.to_json().dump());
+            let pipe_obj = Object::TpmObject(final_json.dump());
+            println!("{}", pipe_obj.to_json().dump());
         }
 
         Ok(())

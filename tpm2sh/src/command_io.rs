@@ -4,7 +4,7 @@
 
 use crate::{cli, from_json_str, AuthSession, SessionData, TpmError};
 use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
-use std::io::{BufRead, BufReader, Read, Write};
+use std::io::{self, BufRead, BufReader, IsTerminal, Write};
 use tpm2_protocol::data::{Tpm2bAuth, Tpm2bNonce, TpmAlgId, TpmaSession};
 
 /// Manages the streaming I/O for a command in the JSON Lines pipeline.
@@ -21,18 +21,16 @@ impl<W: Write> CommandIo<W> {
     /// # Errors
     ///
     /// Returns a `TpmError` if reading from the input stream fails.
-    pub fn new<R: Read>(
-        reader: R,
-        writer: W,
-        log_format: cli::LogFormat,
-    ) -> Result<Self, TpmError> {
+    pub fn new(writer: W, log_format: cli::LogFormat) -> Result<Self, TpmError> {
         let mut input_objects: Vec<cli::Object> = Vec::new();
-        let buf_reader = BufReader::new(reader);
-        for line in buf_reader.lines() {
-            let line = line?;
-            if !line.trim().is_empty() {
-                let json_val = json::parse(&line)?;
-                input_objects.push(cli::Object::from_json(&json_val)?);
+        if !io::stdin().is_terminal() {
+            let buf_reader = BufReader::new(io::stdin());
+            for line in buf_reader.lines() {
+                let line = line?;
+                if !line.trim().is_empty() {
+                    let json_val = json::parse(&line)?;
+                    input_objects.push(cli::Object::from_json(&json_val)?);
+                }
             }
         }
 

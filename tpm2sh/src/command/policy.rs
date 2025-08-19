@@ -343,7 +343,7 @@ impl Command for Policy {
     ///
     /// Returns a `TpmError` on failure.
     fn run(&self, chip: &mut TpmDevice, log_format: cli::LogFormat) -> Result<(), TpmError> {
-        let mut io = CommandIo::new(io::stdin(), io::stdout(), log_format)?;
+        let mut io = CommandIo::new(io::stdout(), log_format)?;
         let session = io.take_session()?;
 
         let (mut session_data, session_handle, is_trial) = if let Some(s) = session {

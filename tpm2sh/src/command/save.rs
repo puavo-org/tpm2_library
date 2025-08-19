@@ -70,7 +70,7 @@ impl Command for Save {
             std::process::exit(1);
         }
 
-        let mut io = CommandIo::new(std::io::stdin(), std::io::stdout(), log_format)?;
+        let mut io = CommandIo::new(std::io::stdout(), log_format)?;
         let session = io.take_session()?;
 
         let object_handle = if self.object_handle != 0 {

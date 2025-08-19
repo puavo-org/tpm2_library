@@ -62,7 +62,7 @@ impl Command for Load {
             std::process::exit(1);
         }
 
-        let mut io = CommandIo::new(io::stdin(), io::stdout(), log_format)?;
+        let mut io = CommandIo::new(io::stdout(), log_format)?;
         let session = io.take_session()?;
 
         let parent_obj = io.consume_object(|_| true)?;

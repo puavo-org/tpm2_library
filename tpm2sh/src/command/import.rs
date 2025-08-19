@@ -58,7 +58,7 @@ impl Command for Import {
     /// Returns a `TpmError`.
     #[allow(clippy::too_many_lines)]
     fn run(&self, chip: &mut TpmDevice, log_format: cli::LogFormat) -> Result<(), TpmError> {
-        let mut io = CommandIo::new(io::stdin(), io::stdout(), log_format)?;
+        let mut io = CommandIo::new(io::stdout(), log_format)?;
         let session = io.take_session()?;
 
         let parent_handle = consume_and_get_parent_handle(&mut io, chip, log_format)?;
