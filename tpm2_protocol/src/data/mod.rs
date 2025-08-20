@@ -2,20 +2,21 @@
 // Copyright (c) 2025 Opinsys Oy
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 
-pub mod r#enum;
-pub mod tpm_rc;
-pub mod tpma;
-pub mod tpmi;
-pub mod tpms;
-pub mod tpmt;
-pub mod tpmu;
-pub use r#enum::*;
-pub use tpm_rc::*;
-pub use tpma::*;
-pub use tpmi::*;
-pub use tpms::*;
-pub use tpmt::*;
-pub use tpmu::*;
+mod r#enum;
+mod tpm_rc;
+mod tpma;
+mod tpmi;
+mod tpms;
+mod tpmt;
+mod tpmu;
+
+pub use self::r#enum::*;
+pub use self::tpm_rc::*;
+pub use self::tpma::*;
+pub use self::tpmi::*;
+pub use self::tpms::*;
+pub use self::tpmt::*;
+pub use self::tpmu::*;
 
 use crate::{tpm2b, tpm2b_struct, tpml, TPM_MAX_COMMAND_SIZE};
 use core::{convert::TryFrom, fmt::Debug};
