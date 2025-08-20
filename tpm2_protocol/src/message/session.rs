@@ -36,7 +36,7 @@ tpm_struct! {
     name: TpmStartAuthSessionResponse,
     cc: TpmCc::StartAuthSession,
     no_sessions: true,
-    with_sessions: false,
+    with_sessions: true,
     handles: {
         pub session_handle: TpmSession,
     },
