@@ -29,19 +29,16 @@ pub mod buffer;
 pub mod data;
 pub mod list;
 pub mod message;
-pub mod parameters;
 
 use crate::data::TpmAlgId;
+pub use buffer::TpmBuffer;
 use core::{
     convert::{From, TryFrom},
     fmt,
     mem::size_of,
     result::Result,
 };
-
-pub use buffer::TpmBuffer;
 pub use list::TpmList;
-pub use parameters::TpmParameters;
 
 tpm_handle! {
     #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]

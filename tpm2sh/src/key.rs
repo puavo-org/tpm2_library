@@ -207,8 +207,10 @@ pub fn read_public(
     handle: TpmTransient,
     log_format: cli::LogFormat,
 ) -> Result<(TpmtPublic, data::Tpm2bName), TpmError> {
-    let cmd = TpmReadPublicCommand {};
-    let (resp, _) = chip.execute(&cmd, Some(&[handle.into()]), &[], log_format)?;
+    let cmd = TpmReadPublicCommand {
+        object_handle: handle.0.into(),
+    };
+    let (resp, _) = chip.execute(&cmd, Some(&[]), &[], log_format)?;
     let read_public_resp = resp
         .ReadPublic()
         .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
@@ -242,6 +244,7 @@ where
     F: FnOnce(&mut TpmDevice, TpmTransient) -> Result<R, TpmError>,
 {
     let load_cmd = TpmLoadCommand {
+        parent_handle: parent_handle.0.into(),
         in_private,
         in_public,
     };
@@ -252,13 +255,7 @@ where
         session,
         parent_auth.auth.as_deref(),
     )?;
-
-    let (load_resp, _) = chip.execute(
-        &load_cmd,
-        Some(&parent_handles),
-        &parent_sessions,
-        log_format,
-    )?;
+    let (load_resp, _) = chip.execute(&load_cmd, Some(&[]), &parent_sessions, log_format)?;
     let load_resp = load_resp
         .Load()
         .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;

@@ -9,165 +9,197 @@ use crate::{
         Tpm2bDigest, Tpm2bEvent, TpmAlgId, TpmCc, TpmRh, TpmiYesNo, TpmlDigest, TpmlDigestValues,
         TpmlPcrSelection,
     },
-    tpm_response, tpm_struct,
+    tpm_struct,
 };
-use core::{convert::TryFrom, fmt::Debug};
+use core::fmt::Debug;
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmPcrEventCommand,
-    TpmCc::PcrEvent,
-    false,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmPcrEventCommand,
+    cc: TpmCc::PcrEvent,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub pcr_handle: u32,
+    },
+    parameters: {
         pub event_data: Tpm2bEvent,
     }
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
-    TpmPcrReadCommand,
-    TpmCc::PcrRead,
-    true,
-    false,
-    0,
-    {
+    kind: Response,
+    name: TpmPcrEventResponse,
+    cc: TpmCc::PcrEvent,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {
+        pub digests: TpmlDigestValues,
+    }
+}
+
+tpm_struct! {
+    #[derive(Debug, Default, PartialEq, Eq, Clone)]
+    kind: Command,
+    name: TpmPcrReadCommand,
+    cc: TpmCc::PcrRead,
+    no_sessions: true,
+    with_sessions: false,
+    handles: {},
+    parameters: {
         pub pcr_selection_in: TpmlPcrSelection,
     }
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
-    TpmPcrReadResponse,
-    TpmCc::PcrRead,
-    true,
-    false,
-    0,
-    {
+    kind: Response,
+    name: TpmPcrReadResponse,
+    cc: TpmCc::PcrRead,
+    no_sessions: true,
+    with_sessions: false,
+    handles: {},
+    parameters: {
         pub pcr_update_counter: u32,
         pub pcr_selection_out: TpmlPcrSelection,
         pub pcr_values: TpmlDigest,
     }
-);
+}
 
-tpm_response!(
-    #[derive(Debug, Default, PartialEq, Eq, Clone)]
-    TpmPcrEventResponse,
-    TpmCc::PcrEvent,
-    false,
-    true,
-    {
-        pub digests: TpmlDigestValues,
-    }
-);
-
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmPcrExtendCommand,
-    TpmCc::PcrExtend,
-    false,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmPcrExtendCommand,
+    cc: TpmCc::PcrExtend,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub pcr_handle: u32,
+    },
+    parameters: {
         pub digests: TpmlDigestValues,
     }
-);
+}
 
-tpm_response!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPcrExtendResponse,
-    TpmCc::PcrExtend,
-    false,
-    true,
-    {}
-);
+    kind: Response,
+    name: TpmPcrExtendResponse,
+    cc: TpmCc::PcrExtend,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmPcrAllocateCommand,
-    TpmCc::PcrAllocate,
-    false,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmPcrAllocateCommand,
+    cc: TpmCc::PcrAllocate,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub auth_handle: crate::data::TpmiRhHierarchy,
+    },
+    parameters: {
         pub pcr_allocation: TpmlPcrSelection,
     }
-);
+}
 
-tpm_response!(
-    #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmPcrAllocateResponse,
-    TpmCc::PcrAllocate,
-    false,
-    true,
-    {
+tpm_struct! {
+    #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+    kind: Response,
+    name: TpmPcrAllocateResponse,
+    cc: TpmCc::PcrAllocate,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {
         pub allocation_success: TpmiYesNo,
         pub max_pcr: u32,
         pub size_needed: u32,
         pub size_available: u32,
     }
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmPcrSetAuthPolicyCommand,
-    TpmCc::PcrSetAuthPolicy,
-    false,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmPcrSetAuthPolicyCommand,
+    cc: TpmCc::PcrSetAuthPolicy,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub auth_handle: crate::data::TpmiRhHierarchy,
+    },
+    parameters: {
         pub auth_policy: Tpm2bDigest,
         pub hash_alg: TpmAlgId,
         pub pcr_num: TpmRh,
     }
-);
+}
 
-tpm_response!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPcrSetAuthPolicyResponse,
-    TpmCc::PcrSetAuthPolicy,
-    false,
-    true,
-    {}
-);
+    kind: Response,
+    name: TpmPcrSetAuthPolicyResponse,
+    cc: TpmCc::PcrSetAuthPolicy,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmPcrSetAuthValueCommand,
-    TpmCc::PcrSetAuthValue,
-    false,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmPcrSetAuthValueCommand,
+    cc: TpmCc::PcrSetAuthValue,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub pcr_handle: u32,
+    },
+    parameters: {
         pub auth: Tpm2bDigest,
     }
-);
+}
 
-tpm_response!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPcrSetAuthValueResponse,
-    TpmCc::PcrSetAuthValue,
-    false,
-    true,
-    {}
-);
+    kind: Response,
+    name: TpmPcrSetAuthValueResponse,
+    cc: TpmCc::PcrSetAuthValue,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPcrResetCommand,
-    TpmCc::PcrReset,
-    false,
-    true,
-    1,
-    {}
-);
+    kind: Command,
+    name: TpmPcrResetCommand,
+    cc: TpmCc::PcrReset,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub pcr_handle: u32,
+    },
+    parameters: {}
+}
 
-tpm_response!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPcrResetResponse,
-    TpmCc::PcrReset,
-    false,
-    true,
-    {}
-);
+    kind: Response,
+    name: TpmPcrResetResponse,
+    cc: TpmCc::PcrReset,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
+}

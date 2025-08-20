@@ -6,51 +6,60 @@
 
 use crate::{
     data::{Tpm2bDigest, TpmCc, TpmtHa, TpmtSignature},
-    tpm_response, tpm_struct,
+    tpm_struct,
 };
 use core::fmt::Debug;
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmFieldUpgradeStartCommand,
-    TpmCc::FieldUpgradeStart,
-    false,
-    true,
-    2,
-    {
+    kind: Command,
+    name: TpmFieldUpgradeStartCommand,
+    cc: TpmCc::FieldUpgradeStart,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub authorization: crate::data::TpmiRhHierarchy,
+        pub key_handle: crate::data::TpmiDhObject,
+    },
+    parameters: {
         pub fu_digest: Tpm2bDigest,
         pub manifest_signature: TpmtSignature,
     }
 }
 
-tpm_response! {
-    #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-    TpmFieldUpgradeStartResponse,
-    TpmCc::FieldUpgradeStart,
-    false,
-    true,
-    {}
+tpm_struct! {
+    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    kind: Response,
+    name: TpmFieldUpgradeStartResponse,
+    cc: TpmCc::FieldUpgradeStart,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
 }
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmFieldUpgradeDataCommand,
-    TpmCc::FieldUpgradeData,
-    true,
-    true,
-    0,
-    {
+    kind: Command,
+    name: TpmFieldUpgradeDataCommand,
+    cc: TpmCc::FieldUpgradeData,
+    no_sessions: true,
+    with_sessions: true,
+    handles: {},
+    parameters: {
         pub fu_data: crate::data::Tpm2bMaxBuffer,
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmFieldUpgradeDataResponse,
-    TpmCc::FieldUpgradeData,
-    true,
-    true,
-    {
+    kind: Response,
+    name: TpmFieldUpgradeDataResponse,
+    cc: TpmCc::FieldUpgradeData,
+    no_sessions: true,
+    with_sessions: true,
+    handles: {},
+    parameters: {
         pub next_digest: TpmtHa,
         pub first_digest: TpmtHa,
     }
@@ -58,23 +67,26 @@ tpm_response! {
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-    TpmFirmwareReadCommand,
-    TpmCc::FirmwareRead,
-    true,
-    true,
-    0,
-    {
+    kind: Command,
+    name: TpmFirmwareReadCommand,
+    cc: TpmCc::FirmwareRead,
+    no_sessions: true,
+    with_sessions: true,
+    handles: {},
+    parameters: {
         pub sequence_number: u32,
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmFirmwareReadResponse,
-    TpmCc::FirmwareRead,
-    true,
-    true,
-    {
+    kind: Response,
+    name: TpmFirmwareReadResponse,
+    cc: TpmCc::FirmwareRead,
+    no_sessions: true,
+    with_sessions: true,
+    handles: {},
+    parameters: {
         pub fu_data: crate::data::Tpm2bMaxBuffer,
     }
 }

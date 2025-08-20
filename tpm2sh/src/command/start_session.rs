@@ -75,6 +75,8 @@ impl Command for StartSession {
         let auth_hash = TpmAlgId::from(self.hash_alg);
         let session_type = self.session_type;
         let cmd = TpmStartAuthSessionCommand {
+            tpm_key: (TpmRh::Null as u32).into(),
+            bind: (TpmRh::Null as u32).into(),
             nonce_caller: Tpm2bNonce::try_from(nonce_bytes.as_slice())?,
             encrypted_salt: Tpm2b::default(),
             session_type: session_type.into(),

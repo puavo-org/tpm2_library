@@ -4,7 +4,6 @@
 
 pub mod r#enum;
 pub mod integer;
-pub mod response;
 pub mod r#struct;
 
 #[macro_export]

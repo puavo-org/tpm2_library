@@ -5,29 +5,34 @@
 
 use crate::{
     data::{TpmCc, TpmiAlgHash, TpmlCc},
-    tpm_response, tpm_struct,
+    tpm_struct,
 };
 use core::fmt::Debug;
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmSetCommandCodeAuditStatusCommand,
-    TpmCc::SetCommandCodeAuditStatus,
-    false,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmSetCommandCodeAuditStatusCommand,
+    cc: TpmCc::SetCommandCodeAuditStatus,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub auth: crate::data::TpmiRhHierarchy,
+    },
+    parameters: {
         pub audit_alg: TpmiAlgHash,
         pub set_list: TpmlCc,
         pub clear_list: TpmlCc,
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmSetCommandCodeAuditStatusResponse,
-    TpmCc::SetCommandCodeAuditStatus,
-    false,
-    true,
-    {}
+    kind: Response,
+    name: TpmSetCommandCodeAuditStatusResponse,
+    cc: TpmCc::SetCommandCodeAuditStatus,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
 }

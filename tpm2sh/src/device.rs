@@ -190,8 +190,10 @@ impl TpmDevice {
         handles
             .iter()
             .map(|&handle| {
-                let cmd = TpmReadPublicCommand {};
-                let (resp, _) = self.execute(&cmd, Some(&[handle]), &[], log_format)?;
+                let cmd = TpmReadPublicCommand {
+                    object_handle: handle.into(),
+                };
+                let (resp, _) = self.execute(&cmd, Some(&[]), &[], log_format)?;
                 let read_public_resp = resp
                     .ReadPublic()
                     .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;

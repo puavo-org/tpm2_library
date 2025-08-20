@@ -6,70 +6,82 @@
 
 use crate::{
     data::{TpmCc, TpmClockAdjust, TpmsTimeInfo},
-    tpm_response, tpm_struct,
+    tpm_struct,
 };
 use core::fmt::Debug;
 
 tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmReadClockCommand,
-    TpmCc::ReadClock,
-    true,
-    false,
-    0,
-    {}
+    kind: Command,
+    name: TpmReadClockCommand,
+    cc: TpmCc::ReadClock,
+    no_sessions: true,
+    with_sessions: false,
+    handles: {},
+    parameters: {}
 }
 
 tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmReadClockResponse,
-    TpmCc::ReadClock,
-    true,
-    false,
-    0,
-    {
+    kind: Response,
+    name: TpmReadClockResponse,
+    cc: TpmCc::ReadClock,
+    no_sessions: true,
+    with_sessions: false,
+    handles: {},
+    parameters: {
         pub current_time: TpmsTimeInfo,
     }
 }
 
 tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmClockSetCommand,
-    TpmCc::ClockSet,
-    false,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmClockSetCommand,
+    cc: TpmCc::ClockSet,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub auth: crate::data::TpmiRhHierarchy,
+    },
+    parameters: {
         pub new_time: u64,
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmClockSetResponse,
-    TpmCc::ClockSet,
-    false,
-    true,
-    {}
+    kind: Response,
+    name: TpmClockSetResponse,
+    cc: TpmCc::ClockSet,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
 }
 
 tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmClockRateAdjustCommand,
-    TpmCc::ClockRateAdjust,
-    false,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmClockRateAdjustCommand,
+    cc: TpmCc::ClockRateAdjust,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub auth: crate::data::TpmiRhHierarchy,
+    },
+    parameters: {
         pub rate_adjust: TpmClockAdjust,
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmClockRateAdjustResponse,
-    TpmCc::ClockRateAdjust,
-    false,
-    true,
-    {}
+    kind: Response,
+    name: TpmClockRateAdjustResponse,
+    cc: TpmCc::ClockRateAdjust,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
 }

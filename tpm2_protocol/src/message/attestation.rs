@@ -8,30 +8,36 @@ use crate::{
     data::{
         Tpm2bAttest, Tpm2bData, Tpm2bDigest, TpmCc, TpmlPcrSelection, TpmtSignature, TpmtTkCreation,
     },
-    tpm_response, tpm_struct,
+    tpm_struct,
 };
 use core::fmt::Debug;
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmCertifyCommand,
-    TpmCc::Certify,
-    false,
-    true,
-    2,
-    {
+    kind: Command,
+    name: TpmCertifyCommand,
+    cc: TpmCc::Certify,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub object_handle: crate::data::TpmiDhObject,
+        pub sign_handle: crate::data::TpmiDhObject,
+    },
+    parameters: {
         pub qualifying_data: Tpm2bData,
         pub in_scheme: TpmtSignature,
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmCertifyResponse,
-    TpmCc::Certify,
-    false,
-    true,
-    {
+    kind: Response,
+    name: TpmCertifyResponse,
+    cc: TpmCc::Certify,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {
         pub certify_info: Tpm2bAttest,
         pub signature: TpmtSignature,
     }
@@ -39,12 +45,16 @@ tpm_response! {
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmCertifyCreationCommand,
-    TpmCc::CertifyCreation,
-    false,
-    true,
-    2,
-    {
+    kind: Command,
+    name: TpmCertifyCreationCommand,
+    cc: TpmCc::CertifyCreation,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub sign_handle: crate::data::TpmiDhObject,
+        pub object_handle: crate::data::TpmiDhObject,
+    },
+    parameters: {
         pub qualifying_data: Tpm2bData,
         pub creation_hash: Tpm2bDigest,
         pub in_scheme: TpmtSignature,
@@ -52,13 +62,15 @@ tpm_struct! {
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmCertifyCreationResponse,
-    TpmCc::CertifyCreation,
-    false,
-    true,
-    {
+    kind: Response,
+    name: TpmCertifyCreationResponse,
+    cc: TpmCc::CertifyCreation,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {
         pub certify_info: Tpm2bAttest,
         pub signature: TpmtSignature,
     }
@@ -66,25 +78,30 @@ tpm_response! {
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmQuoteCommand,
-    TpmCc::Quote,
-    false,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmQuoteCommand,
+    cc: TpmCc::Quote,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub sign_handle: crate::data::TpmiDhObject,
+    },
+    parameters: {
         pub qualifying_data: Tpm2bData,
         pub in_scheme: TpmtSignature,
         pub pcr_select: TpmlPcrSelection,
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmQuoteResponse,
-    TpmCc::Quote,
-    false,
-    true,
-    {
+    kind: Response,
+    name: TpmQuoteResponse,
+    cc: TpmCc::Quote,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {
         pub quoted: Tpm2bAttest,
         pub signature: TpmtSignature,
     }
@@ -92,24 +109,31 @@ tpm_response! {
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmGetSessionAuditDigestCommand,
-    TpmCc::GetSessionAuditDigest,
-    false,
-    true,
-    3,
-    {
+    kind: Command,
+    name: TpmGetSessionAuditDigestCommand,
+    cc: TpmCc::GetSessionAuditDigest,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub privacy_admin_handle: crate::data::TpmiRhHierarchy,
+        pub sign_handle: crate::data::TpmiDhObject,
+        pub session_handle: crate::data::TpmiShAuthSession,
+    },
+    parameters: {
         pub qualifying_data: Tpm2bData,
         pub in_scheme: TpmtSignature,
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmGetSessionAuditDigestResponse,
-    TpmCc::GetSessionAuditDigest,
-    false,
-    true,
-    {
+    kind: Response,
+    name: TpmGetSessionAuditDigestResponse,
+    cc: TpmCc::GetSessionAuditDigest,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {
         pub audit_info: Tpm2bAttest,
         pub signature: TpmtSignature,
     }
@@ -117,24 +141,30 @@ tpm_response! {
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmGetCommandAuditDigestCommand,
-    TpmCc::GetCommandAuditDigest,
-    false,
-    true,
-    2,
-    {
+    kind: Command,
+    name: TpmGetCommandAuditDigestCommand,
+    cc: TpmCc::GetCommandAuditDigest,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub privacy_admin_handle: crate::data::TpmiRhHierarchy,
+        pub sign_handle: crate::data::TpmiDhObject,
+    },
+    parameters: {
         pub qualifying_data: Tpm2bData,
         pub in_scheme: TpmtSignature,
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmGetCommandAuditDigestResponse,
-    TpmCc::GetCommandAuditDigest,
-    false,
-    true,
-    {
+    kind: Response,
+    name: TpmGetCommandAuditDigestResponse,
+    cc: TpmCc::GetCommandAuditDigest,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {
         pub audit_info: Tpm2bAttest,
         pub signature: TpmtSignature,
     }
@@ -142,24 +172,30 @@ tpm_response! {
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmGetTimeCommand,
-    TpmCc::GetTime,
-    false,
-    true,
-    2,
-    {
+    kind: Command,
+    name: TpmGetTimeCommand,
+    cc: TpmCc::GetTime,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub privacy_admin_handle: crate::data::TpmiRhHierarchy,
+        pub sign_handle: crate::data::TpmiDhObject,
+    },
+    parameters: {
         pub qualifying_data: Tpm2bData,
         pub in_scheme: TpmtSignature,
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmGetTimeResponse,
-    TpmCc::GetTime,
-    false,
-    true,
-    {
+    kind: Response,
+    name: TpmGetTimeResponse,
+    cc: TpmCc::GetTime,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {
         pub time_info: Tpm2bAttest,
         pub signature: TpmtSignature,
     }

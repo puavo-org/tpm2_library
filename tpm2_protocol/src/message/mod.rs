@@ -33,33 +33,13 @@ mod symmetric;
 mod testing;
 mod vendor;
 
-pub use self::asymmetric::*;
-pub use self::attached::*;
-pub use self::attestation::*;
-pub use self::audit::*;
-pub use self::build::*;
-pub use self::capability::*;
-pub use self::clocks_and_timers::*;
-pub use self::context::*;
-pub use self::dictionary_attack::*;
-pub use self::duplication::*;
-pub use self::enhanced_authorization::*;
-pub use self::ephemeral::*;
-pub use self::field_upgrade::*;
-pub use self::hierarchy::*;
-pub use self::integrity::*;
-pub use self::miscellaneous_management::*;
-pub use self::non_volatile::*;
-pub use self::object::*;
-pub use self::parse::*;
-pub use self::random_number::*;
-pub use self::sequence::*;
-pub use self::session::*;
-pub use self::signing::*;
-pub use self::startup::*;
-pub use self::symmetric::*;
-pub use self::testing::*;
-pub use self::vendor::*;
+pub use self::{
+    asymmetric::*, attached::*, attestation::*, audit::*, build::*, capability::*,
+    clocks_and_timers::*, context::*, dictionary_attack::*, duplication::*,
+    enhanced_authorization::*, ephemeral::*, field_upgrade::*, hierarchy::*, integrity::*,
+    miscellaneous_management::*, non_volatile::*, object::*, parse::*, random_number::*,
+    sequence::*, session::*, signing::*, startup::*, symmetric::*, testing::*, vendor::*,
+};
 
 /// The maximum number of handles a command can have.
 pub const MAX_HANDLES: usize = 8;

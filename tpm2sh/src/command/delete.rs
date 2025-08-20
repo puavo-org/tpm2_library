@@ -83,14 +83,18 @@ impl Command for Delete {
             let persistent_handle = TpmPersistent(handle);
             let auth_handle = TpmRh::Owner;
             let handles = [auth_handle as u32, persistent_handle.into()];
-            let evict_cmd = TpmEvictControlCommand { persistent_handle };
+            let evict_cmd = TpmEvictControlCommand {
+                auth: (auth_handle as u32).into(),
+                object_handle: persistent_handle.0.into(),
+                persistent_handle,
+            };
             let sessions = get_auth_sessions(
                 &evict_cmd,
                 &handles,
                 session.as_ref(),
                 self.auth.auth.as_deref(),
             )?;
-            let (resp, _) = chip.execute(&evict_cmd, Some(&handles), &sessions, log_format)?;
+            let (resp, _) = chip.execute(&evict_cmd, Some(&[]), &sessions, log_format)?;
             resp.EvictControl()
                 .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
             println!("{persistent_handle:#010x}");

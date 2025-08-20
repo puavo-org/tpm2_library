@@ -6,43 +6,51 @@
 
 use crate::{
     data::{Tpm2bDigest, TpmCc, TpmtSignature, TpmtTkHashcheck, TpmtTkVerified},
-    tpm_response, tpm_struct,
+    tpm_struct,
 };
 use core::fmt::Debug;
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmSignCommand,
-    TpmCc::Sign,
-    false,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmSignCommand,
+    cc: TpmCc::Sign,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub key_handle: crate::data::TpmiDhObject,
+    },
+    parameters: {
         pub digest: Tpm2bDigest,
         pub in_scheme: TpmtSignature,
         pub validation: TpmtTkHashcheck,
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmSignResponse,
-    TpmCc::Sign,
-    false,
-    true,
-    {
+    kind: Response,
+    name: TpmSignResponse,
+    cc: TpmCc::Sign,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {
         pub signature: TpmtSignature,
     }
 }
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmVerifySignatureCommand,
-    TpmCc::VerifySignature,
-    true,
-    false,
-    1,
-    {
+    kind: Command,
+    name: TpmVerifySignatureCommand,
+    cc: TpmCc::VerifySignature,
+    no_sessions: true,
+    with_sessions: false,
+    handles: {
+        pub key_handle: crate::data::TpmiDhObject,
+    },
+    parameters: {
         pub digest: Tpm2bDigest,
         pub signature: TpmtSignature,
     }
@@ -50,12 +58,13 @@ tpm_struct! {
 
 tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmVerifySignatureResponse,
-    TpmCc::VerifySignature,
-    true,
-    false,
-    0,
-    {
+    kind: Response,
+    name: TpmVerifySignatureResponse,
+    cc: TpmCc::VerifySignature,
+    no_sessions: true,
+    with_sessions: false,
+    handles: {},
+    parameters: {
         pub validation: TpmtTkVerified,
     }
 }

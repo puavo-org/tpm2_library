@@ -9,300 +9,380 @@ use crate::{
         Tpm2bAttest, Tpm2bAuth, Tpm2bData, Tpm2bMaxNvBuffer, Tpm2bName, Tpm2bNvPublic, TpmCc,
         TpmtSignature,
     },
-    tpm_response, tpm_struct,
+    tpm_struct,
 };
 use core::fmt::Debug;
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmNvDefineSpaceCommand,
-    TpmCc::NvDefineSpace,
-    false,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmNvDefineSpaceCommand,
+    cc: TpmCc::NvDefineSpace,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub auth_handle: crate::data::TpmiRhHierarchy,
+    },
+    parameters: {
         pub auth: Tpm2bAuth,
         pub public_info: Tpm2bNvPublic,
     }
-);
+}
 
-tpm_response!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmNvDefineSpaceResponse,
-    TpmCc::NvDefineSpace,
-    false,
-    true,
-    {}
-);
+    kind: Response,
+    name: TpmNvDefineSpaceResponse,
+    cc: TpmCc::NvDefineSpace,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Copy, Clone)]
-    TpmNvUndefineSpaceCommand,
-    TpmCc::NvUndefineSpace,
-    false,
-    true,
-    2,
-    {}
-);
+    kind: Command,
+    name: TpmNvUndefineSpaceCommand,
+    cc: TpmCc::NvUndefineSpace,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub auth_handle: crate::data::TpmiRhHierarchy,
+        pub nv_index: u32,
+    },
+    parameters: {}
+}
 
-tpm_response!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmNvUndefineSpaceResponse,
-    TpmCc::NvUndefineSpace,
-    false,
-    true,
-    {}
-);
+    kind: Response,
+    name: TpmNvUndefineSpaceResponse,
+    cc: TpmCc::NvUndefineSpace,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Copy, Clone)]
-    TpmNvUndefineSpaceSpecialCommand,
-    TpmCc::NvUndefineSpaceSpecial,
-    false,
-    true,
-    2,
-    {}
-);
+    kind: Command,
+    name: TpmNvUndefineSpaceSpecialCommand,
+    cc: TpmCc::NvUndefineSpaceSpecial,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub nv_index: u32,
+        pub platform: crate::data::TpmiRhHierarchy,
+    },
+    parameters: {}
+}
 
-tpm_response!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmNvUndefineSpaceSpecialResponse,
-    TpmCc::NvUndefineSpaceSpecial,
-    false,
-    true,
-    {}
-);
+    kind: Response,
+    name: TpmNvUndefineSpaceSpecialResponse,
+    cc: TpmCc::NvUndefineSpaceSpecial,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Copy, Clone)]
-    TpmNvReadPublicCommand,
-    TpmCc::NvReadPublic,
-    true,
-    false,
-    1,
-    {}
-);
+    kind: Command,
+    name: TpmNvReadPublicCommand,
+    cc: TpmCc::NvReadPublic,
+    no_sessions: true,
+    with_sessions: false,
+    handles: {
+        pub nv_index: u32,
+    },
+    parameters: {}
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmNvReadPublicResponse,
-    TpmCc::NvReadPublic,
-    true,
-    false,
-    0,
-    {
+    kind: Response,
+    name: TpmNvReadPublicResponse,
+    cc: TpmCc::NvReadPublic,
+    no_sessions: true,
+    with_sessions: false,
+    handles: {},
+    parameters: {
         pub nv_public: Tpm2bNvPublic,
         pub nv_name: Tpm2bName,
     }
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmNvWriteCommand,
-    TpmCc::NvWrite,
-    false,
-    true,
-    2,
-    {
+    kind: Command,
+    name: TpmNvWriteCommand,
+    cc: TpmCc::NvWrite,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub auth_handle: crate::data::TpmiDhObject,
+        pub nv_index: u32,
+    },
+    parameters: {
         pub data: Tpm2bMaxNvBuffer,
         pub offset: u16,
     }
-);
+}
 
-tpm_response!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmNvWriteResponse,
-    TpmCc::NvWrite,
-    false,
-    true,
-    {}
-);
+    kind: Response,
+    name: TpmNvWriteResponse,
+    cc: TpmCc::NvWrite,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmNvIncrementCommand,
-    TpmCc::NvIncrement,
-    false,
-    true,
-    2,
-    {}
-);
+    kind: Command,
+    name: TpmNvIncrementCommand,
+    cc: TpmCc::NvIncrement,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub auth_handle: crate::data::TpmiDhObject,
+        pub nv_index: u32,
+    },
+    parameters: {}
+}
 
-tpm_response!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmNvIncrementResponse,
-    TpmCc::NvIncrement,
-    false,
-    true,
-    {}
-);
+    kind: Response,
+    name: TpmNvIncrementResponse,
+    cc: TpmCc::NvIncrement,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmNvExtendCommand,
-    TpmCc::NvExtend,
-    false,
-    true,
-    2,
-    {
+    kind: Command,
+    name: TpmNvExtendCommand,
+    cc: TpmCc::NvExtend,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub auth_handle: crate::data::TpmiDhObject,
+        pub nv_index: u32,
+    },
+    parameters: {
         pub data: Tpm2bMaxNvBuffer,
     }
-);
+}
 
-tpm_response!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmNvExtendResponse,
-    TpmCc::NvExtend,
-    false,
-    true,
-    {}
-);
+    kind: Response,
+    name: TpmNvExtendResponse,
+    cc: TpmCc::NvExtend,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Copy, Clone)]
-    TpmNvSetBitsCommand,
-    TpmCc::NvSetBits,
-    false,
-    true,
-    2,
-    {
+    kind: Command,
+    name: TpmNvSetBitsCommand,
+    cc: TpmCc::NvSetBits,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub auth_handle: crate::data::TpmiDhObject,
+        pub nv_index: u32,
+    },
+    parameters: {
         pub bits: u64,
     }
-);
+}
 
-tpm_response!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmNvSetBitsResponse,
-    TpmCc::NvSetBits,
-    false,
-    true,
-    {}
-);
+    kind: Response,
+    name: TpmNvSetBitsResponse,
+    cc: TpmCc::NvSetBits,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmNvWriteLockCommand,
-    TpmCc::NvWriteLock,
-    false,
-    true,
-    2,
-    {}
-);
+    kind: Command,
+    name: TpmNvWriteLockCommand,
+    cc: TpmCc::NvWriteLock,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub auth_handle: crate::data::TpmiDhObject,
+        pub nv_index: u32,
+    },
+    parameters: {}
+}
 
-tpm_response!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmNvWriteLockResponse,
-    TpmCc::NvWriteLock,
-    false,
-    true,
-    {}
-);
+    kind: Response,
+    name: TpmNvWriteLockResponse,
+    cc: TpmCc::NvWriteLock,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmNvGlobalWriteLockCommand,
-    TpmCc::NvGlobalWriteLock,
-    false,
-    true,
-    1,
-    {}
-);
+    kind: Command,
+    name: TpmNvGlobalWriteLockCommand,
+    cc: TpmCc::NvGlobalWriteLock,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub auth_handle: crate::data::TpmiRhHierarchy,
+    },
+    parameters: {}
+}
 
-tpm_response!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmNvGlobalWriteLockResponse,
-    TpmCc::NvGlobalWriteLock,
-    false,
-    true,
-    {}
-);
+    kind: Response,
+    name: TpmNvGlobalWriteLockResponse,
+    cc: TpmCc::NvGlobalWriteLock,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Copy, Clone)]
-    TpmNvReadCommand,
-    TpmCc::NvRead,
-    false,
-    true,
-    2,
-    {
+    kind: Command,
+    name: TpmNvReadCommand,
+    cc: TpmCc::NvRead,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub auth_handle: crate::data::TpmiDhObject,
+        pub nv_index: u32,
+    },
+    parameters: {
         pub size: u16,
         pub offset: u16,
     }
-);
+}
 
-tpm_response!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
-    TpmNvReadResponse,
-    TpmCc::NvRead,
-    false,
-    true,
-    {
+    kind: Response,
+    name: TpmNvReadResponse,
+    cc: TpmCc::NvRead,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {
         pub data: Tpm2bMaxNvBuffer,
     }
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmNvReadLockCommand,
-    TpmCc::NvReadLock,
-    false,
-    true,
-    2,
-    {}
-);
+    kind: Command,
+    name: TpmNvReadLockCommand,
+    cc: TpmCc::NvReadLock,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub auth_handle: crate::data::TpmiDhObject,
+        pub nv_index: u32,
+    },
+    parameters: {}
+}
 
-tpm_response!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmNvReadLockResponse,
-    TpmCc::NvReadLock,
-    false,
-    true,
-    {}
-);
+    kind: Response,
+    name: TpmNvReadLockResponse,
+    cc: TpmCc::NvReadLock,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmNvChangeAuthCommand,
-    TpmCc::NvChangeAuth,
-    false,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmNvChangeAuthCommand,
+    cc: TpmCc::NvChangeAuth,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub nv_index: u32,
+    },
+    parameters: {
         pub new_auth: Tpm2bAuth,
     }
-);
+}
 
-tpm_response!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmNvChangeAuthResponse,
-    TpmCc::NvChangeAuth,
-    false,
-    true,
-    {}
-);
+    kind: Response,
+    name: TpmNvChangeAuthResponse,
+    cc: TpmCc::NvChangeAuth,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmNvCertifyCommand,
-    TpmCc::NvCertify,
-    false,
-    true,
-    3,
-    {
+    kind: Command,
+    name: TpmNvCertifyCommand,
+    cc: TpmCc::NvCertify,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub sign_handle: crate::data::TpmiDhObject,
+        pub auth_handle: crate::data::TpmiDhObject,
+        pub nv_index: u32,
+    },
+    parameters: {
         pub qualifying_data: Tpm2bData,
         pub in_scheme: TpmtSignature,
         pub size: u16,
         pub offset: u16,
     }
-);
+}
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmNvCertifyResponse,
-    TpmCc::NvCertify,
-    false,
-    true,
-    {
+    kind: Response,
+    name: TpmNvCertifyResponse,
+    cc: TpmCc::NvCertify,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {
         pub certify_info: Tpm2bAttest,
         pub signature: TpmtSignature,
     }
@@ -310,44 +390,53 @@ tpm_response! {
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmNvDefineSpace2Command,
-    TpmCc::NvDefineSpace2,
-    false,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmNvDefineSpace2Command,
+    cc: TpmCc::NvDefineSpace2,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub auth_handle: crate::data::TpmiRhHierarchy,
+    },
+    parameters: {
         pub auth: Tpm2bAuth,
         pub public_info: crate::data::Tpm2bNvPublic2,
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmNvDefineSpace2Response,
-    TpmCc::NvDefineSpace2,
-    false,
-    true,
-    {}
+    kind: Response,
+    name: TpmNvDefineSpace2Response,
+    cc: TpmCc::NvDefineSpace2,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
 }
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Copy, Clone)]
-    TpmNvReadPublic2Command,
-    TpmCc::NvReadPublic2,
-    true,
-    false,
-    1,
-    {}
+    kind: Command,
+    name: TpmNvReadPublic2Command,
+    cc: TpmCc::NvReadPublic2,
+    no_sessions: true,
+    with_sessions: false,
+    handles: {
+        pub nv_index: u32,
+    },
+    parameters: {}
 }
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmNvReadPublic2Response,
-    TpmCc::NvReadPublic2,
-    true,
-    false,
-    0,
-    {
+    kind: Response,
+    name: TpmNvReadPublic2Response,
+    cc: TpmCc::NvReadPublic2,
+    no_sessions: true,
+    with_sessions: false,
+    handles: {},
+    parameters: {
         pub nv_public: crate::data::Tpm2bNvPublic2,
         pub nv_name: Tpm2bName,
     }

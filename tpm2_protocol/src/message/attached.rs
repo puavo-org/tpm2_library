@@ -6,18 +6,21 @@
 
 use crate::{
     data::{Tpm2bMaxBuffer, Tpm2bName, TpmAt, TpmCc, TpmiYesNo, TpmlAcCapabilities, TpmsAcOutput},
-    tpm_response, tpm_struct,
+    tpm_struct,
 };
 use core::fmt::Debug;
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-    TpmAcGetCapabilityCommand,
-    TpmCc::AcGetCapability,
-    true,
-    false,
-    1,
-    {
+    kind: Command,
+    name: TpmAcGetCapabilityCommand,
+    cc: TpmCc::AcGetCapability,
+    no_sessions: true,
+    with_sessions: false,
+    handles: {
+        pub ac: u32,
+    },
+    parameters: {
         pub capability: TpmAt,
         pub count: u32,
     }
@@ -25,12 +28,13 @@ tpm_struct! {
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmAcGetCapabilityResponse,
-    TpmCc::AcGetCapability,
-    true,
-    false,
-    0,
-    {
+    kind: Response,
+    name: TpmAcGetCapabilityResponse,
+    cc: TpmCc::AcGetCapability,
+    no_sessions: true,
+    with_sessions: false,
+    handles: {},
+    parameters: {
         pub more_data: TpmiYesNo,
         pub capabilities_data: TpmlAcCapabilities,
     }
@@ -38,35 +42,45 @@ tpm_struct! {
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmAcSendCommand,
-    TpmCc::AcSend,
-    false,
-    true,
-    3,
-    {
+    kind: Command,
+    name: TpmAcSendCommand,
+    cc: TpmCc::AcSend,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub send_object: crate::data::TpmiDhObject,
+        pub auth_handle: crate::data::TpmiDhObject,
+        pub ac: u32,
+    },
+    parameters: {
         pub ac_data_in: Tpm2bMaxBuffer,
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmAcSendResponse,
-    TpmCc::AcSend,
-    false,
-    true,
-    {
+    kind: Response,
+    name: TpmAcSendResponse,
+    cc: TpmCc::AcSend,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {
         pub ac_data_out: TpmsAcOutput,
     }
 }
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmPolicyAcSendSelectCommand,
-    TpmCc::PolicyAcSendSelect,
-    false,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmPolicyAcSendSelectCommand,
+    cc: TpmCc::PolicyAcSendSelect,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub policy_session: crate::data::TpmiShAuthSession,
+    },
+    parameters: {
         pub object_name: Tpm2bName,
         pub auth_handle_name: Tpm2bName,
         pub ac_name: Tpm2bName,
@@ -74,34 +88,39 @@ tpm_struct! {
     }
 }
 
-tpm_response! {
-    #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmPolicyAcSendSelectResponse,
-    TpmCc::PolicyAcSendSelect,
-    false,
-    true,
-    {
-    }
+tpm_struct! {
+    #[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
+    kind: Response,
+    name: TpmPolicyAcSendSelectResponse,
+    cc: TpmCc::PolicyAcSendSelect,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
 }
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-    TpmActSetTimeoutCommand,
-    TpmCc::ActSetTimeout,
-    false,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmActSetTimeoutCommand,
+    cc: TpmCc::ActSetTimeout,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub act_handle: u32,
+    },
+    parameters: {
         pub start_timeout: u32,
     }
 }
 
-tpm_response! {
-    #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-    TpmActSetTimeoutResponse,
-    TpmCc::ActSetTimeout,
-    false,
-    true,
-    {
-    }
+tpm_struct! {
+    #[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
+    kind: Response,
+    name: TpmActSetTimeoutResponse,
+    cc: TpmCc::ActSetTimeout,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
 }

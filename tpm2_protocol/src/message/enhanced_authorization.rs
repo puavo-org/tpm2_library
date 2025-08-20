@@ -33,18 +33,22 @@ use crate::{
         TpmaLocality, TpmiYesNo, TpmlDigest, TpmlPcrSelection, TpmtSignature, TpmtTkAuth,
         TpmtTkVerified,
     },
-    tpm_response, tpm_struct,
+    tpm_struct,
 };
 use core::fmt::Debug;
 
 tpm_struct! (
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmPolicySignedCommand,
-    TpmCc::PolicySigned,
-    false,
-    true,
-    2,
-    {
+    kind: Command,
+    name: TpmPolicySignedCommand,
+    cc: TpmCc::PolicySigned,
+    no_sessions: true,
+    with_sessions: true,
+    handles: {
+        pub auth_object: crate::data::TpmiDhObject,
+        pub policy_session: crate::data::TpmiShAuthSession,
+    },
+    parameters: {
         pub nonce_tpm: Tpm2bNonce,
         pub cp_hash_a: Tpm2bDigest,
         pub policy_ref: Tpm2bNonce,
@@ -53,26 +57,32 @@ tpm_struct! (
     }
 );
 
-tpm_response!(
+tpm_struct! (
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmPolicySignedResponse,
-    TpmCc::PolicySigned,
-    false,
-    true,
-    {
+    kind: Response,
+    name: TpmPolicySignedResponse,
+    cc: TpmCc::PolicySigned,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {
         pub timeout: Tpm2bTimeout,
         pub policy_ticket: TpmtTkAuth,
     }
 );
 
-tpm_struct!(
+tpm_struct! (
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
-    TpmPolicySecretCommand,
-    TpmCc::PolicySecret,
-    false,
-    true,
-    2,
-    {
+    kind: Command,
+    name: TpmPolicySecretCommand,
+    cc: TpmCc::PolicySecret,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub auth_handle: crate::data::TpmiDhObject,
+        pub policy_session: crate::data::TpmiShAuthSession,
+    },
+    parameters: {
         pub nonce_tpm: Tpm2bNonce,
         pub cp_hash_a: Tpm2bDigest,
         pub policy_ref: Tpm2bNonce,
@@ -80,24 +90,28 @@ tpm_struct!(
     }
 );
 
-tpm_struct!(
+tpm_struct! (
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPolicySecretResponse,
-    TpmCc::PolicySecret,
-    false,
-    true,
-    0,
-    {}
+    kind: Response,
+    name: TpmPolicySecretResponse,
+    cc: TpmCc::PolicySecret,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
 );
 
 tpm_struct! (
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmPolicyTicketCommand,
-    TpmCc::PolicyTicket,
-    false,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmPolicyTicketCommand,
+    cc: TpmCc::PolicyTicket,
+    no_sessions: true,
+    with_sessions: true,
+    handles: {
+        pub policy_session: crate::data::TpmiShAuthSession,
+    },
+    parameters: {
         pub timeout: Tpm2bTimeout,
         pub cp_hash_a: Tpm2bDigest,
         pub policy_ref: Tpm2bNonce,
@@ -106,241 +120,295 @@ tpm_struct! (
     }
 );
 
-tpm_response!(
+tpm_struct! (
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPolicyTicketResponse,
-    TpmCc::PolicyTicket,
-    false,
-    true,
-    {}
+    kind: Response,
+    name: TpmPolicyTicketResponse,
+    cc: TpmCc::PolicyTicket,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
 );
 
-tpm_struct!(
+tpm_struct! (
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
-    TpmPolicyOrCommand,
-    TpmCc::PolicyOR,
-    false,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmPolicyOrCommand,
+    cc: TpmCc::PolicyOR,
+    no_sessions: true,
+    with_sessions: true,
+    handles: {
+        pub policy_session: crate::data::TpmiShAuthSession,
+    },
+    parameters: {
         pub p_hash_list: TpmlDigest,
     }
 );
 
-tpm_struct!(
+tpm_struct! (
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPolicyOrResponse,
-    TpmCc::PolicyOR,
-    false,
-    true,
-    0,
-    {}
+    kind: Response,
+    name: TpmPolicyOrResponse,
+    cc: TpmCc::PolicyOR,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
 );
 
-tpm_struct!(
+tpm_struct! (
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
-    TpmPolicyPcrCommand,
-    TpmCc::PolicyPcr,
-    false,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmPolicyPcrCommand,
+    cc: TpmCc::PolicyPcr,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub policy_session: crate::data::TpmiShAuthSession,
+    },
+    parameters: {
         pub pcr_digest: Tpm2bDigest,
         pub pcrs: TpmlPcrSelection,
     }
 );
 
-tpm_struct!(
+tpm_struct! (
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPolicyPcrResponse,
-    TpmCc::PolicyPcr,
-    false,
-    true,
-    0,
-    {}
+    kind: Response,
+    name: TpmPolicyPcrResponse,
+    cc: TpmCc::PolicyPcr,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
 );
 
 tpm_struct! (
     #[derive(Debug, PartialEq, Eq, Copy, Clone)]
-    TpmPolicyLocalityCommand,
-    TpmCc::PolicyLocality,
-    false,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmPolicyLocalityCommand,
+    cc: TpmCc::PolicyLocality,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub policy_session: crate::data::TpmiShAuthSession,
+    },
+    parameters: {
         pub locality: TpmaLocality,
     }
 );
 
-tpm_response!(
+tpm_struct! (
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPolicyLocalityResponse,
-    TpmCc::PolicyLocality,
-    false,
-    true,
-    {}
+    kind: Response,
+    name: TpmPolicyLocalityResponse,
+    cc: TpmCc::PolicyLocality,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
 );
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmPolicyNvCommand,
-    TpmCc::PolicyNv,
-    false,
-    true,
-    3,
-    {
+    kind: Command,
+    name: TpmPolicyNvCommand,
+    cc: TpmCc::PolicyNv,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub auth_handle: crate::data::TpmiDhObject,
+        pub nv_index: u32,
+        pub policy_session: crate::data::TpmiShAuthSession,
+    },
+    parameters: {
         pub operand_b: Tpm2bMaxBuffer,
         pub offset: u16,
         pub operation: TpmEo,
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPolicyNvResponse,
-    TpmCc::PolicyNv,
-    false,
-    true,
-    {}
+    kind: Response,
+    name: TpmPolicyNvResponse,
+    cc: TpmCc::PolicyNv,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
 }
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmPolicyCounterTimerCommand,
-    TpmCc::PolicyCounterTimer,
-    false,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmPolicyCounterTimerCommand,
+    cc: TpmCc::PolicyCounterTimer,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub policy_session: crate::data::TpmiShAuthSession,
+    },
+    parameters: {
         pub operand_b: Tpm2bMaxBuffer,
         pub offset: u16,
         pub operation: TpmEo,
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPolicyCounterTimerResponse,
-    TpmCc::PolicyCounterTimer,
-    false,
-    true,
-    {}
+    kind: Response,
+    name: TpmPolicyCounterTimerResponse,
+    cc: TpmCc::PolicyCounterTimer,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
 }
 
-tpm_struct!(
-    #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmPolicyCommandCodeCommand,
-    TpmCc::PolicyCommandCode,
-    false,
-    true,
-    1,
-    {
+tpm_struct! {
+    #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+    kind: Command,
+    name: TpmPolicyCommandCodeCommand,
+    cc: TpmCc::PolicyCommandCode,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub policy_session: crate::data::TpmiShAuthSession,
+    },
+    parameters: {
         pub code: TpmCc,
     }
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPolicyCommandCodeResponse,
-    TpmCc::PolicyCommandCode,
-    false,
-    true,
-    0,
-    {}
-);
+    kind: Response,
+    name: TpmPolicyCommandCodeResponse,
+    cc: TpmCc::PolicyCommandCode,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPolicyPhysicalPresenceCommand,
-    TpmCc::PolicyPhysicalPresence,
-    false,
-    true,
-    1,
-    {}
-);
+    kind: Command,
+    name: TpmPolicyPhysicalPresenceCommand,
+    cc: TpmCc::PolicyPhysicalPresence,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub policy_session: crate::data::TpmiShAuthSession,
+    },
+    parameters: {}
+}
 
-tpm_response!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPolicyPhysicalPresenceResponse,
-    TpmCc::PolicyPhysicalPresence,
-    false,
-    true,
-    {}
-);
+    kind: Response,
+    name: TpmPolicyPhysicalPresenceResponse,
+    cc: TpmCc::PolicyPhysicalPresence,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
+}
 
 tpm_struct! (
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmPolicyCpHashCommand,
-    TpmCc::PolicyCpHash,
-    false,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmPolicyCpHashCommand,
+    cc: TpmCc::PolicyCpHash,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub policy_session: crate::data::TpmiShAuthSession,
+    },
+    parameters: {
         pub cp_hash_a: Tpm2bDigest,
     }
 );
 
-tpm_response!(
+tpm_struct! (
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPolicyCpHashResponse,
-    TpmCc::PolicyCpHash,
-    false,
-    true,
-    {}
+    kind: Response,
+    name: TpmPolicyCpHashResponse,
+    cc: TpmCc::PolicyCpHash,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
 );
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmPolicyNameHashCommand,
-    TpmCc::PolicyNameHash,
-    false,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmPolicyNameHashCommand,
+    cc: TpmCc::PolicyNameHash,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub policy_session: crate::data::TpmiShAuthSession,
+    },
+    parameters: {
         pub name_hash: Tpm2bDigest,
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPolicyNameHashResponse,
-    TpmCc::PolicyNameHash,
-    false,
-    true,
-    {}
+    kind: Response,
+    name: TpmPolicyNameHashResponse,
+    cc: TpmCc::PolicyNameHash,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
 }
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmPolicyDuplicationSelectCommand,
-    TpmCc::PolicyDuplicationSelect,
-    false,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmPolicyDuplicationSelectCommand,
+    cc: TpmCc::PolicyDuplicationSelect,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub policy_session: crate::data::TpmiShAuthSession,
+    },
+    parameters: {
         pub object_name: Tpm2bName,
         pub new_parent_name: Tpm2bName,
         pub include_object: TpmiYesNo,
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPolicyDuplicationSelectResponse,
-    TpmCc::PolicyDuplicationSelect,
-    false,
-    true,
-    {}
+    kind: Response,
+    name: TpmPolicyDuplicationSelectResponse,
+    cc: TpmCc::PolicyDuplicationSelect,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
 }
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmPolicyAuthorizeCommand,
-    TpmCc::PolicyAuthorize,
-    false,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmPolicyAuthorizeCommand,
+    cc: TpmCc::PolicyAuthorize,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub policy_session: crate::data::TpmiShAuthSession,
+    },
+    parameters: {
         pub approved_policy: Tpm2bDigest,
         pub policy_ref: Tpm2bNonce,
         pub key_sign: Tpm2bName,
@@ -348,145 +416,180 @@ tpm_struct! {
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPolicyAuthorizeResponse,
-    TpmCc::PolicyAuthorize,
-    false,
-    true,
-    {}
+    kind: Response,
+    name: TpmPolicyAuthorizeResponse,
+    cc: TpmCc::PolicyAuthorize,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
 }
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPolicyAuthValueCommand,
-    TpmCc::PolicyAuthValue,
-    false,
-    true,
-    1,
-    {}
-);
+    kind: Command,
+    name: TpmPolicyAuthValueCommand,
+    cc: TpmCc::PolicyAuthValue,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub policy_session: crate::data::TpmiShAuthSession,
+    },
+    parameters: {}
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPolicyAuthValueResponse,
-    TpmCc::PolicyAuthValue,
-    false,
-    true,
-    0,
-    {}
-);
+    kind: Response,
+    name: TpmPolicyAuthValueResponse,
+    cc: TpmCc::PolicyAuthValue,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPolicyPasswordCommand,
-    TpmCc::PolicyPassword,
-    false,
-    true,
-    1,
-    {}
-);
+    kind: Command,
+    name: TpmPolicyPasswordCommand,
+    cc: TpmCc::PolicyPassword,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub policy_session: crate::data::TpmiShAuthSession,
+    },
+    parameters: {}
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPolicyPasswordResponse,
-    TpmCc::PolicyPassword,
-    false,
-    true,
-    0,
-    {}
-);
+    kind: Response,
+    name: TpmPolicyPasswordResponse,
+    cc: TpmCc::PolicyPassword,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
+}
 
-tpm_response!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
-    TpmPolicyGetDigestResponse,
-    TpmCc::PolicyGetDigest,
-    false,
-    true,
-    {
+    kind: Response,
+    name: TpmPolicyGetDigestResponse,
+    cc: TpmCc::PolicyGetDigest,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {
         pub policy_digest: Tpm2bDigest,
     }
-);
+}
 
-tpm_struct!(
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPolicyGetDigestCommand,
-    TpmCc::PolicyGetDigest,
-    false,
-    true,
-    1,
-    {}
-);
+    kind: Command,
+    name: TpmPolicyGetDigestCommand,
+    cc: TpmCc::PolicyGetDigest,
+    no_sessions: true,
+    with_sessions: true,
+    handles: {
+        pub policy_session: crate::data::TpmiShAuthSession,
+    },
+    parameters: {}
+}
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Copy, Clone)]
-    TpmPolicyNvWrittenCommand,
-    TpmCc::PolicyNvWritten,
-    false,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmPolicyNvWrittenCommand,
+    cc: TpmCc::PolicyNvWritten,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub policy_session: crate::data::TpmiShAuthSession,
+    },
+    parameters: {
         pub written_set: TpmiYesNo,
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPolicyNvWrittenResponse,
-    TpmCc::PolicyNvWritten,
-    false,
-    true,
-    {}
+    kind: Response,
+    name: TpmPolicyNvWrittenResponse,
+    cc: TpmCc::PolicyNvWritten,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
 }
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmPolicyTemplateCommand,
-    TpmCc::PolicyTemplate,
-    false,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmPolicyTemplateCommand,
+    cc: TpmCc::PolicyTemplate,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub policy_session: crate::data::TpmiShAuthSession,
+    },
+    parameters: {
         pub template_hash: Tpm2bDigest,
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPolicyTemplateResponse,
-    TpmCc::PolicyTemplate,
-    false,
-    true,
-    {}
+    kind: Response,
+    name: TpmPolicyTemplateResponse,
+    cc: TpmCc::PolicyTemplate,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
 }
 
 tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPolicyAuthorizeNvCommand,
-    TpmCc::PolicyAuthorizeNv,
-    false,
-    true,
-    3,
-    {}
+    kind: Command,
+    name: TpmPolicyAuthorizeNvCommand,
+    cc: TpmCc::PolicyAuthorizeNv,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub auth_handle: crate::data::TpmiDhObject,
+        pub nv_index: u32,
+        pub policy_session: crate::data::TpmiShAuthSession,
+    },
+    parameters: {}
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPolicyAuthorizeNvResponse,
-    TpmCc::PolicyAuthorizeNv,
-    false,
-    true,
-    {}
+    kind: Response,
+    name: TpmPolicyAuthorizeNvResponse,
+    cc: TpmCc::PolicyAuthorizeNv,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
 }
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmPolicyCapabilityCommand,
-    TpmCc::PolicyCapability,
-    false,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmPolicyCapabilityCommand,
+    cc: TpmCc::PolicyCapability,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub policy_session: crate::data::TpmiShAuthSession,
+    },
+    parameters: {
         pub capability: TpmCap,
         pub property: u32,
         pub op: TpmEo,
@@ -494,54 +597,66 @@ tpm_struct! {
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPolicyCapabilityResponse,
-    TpmCc::PolicyCapability,
-    false,
-    true,
-    {}
+    kind: Response,
+    name: TpmPolicyCapabilityResponse,
+    cc: TpmCc::PolicyCapability,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
 }
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmPolicyParametersCommand,
-    TpmCc::PolicyParameters,
-    false,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmPolicyParametersCommand,
+    cc: TpmCc::PolicyParameters,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub policy_session: crate::data::TpmiShAuthSession,
+    },
+    parameters: {
         pub p_hash: Tpm2bDigest,
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPolicyParametersResponse,
-    TpmCc::PolicyParameters,
-    false,
-    true,
-    {}
+    kind: Response,
+    name: TpmPolicyParametersResponse,
+    cc: TpmCc::PolicyParameters,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
 }
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmPolicyTransportSpdmCommand,
-    TpmCc::PolicyTransportSpdm,
-    false,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmPolicyTransportSpdmCommand,
+    cc: TpmCc::PolicyTransportSpdm,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub policy_session: crate::data::TpmiShAuthSession,
+    },
+    parameters: {
         pub req_key_name: Tpm2bName,
         pub tpm_key_name: Tpm2bName,
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPolicyTransportSpdmResponse,
-    TpmCc::PolicyTransportSpdm,
-    false,
-    true,
-    {}
+    kind: Response,
+    name: TpmPolicyTransportSpdmResponse,
+    cc: TpmCc::PolicyTransportSpdm,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
 }

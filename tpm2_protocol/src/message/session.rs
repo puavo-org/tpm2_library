@@ -6,18 +6,22 @@
 
 use crate::{
     data::{Tpm2b, Tpm2bNonce, TpmAlgId, TpmCc, TpmSe, TpmtSymDefObject},
-    tpm_response, tpm_struct, TpmSession,
+    tpm_struct, TpmSession,
 };
 use core::fmt::Debug;
 
 tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
-    TpmStartAuthSessionCommand,
-    TpmCc::StartAuthSession,
-    true,
-    true,
-    2,
-    {
+    kind: Command,
+    name: TpmStartAuthSessionCommand,
+    cc: TpmCc::StartAuthSession,
+    no_sessions: true,
+    with_sessions: true,
+    handles: {
+        pub tpm_key: crate::data::TpmiDhObject,
+        pub bind: crate::data::TpmiDhObject,
+    },
+    parameters: {
         pub nonce_caller: Tpm2bNonce,
         pub encrypted_salt: Tpm2b,
         pub session_type: TpmSe,
@@ -28,32 +32,39 @@ tpm_struct! {
 
 tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
-    TpmStartAuthSessionResponse,
-    TpmCc::StartAuthSession,
-    true,
-    false,
-    0,
-    {
+    kind: Response,
+    name: TpmStartAuthSessionResponse,
+    cc: TpmCc::StartAuthSession,
+    no_sessions: true,
+    with_sessions: false,
+    handles: {
         pub session_handle: TpmSession,
+    },
+    parameters: {
         pub nonce_tpm: Tpm2bNonce,
     }
 }
 
 tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPolicyRestartCommand,
-    TpmCc::PolicyRestart,
-    false,
-    true,
-    1,
-    {}
+    kind: Command,
+    name: TpmPolicyRestartCommand,
+    cc: TpmCc::PolicyRestart,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub session_handle: crate::data::TpmiShAuthSession,
+    },
+    parameters: {}
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPolicyRestartResponse,
-    TpmCc::PolicyRestart,
-    false,
-    true,
-    {}
+    kind: Response,
+    name: TpmPolicyRestartResponse,
+    cc: TpmCc::PolicyRestart,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
 }

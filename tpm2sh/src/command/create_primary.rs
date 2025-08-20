@@ -125,8 +125,10 @@ pub fn save_key_context(
     handle: TpmTransient,
     log_format: cli::LogFormat,
 ) -> Result<json::JsonValue, TpmError> {
-    let save_command = TpmContextSaveCommand {};
-    let (resp, _) = chip.execute(&save_command, Some(&[handle.into()]), &[], log_format)?;
+    let save_command = TpmContextSaveCommand {
+        save_handle: handle,
+    };
+    let (resp, _) = chip.execute(&save_command, Some(&[]), &[], log_format)?;
 
     let save_resp = resp
         .ContextSave()
@@ -199,8 +201,8 @@ impl Command for CreatePrimary {
         let handles = [primary_handle as u32];
         let public_template = build_public_template(&self.alg);
         let user_auth = self.auth.auth.as_deref().unwrap_or("").as_bytes();
-
         let cmd = TpmCreatePrimaryCommand {
+            primary_handle: (primary_handle as u32).into(),
             in_sensitive: Tpm2bSensitiveCreate {
                 inner: TpmsSensitiveCreate {
                     user_auth: Tpm2bAuth::try_from(user_auth)?,
@@ -215,7 +217,7 @@ impl Command for CreatePrimary {
         };
         let sessions =
             get_auth_sessions(&cmd, &handles, session.as_ref(), self.auth.auth.as_deref())?;
-        let (resp, _) = chip.execute(&cmd, Some(&handles), &sessions, log_format)?;
+        let (resp, _) = chip.execute(&cmd, Some(&[]), &sessions, log_format)?;
 
         let create_primary_resp = resp
             .CreatePrimary()
@@ -224,16 +226,15 @@ impl Command for CreatePrimary {
 
         let result = (|| {
             if let Some(persistent_handle) = self.persistent {
-                let evict_cmd = TpmEvictControlCommand { persistent_handle };
+                let evict_cmd = TpmEvictControlCommand {
+                    auth: (TpmRh::Owner as u32).into(),
+                    object_handle: object_handle.0.into(),
+                    persistent_handle,
+                };
                 let evict_handles = [TpmRh::Owner as u32, object_handle.into()];
                 let evict_sessions =
                     get_auth_sessions(&evict_cmd, &evict_handles, session.as_ref(), None)?;
-                let (resp, _) = chip.execute(
-                    &evict_cmd,
-                    Some(&evict_handles),
-                    &evict_sessions,
-                    log_format,
-                )?;
+                let (resp, _) = chip.execute(&evict_cmd, Some(&[]), &evict_sessions, log_format)?;
                 resp.EvictControl()
                     .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
 

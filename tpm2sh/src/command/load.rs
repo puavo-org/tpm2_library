@@ -86,6 +86,7 @@ impl Command for Load {
             let (in_private, _) = Tpm2bPrivate::parse(&priv_bytes)?;
 
             let load_cmd = TpmLoadCommand {
+                parent_handle: parent_handle.0.into(),
                 in_private,
                 in_public,
             };
@@ -98,7 +99,7 @@ impl Command for Load {
                 self.parent_auth.auth.as_deref(),
             )?;
 
-            let (resp, _) = chip.execute(&load_cmd, Some(&handles), &sessions, log_format)?;
+            let (resp, _) = chip.execute(&load_cmd, Some(&[]), &sessions, log_format)?;
             let load_resp = resp
                 .Load()
                 .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;

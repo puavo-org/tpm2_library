@@ -6,50 +6,56 @@
 
 use crate::{
     data::{Tpm2bDigest, Tpm2bSensitiveData, TpmCc},
-    tpm_response, tpm_struct,
+    tpm_struct,
 };
 use core::fmt::Debug;
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-    TpmGetRandomCommand,
-    TpmCc::GetRandom,
-    true,
-    true,
-    0,
-    {
+    kind: Command,
+    name: TpmGetRandomCommand,
+    cc: TpmCc::GetRandom,
+    no_sessions: true,
+    with_sessions: true,
+    handles: {},
+    parameters: {
         pub bytes_requested: u16,
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
-    TpmGetRandomResponse,
-    TpmCc::GetRandom,
-    true,
-    true,
-    {
+    kind: Response,
+    name: TpmGetRandomResponse,
+    cc: TpmCc::GetRandom,
+    no_sessions: true,
+    with_sessions: true,
+    handles: {},
+    parameters: {
         pub random_bytes: Tpm2bDigest,
     }
 }
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmStirRandomCommand,
-    TpmCc::StirRandom,
-    true,
-    true,
-    0,
-    {
+    kind: Command,
+    name: TpmStirRandomCommand,
+    cc: TpmCc::StirRandom,
+    no_sessions: true,
+    with_sessions: true,
+    handles: {},
+    parameters: {
         pub in_data: Tpm2bSensitiveData,
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmStirRandomResponse,
-    TpmCc::StirRandom,
-    true,
-    true,
-    {}
+    kind: Response,
+    name: TpmStirRandomResponse,
+    cc: TpmCc::StirRandom,
+    no_sessions: true,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
 }

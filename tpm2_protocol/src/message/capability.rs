@@ -13,34 +13,37 @@ use core::fmt::Debug;
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmTestParmsCommand,
-    TpmCc::TestParms,
-    true,
-    false,
-    0,
-    {
+    kind: Command,
+    name: TpmTestParmsCommand,
+    cc: TpmCc::TestParms,
+    no_sessions: true,
+    with_sessions: false,
+    handles: {},
+    parameters: {
         pub parameters: TpmtPublicParms,
     }
 }
 
 tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmTestParmsResponse,
-    TpmCc::TestParms,
-    true,
-    false,
-    0,
-    {}
+    kind: Response,
+    name: TpmTestParmsResponse,
+    cc: TpmCc::TestParms,
+    no_sessions: true,
+    with_sessions: false,
+    handles: {},
+    parameters: {}
 }
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmGetCapabilityCommand,
-    TpmCc::GetCapability,
-    true,
-    true,
-    0,
-    {
+    kind: Command,
+    name: TpmGetCapabilityCommand,
+    cc: TpmCc::GetCapability,
+    no_sessions: true,
+    with_sessions: true,
+    handles: {},
+    parameters: {
         pub cap: TpmCap,
         pub property: u32,
         pub property_count: u32,
@@ -49,12 +52,13 @@ tpm_struct! {
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmGetCapabilityResponse,
-    TpmCc::GetCapability,
-    true,
-    false,
-    0,
-    {
+    kind: Response,
+    name: TpmGetCapabilityResponse,
+    cc: TpmCc::GetCapability,
+    no_sessions: true,
+    with_sessions: false,
+    handles: {},
+    parameters: {
         pub more_data: TpmiYesNo,
         pub capability_data: TpmsCapabilityData,
     }

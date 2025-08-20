@@ -9,77 +9,92 @@ use crate::{
         Tpm2bData, Tpm2bEccPoint, Tpm2bMaxBuffer, Tpm2bPublicKeyRsa, TpmCc, TpmEccCurve,
         TpmiEccKeyExchange, TpmsAlgorithmDetailEcc, TpmtKdfScheme, TpmtRsaDecrypt,
     },
-    tpm_response, tpm_struct,
+    tpm_struct,
 };
 use core::fmt::Debug;
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmRsaEncryptCommand,
-    TpmCc::RsaEncrypt,
-    true,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmRsaEncryptCommand,
+    cc: TpmCc::RsaEncrypt,
+    no_sessions: true,
+    with_sessions: true,
+    handles: {
+        pub key_handle: crate::data::TpmiDhObject,
+    },
+    parameters: {
         pub message: Tpm2bPublicKeyRsa,
         pub in_scheme: TpmtRsaDecrypt,
         pub label: Tpm2bData,
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmRsaEncryptResponse,
-    TpmCc::RsaEncrypt,
-    true,
-    true,
-    {
+    kind: Response,
+    name: TpmRsaEncryptResponse,
+    cc: TpmCc::RsaEncrypt,
+    no_sessions: true,
+    with_sessions: true,
+    handles: {},
+    parameters: {
         pub out_data: Tpm2bPublicKeyRsa,
     }
 }
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmRsaDecryptCommand,
-    TpmCc::RsaDecrypt,
-    false,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmRsaDecryptCommand,
+    cc: TpmCc::RsaDecrypt,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub key_handle: crate::data::TpmiDhObject,
+    },
+    parameters: {
         pub cipher_text: Tpm2bPublicKeyRsa,
         pub in_scheme: TpmtRsaDecrypt,
         pub label: Tpm2bData,
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmRsaDecryptResponse,
-    TpmCc::RsaDecrypt,
-    false,
-    true,
-    {
+    kind: Response,
+    name: TpmRsaDecryptResponse,
+    cc: TpmCc::RsaDecrypt,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {
         pub message: Tpm2bPublicKeyRsa,
     }
 }
 
 tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmEcdhKeyGenCommand,
-    TpmCc::EcdhKeyGen,
-    true,
-    true,
-    1,
-    {}
+    kind: Command,
+    name: TpmEcdhKeyGenCommand,
+    cc: TpmCc::EcdhKeyGen,
+    no_sessions: true,
+    with_sessions: true,
+    handles: {
+        pub key_handle: crate::data::TpmiDhObject,
+    },
+    parameters: {}
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmEcdhKeyGenResponse,
-    TpmCc::EcdhKeyGen,
-    true,
-    true,
-    {
+    kind: Response,
+    name: TpmEcdhKeyGenResponse,
+    cc: TpmCc::EcdhKeyGen,
+    no_sessions: true,
+    with_sessions: true,
+    handles: {},
+    parameters: {
         pub z_point: Tpm2bEccPoint,
         pub pub_point: Tpm2bEccPoint,
     }
@@ -87,58 +102,69 @@ tpm_response! {
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-    TpmEcdhZGenCommand,
-    TpmCc::EcdhZGen,
-    false,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmEcdhZGenCommand,
+    cc: TpmCc::EcdhZGen,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub key_handle: crate::data::TpmiDhObject,
+    },
+    parameters: {
         pub in_point: Tpm2bEccPoint,
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmEcdhZGenResponse,
-    TpmCc::EcdhZGen,
-    false,
-    true,
-    {
+    kind: Response,
+    name: TpmEcdhZGenResponse,
+    cc: TpmCc::EcdhZGen,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {
         pub out_point: Tpm2bEccPoint,
     }
 }
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Copy, Clone)]
-    TpmEccParametersCommand,
-    TpmCc::EccParameters,
-    true,
-    true,
-    0,
-    {
+    kind: Command,
+    name: TpmEccParametersCommand,
+    cc: TpmCc::EccParameters,
+    no_sessions: true,
+    with_sessions: true,
+    handles: {},
+    parameters: {
         pub curve_id: TpmEccCurve,
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmEccParametersResponse,
-    TpmCc::EccParameters,
-    true,
-    true,
-    {
+    kind: Response,
+    name: TpmEccParametersResponse,
+    cc: TpmCc::EccParameters,
+    no_sessions: true,
+    with_sessions: true,
+    handles: {},
+    parameters: {
         pub parameters: TpmsAlgorithmDetailEcc,
     }
 }
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmZGen2PhaseCommand,
-    TpmCc::ZGen2Phase,
-    false,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmZGen2PhaseCommand,
+    cc: TpmCc::ZGen2Phase,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub key_a: crate::data::TpmiDhObject,
+    },
+    parameters: {
         pub in_qsb: Tpm2bEccPoint,
         pub in_qeb: Tpm2bEccPoint,
         pub in_scheme: TpmiEccKeyExchange,
@@ -146,13 +172,15 @@ tpm_struct! {
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmZGen2PhaseResponse,
-    TpmCc::ZGen2Phase,
-    false,
-    true,
-    {
+    kind: Response,
+    name: TpmZGen2PhaseResponse,
+    cc: TpmCc::ZGen2Phase,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {
         pub out_z1: Tpm2bEccPoint,
         pub out_z2: Tpm2bEccPoint,
     }
@@ -160,24 +188,29 @@ tpm_response! {
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmEccEncryptCommand,
-    TpmCc::EccEncrypt,
-    true,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmEccEncryptCommand,
+    cc: TpmCc::EccEncrypt,
+    no_sessions: true,
+    with_sessions: true,
+    handles: {
+        pub key_handle: crate::data::TpmiDhObject,
+    },
+    parameters: {
         pub plaintext: Tpm2bMaxBuffer,
         pub in_scheme: TpmtKdfScheme,
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmEccEncryptResponse,
-    TpmCc::EccEncrypt,
-    true,
-    true,
-    {
+    kind: Response,
+    name: TpmEccEncryptResponse,
+    cc: TpmCc::EccEncrypt,
+    no_sessions: true,
+    with_sessions: true,
+    handles: {},
+    parameters: {
         pub c1: Tpm2bEccPoint,
         pub c2: crate::data::Tpm2bMaxBuffer,
         pub c3: crate::data::Tpm2bDigest,
@@ -186,12 +219,15 @@ tpm_response! {
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmEccDecryptCommand,
-    TpmCc::EccDecrypt,
-    false,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmEccDecryptCommand,
+    cc: TpmCc::EccDecrypt,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub key_handle: crate::data::TpmiDhObject,
+    },
+    parameters: {
         pub c1: Tpm2bEccPoint,
         pub c2: crate::data::Tpm2bMaxBuffer,
         pub c3: crate::data::Tpm2bDigest,
@@ -199,13 +235,15 @@ tpm_struct! {
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmEccDecryptResponse,
-    TpmCc::EccDecrypt,
-    false,
-    true,
-    {
+    kind: Response,
+    name: TpmEccDecryptResponse,
+    cc: TpmCc::EccDecrypt,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {
         pub plaintext: crate::data::Tpm2bMaxBuffer,
     }
 }

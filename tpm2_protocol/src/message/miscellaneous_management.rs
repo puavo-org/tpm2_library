@@ -6,49 +6,59 @@
 
 use crate::{
     data::{TpmCc, TpmlCc},
-    tpm_response, tpm_struct,
+    tpm_struct,
 };
 use core::fmt::Debug;
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmPpCommandsCommand,
-    TpmCc::PpCommands,
-    false,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmPpCommandsCommand,
+    cc: TpmCc::PpCommands,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub auth: crate::data::TpmiRhHierarchy,
+    },
+    parameters: {
         pub set_list: TpmlCc,
         pub clear_list: TpmlCc,
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmPpCommandsResponse,
-    TpmCc::PpCommands,
-    false,
-    true,
-    {}
+    kind: Response,
+    name: TpmPpCommandsResponse,
+    cc: TpmCc::PpCommands,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
 }
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-    TpmSetAlgorithmSetCommand,
-    TpmCc::SetAlgorithmSet,
-    false,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmSetAlgorithmSetCommand,
+    cc: TpmCc::SetAlgorithmSet,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub auth_handle: crate::data::TpmiRhHierarchy,
+    },
+    parameters: {
         pub algorithm_set: u32,
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmSetAlgorithmSetResponse,
-    TpmCc::SetAlgorithmSet,
-    false,
-    true,
-    {}
+    kind: Response,
+    name: TpmSetAlgorithmSetResponse,
+    cc: TpmCc::SetAlgorithmSet,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
 }

@@ -91,6 +91,7 @@ impl Command for Import {
             )?;
 
             let import_cmd = TpmImportCommand {
+                parent_handle: parent_handle.0.into(),
                 encryption_key,
                 object_public: public_bytes,
                 duplicate,
@@ -108,7 +109,7 @@ impl Command for Import {
                 session.as_ref(),
                 self.parent_auth.auth.as_deref(),
             )?;
-            let (resp, _) = chip.execute(&import_cmd, Some(&handles), &sessions, log_format)?;
+            let (resp, _) = chip.execute(&import_cmd, Some(&[]), &sessions, log_format)?;
             let import_resp = resp.Import().map_err(|e| {
                 TpmError::Execution(format!("unexpected response type for Import: {e:?}"))
             })?;

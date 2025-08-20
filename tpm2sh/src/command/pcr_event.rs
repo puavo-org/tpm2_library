@@ -83,7 +83,10 @@ impl Command for PcrEvent {
         let handles = [self.pcr_handle];
 
         let event_data = Tpm2bEvent::try_from(self.data.as_bytes())?;
-        let command = TpmPcrEventCommand { event_data };
+        let command = TpmPcrEventCommand {
+            pcr_handle: self.pcr_handle,
+            event_data,
+        };
 
         let sessions = get_auth_sessions(
             &command,
@@ -91,7 +94,7 @@ impl Command for PcrEvent {
             session.as_ref(),
             self.auth.auth.as_deref(),
         )?;
-        let (resp, _) = chip.execute(&command, Some(&handles), &sessions, log_format)?;
+        let (resp, _) = chip.execute(&command, Some(&[]), &sessions, log_format)?;
         resp.PcrEvent()
             .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
         println!("{:#010x}", self.pcr_handle);

@@ -108,6 +108,7 @@ impl Command for Seal {
 
             let sealed_obj_auth = self.object_auth.auth.as_deref().unwrap_or("").as_bytes();
             let cmd = TpmCreateCommand {
+                parent_handle: parent_handle.0.into(),
                 in_sensitive: Tpm2bSensitiveCreate {
                     inner: TpmsSensitiveCreate {
                         user_auth: Tpm2bAuth::try_from(sealed_obj_auth)?,
@@ -127,7 +128,7 @@ impl Command for Seal {
                 session.as_ref(),
                 self.parent_auth.auth.as_deref(),
             )?;
-            let (resp, _) = chip.execute(&cmd, Some(&handles), &sessions, log_format)?;
+            let (resp, _) = chip.execute(&cmd, Some(&[]), &sessions, log_format)?;
 
             let create_resp = resp.Create().map_err(|e| {
                 TpmError::Execution(format!("unexpected response type for Create: {e:?}"))

@@ -84,7 +84,9 @@ impl Command for Unseal {
             in_private,
             log_format,
             |chip, object_handle| {
-                let unseal_cmd = TpmUnsealCommand {};
+                let unseal_cmd = TpmUnsealCommand {
+                    item_handle: object_handle.0.into(),
+                };
                 let unseal_handles = [object_handle.into()];
                 let sessions = get_auth_sessions(
                     &unseal_cmd,
@@ -94,7 +96,7 @@ impl Command for Unseal {
                 )?;
 
                 let (unseal_resp, _) =
-                    chip.execute(&unseal_cmd, Some(&unseal_handles), &sessions, log_format)?;
+                    chip.execute(&unseal_cmd, Some(&[]), &sessions, log_format)?;
 
                 let unseal_resp = unseal_resp
                     .Unseal()

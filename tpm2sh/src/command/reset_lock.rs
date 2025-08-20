@@ -52,7 +52,9 @@ impl Command for ResetLock {
         let mut io = CommandIo::new(std::io::stdout(), log_format)?;
         let session = io.take_session()?;
 
-        let command = TpmDictionaryAttackLockResetCommand {};
+        let command = TpmDictionaryAttackLockResetCommand {
+            lock_handle: (TpmRh::Lockout as u32).into(),
+        };
         let handles = [TpmRh::Lockout as u32];
         let sessions = get_auth_sessions(
             &command,
@@ -60,7 +62,7 @@ impl Command for ResetLock {
             session.as_ref(),
             self.auth.auth.as_deref(),
         )?;
-        let (resp, _) = chip.execute(&command, Some(&handles), &sessions, log_format)?;
+        let (resp, _) = chip.execute(&command, Some(&[]), &sessions, log_format)?;
         resp.DictionaryAttackLockReset()
             .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
         io.finalize()

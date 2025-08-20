@@ -152,13 +152,14 @@ impl<W: Write> PolicyExecutor<'_, '_, W> {
         let pcr_digest = Tpm2bDigest::try_from(pcr_digest_bytes.as_slice())?;
 
         let cmd = TpmPolicyPcrCommand {
+            policy_session: session_handle.0.into(),
             pcr_digest,
             pcrs: pcr_selection,
         };
         let handles = [session_handle.into()];
         let sessions = crate::get_auth_sessions(&cmd, &handles, self.session.as_ref(), None)?;
         self.chip
-            .execute(&cmd, Some(&handles), &sessions, self.log_format)?;
+            .execute(&cmd, Some(&[]), &sessions, self.log_format)?;
         Ok(())
     }
 
@@ -169,6 +170,8 @@ impl<W: Write> PolicyExecutor<'_, '_, W> {
     ) -> Result<(), TpmError> {
         let auth_handle = crate::parse_hex_u32(auth_handle_str)?;
         let cmd = TpmPolicySecretCommand {
+            auth_handle: auth_handle.into(),
+            policy_session: session_handle.0.into(),
             nonce_tpm: Tpm2bNonce::default(),
             cp_hash_a: Tpm2bDigest::default(),
             policy_ref: Tpm2bNonce::default(),
@@ -182,7 +185,7 @@ impl<W: Write> PolicyExecutor<'_, '_, W> {
             self.auth.auth.as_deref(),
         )?;
         self.chip
-            .execute(&cmd, Some(&handles), &sessions, self.log_format)?;
+            .execute(&cmd, Some(&[]), &sessions, self.log_format)?;
         Ok(())
     }
 
@@ -213,12 +216,13 @@ impl<W: Write> PolicyExecutor<'_, '_, W> {
         }
 
         let cmd = TpmPolicyOrCommand {
+            policy_session: session_handle.0.into(),
             p_hash_list: branch_digests,
         };
         let handles = [session_handle.into()];
         let sessions = crate::get_auth_sessions(&cmd, &handles, self.session.as_ref(), None)?;
         self.chip
-            .execute(&cmd, Some(&handles), &sessions, self.log_format)?;
+            .execute(&cmd, Some(&[]), &sessions, self.log_format)?;
         Ok(())
     }
 
@@ -251,18 +255,15 @@ fn start_trial_session(
 ) -> Result<TpmSession, TpmError> {
     let auth_hash = session.map_or(TpmAlgId::Sha256, |s| s.auth_hash);
     let cmd = TpmStartAuthSessionCommand {
+        tpm_key: (TpmRh::Null as u32).into(),
+        bind: (TpmRh::Null as u32).into(),
         nonce_caller: Tpm2bNonce::default(),
         encrypted_salt: Tpm2b::default(),
         session_type: session_type.into(),
         symmetric: TpmtSymDefObject::default(),
         auth_hash,
     };
-    let (resp, _) = chip.execute(
-        &cmd,
-        Some(&[TpmRh::Null as u32, TpmRh::Null as u32]),
-        &[],
-        log_format,
-    )?;
+    let (resp, _) = chip.execute(&cmd, Some(&[]), &[], log_format)?;
     let start_resp = resp
         .StartAuthSession()
         .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
@@ -287,10 +288,12 @@ fn get_policy_digest(
     session_handle: TpmSession,
     log_format: cli::LogFormat,
 ) -> Result<Tpm2bDigest, TpmError> {
-    let cmd = TpmPolicyGetDigestCommand {};
+    let cmd = TpmPolicyGetDigestCommand {
+        policy_session: session_handle.0.into(),
+    };
     let handles = [session_handle.into()];
     let sessions = crate::get_auth_sessions(&cmd, &handles, session, None)?;
-    let (resp, _) = chip.execute(&cmd, Some(&handles), &sessions, log_format)?;
+    let (resp, _) = chip.execute(&cmd, Some(&[]), &sessions, log_format)?;
     let digest_resp = resp
         .PolicyGetDigest()
         .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;

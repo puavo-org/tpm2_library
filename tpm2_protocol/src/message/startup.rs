@@ -10,44 +10,48 @@ use core::fmt::Debug;
 
 tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmStartupCommand,
-    TpmCc::Startup,
-    true,
-    false,
-    0,
-    {
+    kind: Command,
+    name: TpmStartupCommand,
+    cc: TpmCc::Startup,
+    no_sessions: true,
+    with_sessions: false,
+    handles: {},
+    parameters: {
         pub startup_type: TpmSu,
     }
 }
 
 tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmStartupResponse,
-    TpmCc::Startup,
-    true,
-    false,
-    0,
-    {}
+    kind: Response,
+    name: TpmStartupResponse,
+    cc: TpmCc::Startup,
+    no_sessions: true,
+    with_sessions: false,
+    handles: {},
+    parameters: {}
 }
 
 tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmShutdownCommand,
-    TpmCc::Shutdown,
-    true,
-    true,
-    0,
-    {
+    kind: Command,
+    name: TpmShutdownCommand,
+    cc: TpmCc::Shutdown,
+    no_sessions: true,
+    with_sessions: true,
+    handles: {},
+    parameters: {
         pub shutdown_type: TpmSu,
     }
 }
 
 tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmShutdownResponse,
-    TpmCc::Shutdown,
-    true,
-    true,
-    0,
-    {}
+    kind: Response,
+    name: TpmShutdownResponse,
+    cc: TpmCc::Shutdown,
+    no_sessions: true,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
 }

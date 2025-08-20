@@ -9,7 +9,7 @@ use crate::{
         Tpm2bAuth, Tpm2bDigest, Tpm2bMaxBuffer, TpmAlgId, TpmCc, TpmRh, TpmlDigestValues,
         TpmtTkHashcheck,
     },
-    tpm_response, tpm_struct, TpmTransient,
+    tpm_struct, TpmTransient,
 };
 use core::fmt::Debug;
 
@@ -17,114 +17,140 @@ use super::symmetric::TpmiAlgMacScheme;
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmHmacStartCommand,
-    TpmCc::HmacStart,
-    false,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmHmacStartCommand,
+    cc: TpmCc::HmacStart,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub handle: crate::data::TpmiDhObject,
+    },
+    parameters: {
         pub auth: Tpm2bAuth,
         pub hash_alg: TpmAlgId,
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-    TpmHmacStartResponse,
-    TpmCc::HmacStart,
-    false,
-    true,
-    pub sequence_handle: TpmTransient,
-    {}
+    kind: Response,
+    name: TpmHmacStartResponse,
+    cc: TpmCc::HmacStart,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub sequence_handle: TpmTransient,
+    },
+    parameters: {}
 }
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmMacStartCommand,
-    TpmCc::HmacStart,
-    false,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmMacStartCommand,
+    cc: TpmCc::HmacStart,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub handle: crate::data::TpmiDhObject,
+    },
+    parameters: {
         pub auth: Tpm2bAuth,
         pub in_scheme: TpmiAlgMacScheme,
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-    TpmMacStartResponse,
-    TpmCc::HmacStart,
-    false,
-    true,
-    pub sequence_handle: TpmTransient,
-    {}
+    kind: Response,
+    name: TpmMacStartResponse,
+    cc: TpmCc::HmacStart,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub sequence_handle: TpmTransient,
+    },
+    parameters: {}
 }
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmHashSequenceStartCommand,
-    TpmCc::HashSequenceStart,
-    true,
-    true,
-    0,
-    {
+    kind: Command,
+    name: TpmHashSequenceStartCommand,
+    cc: TpmCc::HashSequenceStart,
+    no_sessions: true,
+    with_sessions: true,
+    handles: {},
+    parameters: {
         pub auth: Tpm2bAuth,
         pub hash_alg: TpmAlgId,
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-    TpmHashSequenceStartResponse,
-    TpmCc::HashSequenceStart,
-    true,
-    true,
-    pub sequence_handle: TpmTransient,
-    {}
+    kind: Response,
+    name: TpmHashSequenceStartResponse,
+    cc: TpmCc::HashSequenceStart,
+    no_sessions: true,
+    with_sessions: true,
+    handles: {
+        pub sequence_handle: TpmTransient,
+    },
+    parameters: {}
 }
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmSequenceUpdateCommand,
-    TpmCc::SequenceUpdate,
-    true,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmSequenceUpdateCommand,
+    cc: TpmCc::SequenceUpdate,
+    no_sessions: true,
+    with_sessions: true,
+    handles: {
+        pub sequence_handle: crate::data::TpmiDhObject,
+    },
+    parameters: {
         pub buffer: Tpm2bMaxBuffer,
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmSequenceUpdateResponse,
-    TpmCc::SequenceUpdate,
-    true,
-    true,
-    {}
+    kind: Response,
+    name: TpmSequenceUpdateResponse,
+    cc: TpmCc::SequenceUpdate,
+    no_sessions: true,
+    with_sessions: true,
+    handles: {},
+    parameters: {}
 }
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmSequenceCompleteCommand,
-    TpmCc::SequenceComplete,
-    true,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmSequenceCompleteCommand,
+    cc: TpmCc::SequenceComplete,
+    no_sessions: true,
+    with_sessions: true,
+    handles: {
+        pub sequence_handle: crate::data::TpmiDhObject,
+    },
+    parameters: {
         pub buffer: Tpm2bMaxBuffer,
         pub hierarchy: TpmRh,
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmSequenceCompleteResponse,
-    TpmCc::SequenceComplete,
-    true,
-    true,
-    {
+    kind: Response,
+    name: TpmSequenceCompleteResponse,
+    cc: TpmCc::SequenceComplete,
+    no_sessions: true,
+    with_sessions: true,
+    handles: {},
+    parameters: {
         pub result: Tpm2bDigest,
         pub validation: TpmtTkHashcheck,
     }
@@ -132,23 +158,29 @@ tpm_response! {
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmEventSequenceCompleteCommand,
-    TpmCc::EventSequenceComplete,
-    true,
-    true,
-    2,
-    {
+    kind: Command,
+    name: TpmEventSequenceCompleteCommand,
+    cc: TpmCc::EventSequenceComplete,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub pcr_handle: u32,
+        pub sequence_handle: crate::data::TpmiDhObject,
+    },
+    parameters: {
         pub buffer: Tpm2bMaxBuffer,
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
-    TpmEventSequenceCompleteResponse,
-    TpmCc::EventSequenceComplete,
-    true,
-    true,
-    {
+    kind: Response,
+    name: TpmEventSequenceCompleteResponse,
+    cc: TpmCc::EventSequenceComplete,
+    no_sessions: true,
+    with_sessions: true,
+    handles: {},
+    parameters: {
         pub results: TpmlDigestValues,
     }
 }

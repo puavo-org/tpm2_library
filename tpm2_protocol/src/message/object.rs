@@ -10,7 +10,7 @@ use crate::{
         Tpm2bName, Tpm2bPrivate, Tpm2bPublic, Tpm2bSensitive, Tpm2bSensitiveCreate,
         Tpm2bSensitiveData, TpmCc, TpmRh, TpmlPcrSelection, TpmtTkCreation,
     },
-    tpm_response, tpm_struct, TpmTransient,
+    tpm_struct, TpmTransient,
 };
 use core::fmt::Debug;
 
@@ -18,12 +18,15 @@ pub type Tpm2bTemplate = Tpm2bPublic;
 
 tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
-    TpmCreateCommand,
-    TpmCc::Create,
-    false,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmCreateCommand,
+    cc: TpmCc::Create,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub parent_handle: crate::data::TpmiDhObject,
+    },
+    parameters: {
         pub in_sensitive: Tpm2bSensitiveCreate,
         pub in_public: Tpm2bPublic,
         pub outside_info: Tpm2bData,
@@ -31,13 +34,15 @@ tpm_struct! {
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmCreateResponse,
-    TpmCc::Create,
-    false,
-    true,
-    {
+    kind: Response,
+    name: TpmCreateResponse,
+    cc: TpmCc::Create,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {
         pub out_private: Tpm2bPrivate,
         pub out_public: Tpm2bPublic,
         pub creation_data: Tpm2bCreationData,
@@ -48,25 +53,31 @@ tpm_response! {
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmCreateLoadedCommand,
-    TpmCc::CreateLoaded,
-    false,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmCreateLoadedCommand,
+    cc: TpmCc::CreateLoaded,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub parent_handle: crate::data::TpmiDhParent,
+    },
+    parameters: {
         pub in_sensitive: Tpm2bSensitiveCreate,
         pub in_public: Tpm2bTemplate,
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmCreateLoadedResponse,
-    TpmCc::CreateLoaded,
-    false,
-    true,
-    pub object_handle: TpmTransient,
-    {
+    kind: Response,
+    name: TpmCreateLoadedResponse,
+    cc: TpmCc::CreateLoaded,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub object_handle: TpmTransient,
+    },
+    parameters: {
         pub out_private: Tpm2bPrivate,
         pub out_public: Tpm2bPublic,
         pub name: Tpm2bName,
@@ -75,73 +86,87 @@ tpm_response! {
 
 tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
-    TpmLoadCommand,
-    TpmCc::Load,
-    false,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmLoadCommand,
+    cc: TpmCc::Load,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub parent_handle: crate::data::TpmiDhObject,
+    },
+    parameters: {
         pub in_private: Tpm2bPrivate,
         pub in_public: Tpm2bPublic,
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmLoadResponse,
-    TpmCc::Load,
-    false,
-    true,
-    pub object_handle: TpmTransient,
-    {
+    kind: Response,
+    name: TpmLoadResponse,
+    cc: TpmCc::Load,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub object_handle: TpmTransient,
+    },
+    parameters: {
         pub name: Tpm2bName,
     }
 }
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmLoadExternalCommand,
-    TpmCc::LoadExternal,
-    true,
-    true,
-    0,
-    {
+    kind: Command,
+    name: TpmLoadExternalCommand,
+    cc: TpmCc::LoadExternal,
+    no_sessions: true,
+    with_sessions: true,
+    handles: {},
+    parameters: {
         pub in_private: Tpm2bSensitive,
         pub in_public: Tpm2bPublic,
         pub hierarchy: TpmRh,
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmLoadExternalResponse,
-    TpmCc::LoadExternal,
-    true,
-    true,
-    pub object_handle: TpmTransient,
-    {
+    kind: Response,
+    name: TpmLoadExternalResponse,
+    cc: TpmCc::LoadExternal,
+    no_sessions: true,
+    with_sessions: true,
+    handles: {
+        pub object_handle: TpmTransient,
+    },
+    parameters: {
         pub name: Tpm2bName,
     }
 }
 
 tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmReadPublicCommand,
-    TpmCc::ReadPublic,
-    true,
-    true,
-    1,
-    {}
+    kind: Command,
+    name: TpmReadPublicCommand,
+    cc: TpmCc::ReadPublic,
+    no_sessions: true,
+    with_sessions: true,
+    handles: {
+        pub object_handle: crate::data::TpmiDhObject,
+    },
+    parameters: {}
 }
 
 tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
-    TpmReadPublicResponse,
-    TpmCc::ReadPublic,
-    true,
-    false,
-    0,
-    {
+    kind: Response,
+    name: TpmReadPublicResponse,
+    cc: TpmCc::ReadPublic,
+    no_sessions: true,
+    with_sessions: false,
+    handles: {},
+    parameters: {
         pub out_public: Tpm2bPublic,
         pub name: Tpm2bName,
         pub qualified_name: Tpm2bName,
@@ -150,48 +175,59 @@ tpm_struct! {
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmActivateCredentialCommand,
-    TpmCc::ActivateCredential,
-    true,
-    true,
-    2,
-    {
+    kind: Command,
+    name: TpmActivateCredentialCommand,
+    cc: TpmCc::ActivateCredential,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub activate_handle: crate::data::TpmiDhObject,
+        pub key_handle: crate::data::TpmiDhObject,
+    },
+    parameters: {
         pub credential_blob: Tpm2bIdObject,
         pub secret: Tpm2bEncryptedSecret,
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmActivateCredentialResponse,
-    TpmCc::ActivateCredential,
-    true,
-    true,
-    {
+    kind: Response,
+    name: TpmActivateCredentialResponse,
+    cc: TpmCc::ActivateCredential,
+    no_sessions: true,
+    with_sessions: true,
+    handles: {},
+    parameters: {
         pub cert_info: Tpm2bDigest,
     }
 }
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmMakeCredentialCommand,
-    TpmCc::MakeCredential,
-    true,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmMakeCredentialCommand,
+    cc: TpmCc::MakeCredential,
+    no_sessions: true,
+    with_sessions: true,
+    handles: {
+        pub handle: crate::data::TpmiDhObject,
+    },
+    parameters: {
         pub credential: Tpm2bDigest,
         pub object_name: Tpm2bName,
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmMakeCredentialResponse,
-    TpmCc::MakeCredential,
-    true,
-    true,
-    {
+    kind: Response,
+    name: TpmMakeCredentialResponse,
+    cc: TpmCc::MakeCredential,
+    no_sessions: true,
+    with_sessions: true,
+    handles: {},
+    parameters: {
         pub credential_blob: Tpm2bIdObject,
         pub secret: Tpm2bEncryptedSecret,
     }
@@ -199,44 +235,55 @@ tpm_response! {
 
 tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
-    TpmUnsealCommand,
-    TpmCc::Unseal,
-    false,
-    true,
-    1,
-    {}
+    kind: Command,
+    name: TpmUnsealCommand,
+    cc: TpmCc::Unseal,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub item_handle: crate::data::TpmiDhObject,
+    },
+    parameters: {}
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
-    TpmUnsealResponse,
-    TpmCc::Unseal,
-    false,
-    true,
-    {
+    kind: Response,
+    name: TpmUnsealResponse,
+    cc: TpmCc::Unseal,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {
         pub out_data: Tpm2bSensitiveData,
     }
 }
 
 tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
-    TpmObjectChangeAuthCommand,
-    TpmCc::ObjectChangeAuth,
-    false,
-    true,
-    2,
-    {
+    kind: Command,
+    name: TpmObjectChangeAuthCommand,
+    cc: TpmCc::ObjectChangeAuth,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub object_handle: crate::data::TpmiDhObject,
+        pub parent_handle: crate::data::TpmiDhObject,
+    },
+    parameters: {
         pub new_auth: Tpm2bAuth,
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, Default, PartialEq, Eq, Clone)]
-    TpmObjectChangeAuthResponse,
-    TpmCc::ObjectChangeAuth,
-    false,
-    true,
-    {
+    kind: Response,
+    name: TpmObjectChangeAuthResponse,
+    cc: TpmCc::ObjectChangeAuth,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {
         pub out_private: Tpm2bPrivate,
     }
 }

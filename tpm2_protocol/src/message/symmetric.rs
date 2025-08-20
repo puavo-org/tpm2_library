@@ -12,7 +12,7 @@ use crate::{
         Tpm2bDigest, Tpm2bIv, Tpm2bMaxBuffer, TpmAlgId, TpmCc, TpmRh, TpmiAlgHash, TpmiYesNo,
         TpmtTkHashcheck,
     },
-    tpm_response, tpm_struct,
+    tpm_struct,
 };
 use core::fmt::Debug;
 
@@ -21,12 +21,15 @@ pub type TpmiAlgMacScheme = TpmAlgId;
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmEncryptDecryptCommand,
-    TpmCc::EncryptDecrypt,
-    false,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmEncryptDecryptCommand,
+    cc: TpmCc::EncryptDecrypt,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub key_handle: crate::data::TpmiDhObject,
+    },
+    parameters: {
         pub decrypt: TpmiYesNo,
         pub mode: TpmiAlgCipherMode,
         pub iv_in: Tpm2bIv,
@@ -34,13 +37,15 @@ tpm_struct! {
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmEncryptDecryptResponse,
-    TpmCc::EncryptDecrypt,
-    false,
-    true,
-    {
+    kind: Response,
+    name: TpmEncryptDecryptResponse,
+    cc: TpmCc::EncryptDecrypt,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {
         pub out_data: Tpm2bMaxBuffer,
         pub iv_out: Tpm2bIv,
     }
@@ -48,12 +53,15 @@ tpm_response! {
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmEncryptDecrypt2Command,
-    TpmCc::EncryptDecrypt2,
-    false,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmEncryptDecrypt2Command,
+    cc: TpmCc::EncryptDecrypt2,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub key_handle: crate::data::TpmiDhObject,
+    },
+    parameters: {
         pub in_data: Tpm2bMaxBuffer,
         pub decrypt: TpmiYesNo,
         pub mode: TpmAlgId,
@@ -61,13 +69,15 @@ tpm_struct! {
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmEncryptDecrypt2Response,
-    TpmCc::EncryptDecrypt2,
-    false,
-    true,
-    {
+    kind: Response,
+    name: TpmEncryptDecrypt2Response,
+    cc: TpmCc::EncryptDecrypt2,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {
         pub out_data: Tpm2bMaxBuffer,
         pub iv_out: Tpm2bIv,
     }
@@ -75,25 +85,28 @@ tpm_response! {
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmHashCommand,
-    TpmCc::Hash,
-    true,
-    false,
-    0,
-    {
+    kind: Command,
+    name: TpmHashCommand,
+    cc: TpmCc::Hash,
+    no_sessions: true,
+    with_sessions: false,
+    handles: {},
+    parameters: {
         pub data: Tpm2bMaxBuffer,
         pub hash_alg: TpmAlgId,
         pub hierarchy: TpmRh,
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmHashResponse,
-    TpmCc::Hash,
-    true,
-    false,
-    {
+    kind: Response,
+    name: TpmHashResponse,
+    cc: TpmCc::Hash,
+    no_sessions: true,
+    with_sessions: false,
+    handles: {},
+    parameters: {
         pub out_hash: Tpm2bDigest,
         pub validation: TpmtTkHashcheck,
     }
@@ -101,48 +114,58 @@ tpm_response! {
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmHmacCommand,
-    TpmCc::Hmac,
-    false,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmHmacCommand,
+    cc: TpmCc::Hmac,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub handle: crate::data::TpmiDhObject,
+    },
+    parameters: {
         pub buffer: Tpm2bMaxBuffer,
         pub hash_alg: TpmiAlgHash,
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmHmacResponse,
-    TpmCc::Hmac,
-    false,
-    true,
-    {
+    kind: Response,
+    name: TpmHmacResponse,
+    cc: TpmCc::Hmac,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {
         pub out_hmac: Tpm2bDigest,
     }
 }
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmMacCommand,
-    TpmCc::Hmac,
-    false,
-    true,
-    1,
-    {
+    kind: Command,
+    name: TpmMacCommand,
+    cc: TpmCc::Hmac,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {
+        pub handle: crate::data::TpmiDhObject,
+    },
+    parameters: {
         pub buffer: Tpm2bMaxBuffer,
         pub in_scheme: TpmiAlgMacScheme,
     }
 }
 
-tpm_response! {
+tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
-    TpmMacResponse,
-    TpmCc::Hmac,
-    false,
-    true,
-    {
+    kind: Response,
+    name: TpmMacResponse,
+    cc: TpmCc::Hmac,
+    no_sessions: false,
+    with_sessions: true,
+    handles: {},
+    parameters: {
         pub out_mac: Tpm2bDigest,
     }
 }
