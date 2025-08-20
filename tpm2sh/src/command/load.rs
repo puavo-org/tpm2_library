@@ -18,6 +18,7 @@ use tpm2_protocol::{
     message::{TpmFlushContextCommand, TpmLoadCommand},
     TpmParse,
 };
+
 const ABOUT: &str = "Loads a TPM key";
 const USAGE: &str = "tpm2sh load [OPTIONS]";
 const OPTIONS: &[CommandLineOption] = &[
@@ -29,6 +30,7 @@ const OPTIONS: &[CommandLineOption] = &[
     ),
     (Some("-h"), "--help", "", "Print help information"),
 ];
+
 impl Command for Load {
     fn help() {
         println!(
@@ -55,7 +57,12 @@ impl Command for Load {
     /// # Errors
     ///
     /// Returns a `TpmError` if the execution fails
-    fn run(&self, chip: &mut TpmDevice, log_format: cli::LogFormat) -> Result<(), TpmError> {
+    fn run(
+        &self,
+        device: &mut Option<TpmDevice>,
+        log_format: cli::LogFormat,
+    ) -> Result<(), TpmError> {
+        let chip = device.as_mut().unwrap();
         if std::io::stdin().is_terminal() {
             Self::help();
             std::process::exit(1);
@@ -101,6 +108,7 @@ impl Command for Load {
 
             io.finalize()
         })();
+
         if needs_flush {
             let flush_cmd = TpmFlushContextCommand {
                 flush_handle: parent_handle.into(),

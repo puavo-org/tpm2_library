@@ -16,6 +16,7 @@ const OPTIONS: &[CommandLineOption] = &[
     (None, "--auth", "<AUTH>", "Authorization value"),
     (Some("-h"), "--help", "", "Print help information"),
 ];
+
 impl Command for ResetLock {
     fn help() {
         println!(
@@ -42,7 +43,12 @@ impl Command for ResetLock {
     /// # Errors
     ///
     /// Returns a `TpmError` if the execution fails
-    fn run(&self, chip: &mut TpmDevice, log_format: cli::LogFormat) -> Result<(), TpmError> {
+    fn run(
+        &self,
+        device: &mut Option<TpmDevice>,
+        log_format: cli::LogFormat,
+    ) -> Result<(), TpmError> {
+        let chip = device.as_mut().unwrap();
         let mut io = CommandIo::new(std::io::stdout(), log_format)?;
         let session = io.take_session()?;
 

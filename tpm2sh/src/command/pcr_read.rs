@@ -15,6 +15,7 @@ const ABOUT: &str = "Reads PCR values from the TPM";
 const USAGE: &str = "tpm2sh pcr-read <SELECTION>";
 const ARGS: &[CommandLineArgument] = &[("SELECTION", "e.g. 'sha256:0,1,2+sha1:0'")];
 const OPTIONS: &[CommandLineOption] = &[(Some("-h"), "--help", "", "Print help information")];
+
 impl Command for PcrRead {
     fn help() {
         println!(
@@ -47,7 +48,12 @@ impl Command for PcrRead {
     /// # Errors
     ///
     /// Returns a `TpmError` if the execution fails
-    fn run(&self, chip: &mut TpmDevice, log_format: cli::LogFormat) -> Result<(), TpmError> {
+    fn run(
+        &self,
+        device: &mut Option<TpmDevice>,
+        log_format: cli::LogFormat,
+    ) -> Result<(), TpmError> {
+        let chip = device.as_mut().unwrap();
         let mut io = CommandIo::new(std::io::stdout(), log_format)?;
         let pcr_count = get_pcr_count(chip, log_format)?;
         let pcr_selection_in = parse_pcr_selection(&self.selection, pcr_count)?;

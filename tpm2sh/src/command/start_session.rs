@@ -15,6 +15,7 @@ use tpm2_protocol::{
     data::{Tpm2b, Tpm2bNonce, TpmAlgId, TpmRh, TpmaSession, TpmtSymDefObject},
     message::TpmStartAuthSessionCommand,
 };
+
 const ABOUT: &str = "Starts an authorization session";
 const USAGE: &str = "tpm2sh start-session [OPTIONS]";
 const OPTIONS: &[CommandLineOption] = &[
@@ -62,7 +63,12 @@ impl Command for StartSession {
     /// # Errors
     ///
     /// Returns a `TpmError` if the execution fails
-    fn run(&self, chip: &mut TpmDevice, log_format: cli::LogFormat) -> Result<(), TpmError> {
+    fn run(
+        &self,
+        device: &mut Option<TpmDevice>,
+        log_format: cli::LogFormat,
+    ) -> Result<(), TpmError> {
+        let chip = device.as_mut().unwrap();
         let mut nonce_bytes = vec![0; 16];
         thread_rng().fill_bytes(&mut nonce_bytes);
 

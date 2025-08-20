@@ -15,6 +15,7 @@ use log::warn;
 use std::io;
 use tpm2_protocol::data::{Tpm2bPublic, TpmAlgId, TpmtSymDef, TpmuSymKeyBits, TpmuSymMode};
 use tpm2_protocol::message::{TpmFlushContextCommand, TpmImportCommand};
+
 const ABOUT: &str = "Imports an external key";
 const USAGE: &str = "tpm2sh import [OPTIONS]";
 const OPTIONS: &[CommandLineOption] = &[
@@ -26,6 +27,7 @@ const OPTIONS: &[CommandLineOption] = &[
     ),
     (Some("-h"), "--help", "", "Print help information"),
 ];
+
 impl Command for Import {
     fn help() {
         println!(
@@ -53,7 +55,12 @@ impl Command for Import {
     ///
     /// Returns a `TpmError`.
     #[allow(clippy::too_many_lines)]
-    fn run(&self, chip: &mut TpmDevice, log_format: cli::LogFormat) -> Result<(), TpmError> {
+    fn run(
+        &self,
+        device: &mut Option<TpmDevice>,
+        log_format: cli::LogFormat,
+    ) -> Result<(), TpmError> {
+        let chip = device.as_mut().unwrap();
         let mut io = CommandIo::new(io::stdout(), log_format)?;
         let session = io.take_session()?;
 
@@ -127,6 +134,7 @@ impl Command for Import {
             io.push_object(new_object);
             io.finalize()
         })();
+
         if needs_flush {
             let flush_cmd = TpmFlushContextCommand {
                 flush_handle: parent_handle.into(),

@@ -21,6 +21,7 @@ use tpm2_protocol::{
     },
     message::{TpmCreateCommand, TpmFlushContextCommand},
 };
+
 const ABOUT: &str = "Seals a keyedhash object";
 const USAGE: &str = "tpm2sh seal [OPTIONS]";
 const OPTIONS: &[CommandLineOption] = &[
@@ -68,7 +69,12 @@ impl Command for Seal {
     /// # Errors
     ///
     /// Returns a `TpmError` if the execution fails
-    fn run(&self, chip: &mut TpmDevice, log_format: cli::LogFormat) -> Result<(), TpmError> {
+    fn run(
+        &self,
+        device: &mut Option<TpmDevice>,
+        log_format: cli::LogFormat,
+    ) -> Result<(), TpmError> {
+        let chip = device.as_mut().unwrap();
         if std::io::stdin().is_terminal() {
             Self::help();
             std::process::exit(1);
@@ -148,6 +154,7 @@ impl Command for Seal {
             io.push_object(new_object);
             io.finalize()
         })();
+
         if needs_flush {
             let flush_cmd = TpmFlushContextCommand {
                 flush_handle: parent_handle.into(),

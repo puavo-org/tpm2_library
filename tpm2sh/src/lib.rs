@@ -47,12 +47,21 @@ pub trait Command {
     where
         Self: Sized;
 
+    /// Returns `true` if the command does not require TPM device access.
+    fn is_local(&self) -> bool {
+        false
+    }
+
     /// Runs a command.
     ///
     /// # Errors
     ///
     /// Returns a `TpmError` if the execution fails
-    fn run(&self, device: &mut TpmDevice, log_format: cli::LogFormat) -> Result<(), TpmError>;
+    fn run(
+        &self,
+        device: &mut Option<TpmDevice>,
+        log_format: cli::LogFormat,
+    ) -> Result<(), TpmError>;
 }
 
 /// Parses command-line arguments and executes the corresponding command.
@@ -66,7 +75,11 @@ pub fn execute_cli() -> Result<(), TpmError> {
     };
 
     if let Some(command) = cli.command {
-        let mut device = TpmDevice::new(&cli.device)?;
+        let mut device = if command.is_local() {
+            None
+        } else {
+            Some(TpmDevice::new(&cli.device)?)
+        };
         command.run(&mut device, cli.log_format)
     } else {
         Ok(())

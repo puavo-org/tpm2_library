@@ -13,6 +13,7 @@ use std::io;
 const ABOUT: &str = "Prints a human-readable summary of the object stack to stdout";
 const USAGE: &str = "tpm2sh print-stack";
 const OPTIONS: &[CommandLineOption] = &[(Some("-h"), "--help", "", "Print help information")];
+
 impl Command for PrintStack {
     fn help() {
         println!(
@@ -27,8 +28,11 @@ impl Command for PrintStack {
                 return Err(TpmError::from(arg.unexpected()));
             }
         });
-
         Ok(Commands::PrintStack(PrintStack::default()))
+    }
+
+    fn is_local(&self) -> bool {
+        true
     }
 
     /// Runs `print-stack`.
@@ -36,9 +40,20 @@ impl Command for PrintStack {
     /// # Errors
     ///
     /// Returns a `TpmError` if the execution fails.
-    fn run(&self, _device: &mut TpmDevice, log_format: cli::LogFormat) -> Result<(), TpmError> {
+    fn run(
+        &self,
+        _device: &mut Option<TpmDevice>,
+        log_format: cli::LogFormat,
+    ) -> Result<(), TpmError> {
         let mut io = CommandIo::new(io::stdout(), log_format)?;
         let objects = io.consume_all_objects();
+
+        if objects.is_empty() {
+            Self::help();
+            return Err(TpmError::Usage(
+                "print-stack requires piped input".to_string(),
+            ));
+        }
 
         for obj in objects.iter().rev() {
             let cli::Object::TpmObject(json_str) = obj;

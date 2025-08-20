@@ -16,12 +16,14 @@ use tpm2_protocol::{
     message::TpmUnsealCommand,
     TpmParse,
 };
+
 const ABOUT: &str = "Unseals a keyedhash object";
 const USAGE: &str = "tpm2sh unseal [OPTIONS]";
 const OPTIONS: &[CommandLineOption] = &[
     (None, "--auth", "<AUTH>", "Authorization value"),
     (Some("-h"), "--help", "", "Print help information"),
 ];
+
 impl Command for Unseal {
     fn help() {
         println!(
@@ -48,7 +50,12 @@ impl Command for Unseal {
     /// # Errors
     ///
     /// Returns a `TpmError` if the execution fails
-    fn run(&self, chip: &mut TpmDevice, log_format: cli::LogFormat) -> Result<(), TpmError> {
+    fn run(
+        &self,
+        device: &mut Option<TpmDevice>,
+        log_format: cli::LogFormat,
+    ) -> Result<(), TpmError> {
+        let chip = device.as_mut().unwrap();
         if std::io::stdin().is_terminal() {
             Self::help();
             std::process::exit(1);

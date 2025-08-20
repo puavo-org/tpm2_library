@@ -12,6 +12,7 @@ use tpm2_protocol::{
     message::{TpmEvictControlCommand, TpmFlushContextCommand},
     TpmPersistent, TpmTransient,
 };
+
 const ABOUT: &str = "Deletes a transient or persistent object";
 const USAGE: &str = "tpm2sh delete [OPTIONS] <HANDLE>";
 const ARGS: &[CommandLineArgument] = &[(
@@ -22,6 +23,7 @@ const OPTIONS: &[CommandLineOption] = &[
     (None, "--auth", "<AUTH>", "Authorization value"),
     (Some("-h"), "--help", "", "Print help information"),
 ];
+
 impl Command for Delete {
     fn help() {
         println!(
@@ -60,7 +62,12 @@ impl Command for Delete {
     /// # Errors
     ///
     /// Returns a `TpmError` if the execution fails
-    fn run(&self, chip: &mut TpmDevice, log_format: cli::LogFormat) -> Result<(), TpmError> {
+    fn run(
+        &self,
+        device: &mut Option<TpmDevice>,
+        log_format: cli::LogFormat,
+    ) -> Result<(), TpmError> {
+        let chip = device.as_mut().unwrap();
         let mut io = CommandIo::new(std::io::stdout(), log_format)?;
         let session = io.take_session()?;
 

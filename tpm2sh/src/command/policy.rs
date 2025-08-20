@@ -23,6 +23,7 @@ use tpm2_protocol::{
     },
     TpmParse, TpmSession,
 };
+
 #[derive(Parser)]
 #[grammar = "command/policy.pest"]
 pub struct PolicyParser;
@@ -47,6 +48,7 @@ const OPTIONS: &[CommandLineOption] = &[
     (None, "--auth", "<AUTH>", "Authorization value"),
     (Some("-h"), "--help", "", "Print help information"),
 ];
+
 fn parse_quoted_string(pair: &Pair<'_, Rule>) -> Result<String, TpmError> {
     if pair.as_rule() != Rule::quoted_string {
         return Err(TpmError::Parse("expected a quoted string".to_string()));
@@ -333,7 +335,12 @@ impl Command for Policy {
     /// # Errors
     ///
     /// Returns a `TpmError` on failure.
-    fn run(&self, chip: &mut TpmDevice, log_format: cli::LogFormat) -> Result<(), TpmError> {
+    fn run(
+        &self,
+        device: &mut Option<TpmDevice>,
+        log_format: cli::LogFormat,
+    ) -> Result<(), TpmError> {
+        let chip = device.as_mut().unwrap();
         let mut io = CommandIo::new(io::stdout(), log_format)?;
         let session = io.take_session()?;
 

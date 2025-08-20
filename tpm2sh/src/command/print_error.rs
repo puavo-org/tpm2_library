@@ -13,6 +13,7 @@ const ABOUT: &str = "Encodes and print a TPM error code";
 const USAGE: &str = "tpm2sh print-error <RC>";
 const ARGS: &[CommandLineArgument] = &[("<RC>", "TPM error code")];
 const OPTIONS: &[CommandLineOption] = &[(Some("-h"), "--help", "", "Print help information")];
+
 impl Command for PrintError {
     fn help() {
         println!(
@@ -40,7 +41,15 @@ impl Command for PrintError {
         }
     }
 
-    fn run(&self, _device: &mut TpmDevice, _log_format: cli::LogFormat) -> Result<(), TpmError> {
+    fn is_local(&self) -> bool {
+        true
+    }
+
+    fn run(
+        &self,
+        _device: &mut Option<TpmDevice>,
+        _log_format: cli::LogFormat,
+    ) -> Result<(), TpmError> {
         println!("{}", self.rc);
         Ok(())
     }

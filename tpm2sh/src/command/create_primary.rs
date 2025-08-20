@@ -26,6 +26,7 @@ use tpm2_protocol::{
     },
     TpmBuffer, TpmTransient,
 };
+
 const ABOUT: &str = "Creates a primary key";
 const USAGE: &str = "tpm2sh create-primary [OPTIONS] --alg <ALG>";
 const OPTIONS: &[CommandLineOption] = &[
@@ -55,6 +56,7 @@ const OPTIONS: &[CommandLineOption] = &[
     ),
     (Some("-h"), "--help", "", "Print help information"),
 ];
+
 fn build_public_template(alg_desc: &Alg) -> TpmtPublic {
     let mut object_attributes = TpmaObject::USER_WITH_AUTH
         | TpmaObject::FIXED_TPM
@@ -184,7 +186,12 @@ impl Command for CreatePrimary {
     /// # Errors
     ///
     /// Returns a `TpmError` if the execution fails
-    fn run(&self, chip: &mut TpmDevice, log_format: cli::LogFormat) -> Result<(), TpmError> {
+    fn run(
+        &self,
+        device: &mut Option<TpmDevice>,
+        log_format: cli::LogFormat,
+    ) -> Result<(), TpmError> {
+        let chip = device.as_mut().unwrap();
         let mut io = crate::command_io::CommandIo::new(std::io::stdout(), log_format)?;
         let session = io.take_session()?;
 
@@ -243,6 +250,7 @@ impl Command for CreatePrimary {
             }
             Ok(())
         })();
+
         if result.is_err() || self.persistent.is_none() {
             let flush_cmd = TpmFlushContextCommand {
                 flush_handle: object_handle.into(),

@@ -13,6 +13,7 @@ use std::{
     fs::File,
     io::{self, Read, Write},
 };
+
 const ABOUT: &str = "Converts keys between ASN.1 and JSON format";
 const USAGE: &str = "tpm2sh convert [OPTIONS]";
 const OPTIONS: &[CommandLineOption] = &[
@@ -113,12 +114,20 @@ impl Command for Convert {
         Ok(Commands::Convert(args))
     }
 
+    fn is_local(&self) -> bool {
+        true
+    }
+
     /// Runs `convert`.
     ///
     /// # Errors
     ///
     /// Returns a `TpmError` if the execution fails
-    fn run(&self, _device: &mut TpmDevice, _log_format: cli::LogFormat) -> Result<(), TpmError> {
+    fn run(
+        &self,
+        _device: &mut Option<TpmDevice>,
+        _log_format: cli::LogFormat,
+    ) -> Result<(), TpmError> {
         let input = read_all(None)?;
         match (self.from, self.to) {
             (KeyFormat::Json, KeyFormat::Pem) => {

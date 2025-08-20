@@ -2,7 +2,7 @@
 // Copyright (c) 2025 Opinsys Oy
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 
-use crate::{Alg, Command, TpmError};
+use crate::{Alg, Command, TpmDevice, TpmError};
 use std::str::FromStr;
 use tpm2_protocol::{
     data::{TpmRc, TpmRh},
@@ -214,9 +214,31 @@ impl Command for Commands {
         unimplemented!();
     }
 
+    fn is_local(&self) -> bool {
+        match self {
+            Self::Algorithms(args) => args.is_local(),
+            Self::Convert(args) => args.is_local(),
+            Self::CreatePrimary(args) => args.is_local(),
+            Self::Delete(args) => args.is_local(),
+            Self::Import(args) => args.is_local(),
+            Self::Load(args) => args.is_local(),
+            Self::Objects(args) => args.is_local(),
+            Self::PcrEvent(args) => args.is_local(),
+            Self::PcrRead(args) => args.is_local(),
+            Self::Policy(args) => args.is_local(),
+            Self::PrintError(args) => args.is_local(),
+            Self::PrintStack(args) => args.is_local(),
+            Self::ResetLock(args) => args.is_local(),
+            Self::Save(args) => args.is_local(),
+            Self::Seal(args) => args.is_local(),
+            Self::StartSession(args) => args.is_local(),
+            Self::Unseal(args) => args.is_local(),
+        }
+    }
+
     fn run(
         &self,
-        device: &mut crate::TpmDevice,
+        device: &mut Option<TpmDevice>,
         log_format: crate::cli::LogFormat,
     ) -> Result<(), crate::TpmError> {
         match self {

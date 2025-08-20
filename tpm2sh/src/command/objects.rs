@@ -11,6 +11,7 @@ use tpm2_protocol::data::TpmRh;
 const ABOUT: &str = "Lists objects in volatile and non-volatile memory";
 const USAGE: &str = "tpm2sh objects";
 const OPTIONS: &[CommandLineOption] = &[(Some("-h"), "--help", "", "Print help information")];
+
 impl Command for Objects {
     fn help() {
         println!(
@@ -33,7 +34,12 @@ impl Command for Objects {
     /// # Errors
     ///
     /// Returns a `TpmError` if the execution fails
-    fn run(&self, device: &mut TpmDevice, log_format: cli::LogFormat) -> Result<(), TpmError> {
+    fn run(
+        &self,
+        device: &mut Option<TpmDevice>,
+        log_format: cli::LogFormat,
+    ) -> Result<(), TpmError> {
+        let device = device.as_mut().unwrap();
         let transient_handles = cli::get_handles(device, TpmRh::TransientFirst, log_format)?;
         for handle in transient_handles {
             let obj = cli::Object::TpmObject(format!("{handle:#010x}"));

@@ -23,6 +23,7 @@ const OPTIONS: &[CommandLineOption] = &[
     ),
     (Some("-h"), "--help", "", "Print help information"),
 ];
+
 fn get_chip_algorithms(
     device: &mut TpmDevice,
     log_format: cli::LogFormat,
@@ -67,7 +68,12 @@ impl Command for Algorithms {
     /// # Errors
     ///
     /// Returns a `TpmError` if the execution fails
-    fn run(&self, device: &mut TpmDevice, log_format: cli::LogFormat) -> Result<(), TpmError> {
+    fn run(
+        &self,
+        device: &mut Option<TpmDevice>,
+        log_format: cli::LogFormat,
+    ) -> Result<(), TpmError> {
+        let device = device.as_mut().unwrap();
         let chip_algorithms = get_chip_algorithms(device, log_format)?;
         let cli_algorithms = enumerate_all();
 
