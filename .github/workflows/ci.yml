@@ -1,0 +1,40 @@
+# Copyright (c) 2025 Opinsys Oy
+
+name: CI
+
+on:
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build_and_test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Check no_std for tpm2-protocol
+        run: cargo check -p tpm2-protocol --no-default-features
+
+      - name: Lint code
+        run: cargo clippy --workspace -- -D warnings
+
+      - name: Run make test
+        env:
+          RUST_BACKTRACE: full
+        run: make test
+
+      - name: Run cargo test
+        env:
+          RUST_BACKTRACE: full
+        run: cargo test --workspace -- --nocapture
