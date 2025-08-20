@@ -71,22 +71,16 @@ fn get_base_code(value: u32) -> u32 {
 #[must_use]
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub struct TpmRc(u32);
-
 impl TpmRc {
-    /// Returns the base error code, stripping any handle, parameter, or session index.
+    /// Returns the base error code, with handle, parameter, or session index
+    /// stripped out.
     ///
     /// # Errors
     ///
-    /// Returns a `TpmErrorKind::NotDiscriminant` if the response code does not correspond
-    /// to a known base error code.
+    /// Returns a `TpmErrorKind::InternalError` on error, as the error case
+    /// should be unreachable.
     pub fn base(self) -> Result<TpmRcBase, TpmErrorKind> {
-        let base_code = get_base_code(self.0);
-        TpmRcBase::try_from(base_code).map_err(|()| {
-            TpmErrorKind::NotDiscriminant(
-                "TpmRcBase",
-                TpmNotDiscriminant::Unsigned(u64::from(base_code)),
-            )
-        })
+        TpmRcBase::try_from(get_base_code(self.0)).map_err(|()| TpmErrorKind::InternalError)
     }
 
     #[must_use]
