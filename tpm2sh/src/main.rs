@@ -4,7 +4,6 @@
 
 use cli::{execute_cli, TpmError};
 use log::error;
-use std::error::Error;
 
 fn main() {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
@@ -20,11 +19,6 @@ fn main() {
         }
         Err(err) => {
             error!("{err}");
-            let mut source = err.source();
-            while let Some(cause) = source {
-                error!("  - {cause}");
-                source = cause.source();
-            }
             std::process::exit(1);
         }
     }
