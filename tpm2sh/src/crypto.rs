@@ -458,13 +458,13 @@ fn protect_seed_with_rsa(
             "parent is RSA type but unique field is not RSA".to_string(),
         )),
     }?;
-    let e = match &parent_public.parameters {
+    let e_raw = match &parent_public.parameters {
         TpmuPublicParms::Rsa(params) => Ok(params.exponent),
         _ => Err(TpmError::Execution(
             "parent is RSA type but parameters field is not RSA".to_string(),
         )),
     }?;
-
+    let e = if e_raw == 0 { 65537 } else { e_raw };
     let rsa_pub_key = RsaPublicKey::new(
         rsa::BigUint::from_bytes_be(n),
         rsa::BigUint::from_u32(e).ok_or_else(|| {
