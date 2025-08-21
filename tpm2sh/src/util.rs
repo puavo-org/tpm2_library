@@ -5,13 +5,47 @@
 use crate::{cli, CommandIo, TpmDevice, TpmError};
 use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
 use json::JsonValue;
+use log::warn;
 use std::{fs, io::Write};
 use tpm2_protocol::{
     self,
     data::{self, TpmRc},
-    message::TpmContextLoadCommand,
+    message::{TpmContextLoadCommand, TpmFlushContextCommand},
     TpmBuild, TpmParse, TpmPersistent, TpmTransient, TpmWriter, TPM_MAX_COMMAND_SIZE,
 };
+
+/// Executes an operation with a transient handle, and flushes the handle
+/// afterwards.
+///
+/// # Errors
+///
+/// Returns the error from the primary operation (`op`). If `op` succeeds but
+/// the subsequent flush fails, the flush error is returned instead.
+pub fn with_transient_handle<F, R>(
+    device: &mut TpmDevice,
+    handle: TpmTransient,
+    log_format: cli::LogFormat,
+    op: F,
+) -> Result<R, TpmError>
+where
+    F: FnOnce(&mut TpmDevice) -> Result<R, TpmError>,
+{
+    let op_result = op(device);
+    let cmd = TpmFlushContextCommand {
+        flush_handle: handle.into(),
+    };
+    let result = device.execute(&cmd, &[], log_format).err();
+    if let Some(err) = result {
+        warn!(
+            target: "cli::util",
+            "Failed to flush transient handle {handle:#010x}: {err}"
+        );
+        if op_result.is_ok() {
+            return Err(err);
+        }
+    }
+    op_result
+}
 
 pub(crate) fn parse_hex_u32(s: &str) -> Result<u32, TpmError> {
     let s = s.strip_prefix("0x").unwrap_or(s);

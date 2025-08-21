@@ -6,12 +6,11 @@ use crate::{
     arg_parser::{format_subcommand_help, CommandLineOption},
     cli::{self, Commands, CreatePrimary, Object},
     get_auth_sessions, parse_args, parse_persistent_handle,
-    util::build_to_vec,
+    util::{build_to_vec, with_transient_handle},
     Alg, AlgInfo, Command, ContextData, Envelope, TpmDevice, TpmError,
 };
 use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
 use lexopt::prelude::*;
-use log::warn;
 use std::io::IsTerminal;
 use tpm2_protocol::{
     data::{
@@ -20,10 +19,7 @@ use tpm2_protocol::{
         TpmsKeyedhashParms, TpmsRsaParms, TpmsSensitiveCreate, TpmtKdfScheme, TpmtPublic,
         TpmtScheme, TpmtSymDefObject, TpmuPublicId, TpmuPublicParms, TpmuSymKeyBits, TpmuSymMode,
     },
-    message::{
-        TpmContextSaveCommand, TpmCreatePrimaryCommand, TpmEvictControlCommand,
-        TpmFlushContextCommand,
-    },
+    message::{TpmContextSaveCommand, TpmCreatePrimaryCommand, TpmEvictControlCommand},
     TpmBuffer, TpmTransient,
 };
 
@@ -224,48 +220,33 @@ impl Command for CreatePrimary {
             .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
         let object_handle = create_primary_resp.object_handle;
 
-        let result = (|| {
-            if let Some(persistent_handle) = self.persistent {
-                let evict_cmd = TpmEvictControlCommand {
-                    auth: (TpmRh::Owner as u32).into(),
-                    object_handle: object_handle.0.into(),
-                    persistent_handle,
-                };
-                let evict_handles = [TpmRh::Owner as u32, object_handle.into()];
-                let evict_sessions =
-                    get_auth_sessions(&evict_cmd, &evict_handles, session.as_ref(), None)?;
-                let (resp, _) = chip.execute(&evict_cmd, &evict_sessions, log_format)?;
-                resp.EvictControl()
-                    .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
+        if let Some(persistent_handle) = self.persistent {
+            let evict_cmd = TpmEvictControlCommand {
+                auth: (TpmRh::Owner as u32).into(),
+                object_handle: object_handle.0.into(),
+                persistent_handle,
+            };
+            let evict_handles = [TpmRh::Owner as u32, object_handle.into()];
+            let evict_sessions =
+                get_auth_sessions(&evict_cmd, &evict_handles, session.as_ref(), None)?;
+            let (resp, _) = chip.execute(&evict_cmd, &evict_sessions, log_format)?;
+            resp.EvictControl()
+                .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
 
-                let obj = Object::TpmObject(format!("{persistent_handle:#010x}"));
-                println!("{}", obj.to_json().dump());
-            } else {
-                let final_json = save_key_context(chip, object_handle, log_format)?;
+            let obj = Object::TpmObject(format!("{persistent_handle:#010x}"));
+            println!("{}", obj.to_json().dump());
+        } else {
+            with_transient_handle(chip, object_handle, log_format, |chip_inner| {
+                let final_json = save_key_context(chip_inner, object_handle, log_format)?;
                 if std::io::stdout().is_terminal() {
                     println!("{}", final_json.pretty(2));
                 } else {
                     let pipe_obj = Object::TpmObject(final_json.dump());
                     println!("{}", pipe_obj.to_json().dump());
                 }
-            }
-            Ok(())
-        })();
-
-        if result.is_err() || self.persistent.is_none() {
-            let flush_cmd = TpmFlushContextCommand {
-                flush_handle: object_handle.into(),
-            };
-            if let Err(flush_err) = chip.execute(&flush_cmd, &[], log_format) {
-                warn!(
-					"Failed to flush transient handle {object_handle:#010x} after operation: {flush_err}"
-				);
-                if result.is_ok() {
-                    return Err(flush_err);
-                }
-            }
+                Ok(())
+            })?;
         }
-
-        result
+        Ok(())
     }
 }
