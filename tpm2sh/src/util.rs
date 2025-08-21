@@ -38,7 +38,7 @@ where
     if let Some(err) = result {
         warn!(
             target: "cli::util",
-            "Failed to flush transient handle {handle:#010x}: {err}"
+            "Operation succeeded, but failed to flush transient handle {handle:#010x}: {err}"
         );
         if op_result.is_ok() {
             return Err(err);

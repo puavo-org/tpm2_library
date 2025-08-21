@@ -162,7 +162,7 @@ impl Command for Seal {
             };
             if let Err(flush_err) = chip.execute(&flush_cmd, &[], log_format) {
                 warn!(
-					"Failed to flush transient parent handle {parent_handle:#010x} after operation: {flush_err}"
+					"Operation succeeded, but failed to flush transient parent handle {parent_handle:#010x}: {flush_err}"
 				);
                 if result.is_ok() {
                     return Err(flush_err);

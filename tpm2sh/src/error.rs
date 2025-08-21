@@ -7,7 +7,7 @@ use tpm2_protocol::{data::TpmRc, TpmErrorKind};
 
 #[derive(Debug, Error)]
 pub enum TpmError {
-    #[error("Failed to build TPM structure: {0}")]
+    #[error("TPM protocol error: {0}")]
     Build(TpmErrorKind),
 
     #[error("Help message was displayed.")]
