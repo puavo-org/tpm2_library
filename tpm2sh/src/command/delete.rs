@@ -94,7 +94,7 @@ impl Command for Delete {
                 session.as_ref(),
                 self.auth.auth.as_deref(),
             )?;
-            let (resp, _) = chip.execute(&evict_cmd, Some(&[]), &sessions, log_format)?;
+            let (resp, _) = chip.execute(&evict_cmd, &sessions, log_format)?;
             resp.EvictControl()
                 .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
             println!("{persistent_handle:#010x}");
@@ -103,7 +103,7 @@ impl Command for Delete {
             let flush_cmd = TpmFlushContextCommand {
                 flush_handle: flush_handle.into(),
             };
-            let (resp, _) = chip.execute(&flush_cmd, Some(&[]), &[], log_format)?;
+            let (resp, _) = chip.execute(&flush_cmd, &[], log_format)?;
             resp.FlushContext()
                 .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
             println!("{flush_handle:#010x}");

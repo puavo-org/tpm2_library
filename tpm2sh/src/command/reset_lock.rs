@@ -62,7 +62,7 @@ impl Command for ResetLock {
             session.as_ref(),
             self.auth.auth.as_deref(),
         )?;
-        let (resp, _) = chip.execute(&command, Some(&[]), &sessions, log_format)?;
+        let (resp, _) = chip.execute(&command, &sessions, log_format)?;
         resp.DictionaryAttackLockReset()
             .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
         io.finalize()

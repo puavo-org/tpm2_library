@@ -325,7 +325,7 @@ pub fn object_to_handle(
         let (context, remainder) = data::TpmsContext::parse(&context_blob)?;
         if remainder.is_empty() {
             let load_cmd = TpmContextLoadCommand { context };
-            let (resp, _) = chip.execute(&load_cmd, None, &[], log_format)?;
+            let (resp, _) = chip.execute(&load_cmd, &[], log_format)?;
             let load_resp = resp
                 .ContextLoad()
                 .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;

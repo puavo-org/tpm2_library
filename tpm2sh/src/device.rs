@@ -61,7 +61,6 @@ impl TpmDevice {
     pub fn execute<C>(
         &mut self,
         command: &C,
-        handles: Option<&[u32]>,
         sessions: &[tpm2_protocol::data::TpmsAuthCommand],
         log_format: cli::LogFormat,
     ) -> Result<(TpmResponseBody, tpm2_protocol::message::TpmAuthResponses), TpmError>
@@ -76,13 +75,7 @@ impl TpmDevice {
             } else {
                 TpmSt::Sessions
             };
-            tpm2_protocol::message::tpm_build_command(
-                command,
-                tag,
-                handles,
-                sessions,
-                &mut writer,
-            )?;
+            tpm2_protocol::message::tpm_build_command(command, tag, sessions, &mut writer)?;
             writer.len()
         };
         let command_bytes = &command_buf[..len];
@@ -193,7 +186,7 @@ impl TpmDevice {
                 let cmd = TpmReadPublicCommand {
                     object_handle: handle.into(),
                 };
-                let (resp, _) = self.execute(&cmd, Some(&[]), &[], log_format)?;
+                let (resp, _) = self.execute(&cmd, &[], log_format)?;
                 let read_public_resp = resp
                     .ReadPublic()
                     .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
@@ -223,7 +216,7 @@ impl TpmDevice {
                 property_count: count,
             };
 
-            let (resp, _) = self.execute(&cmd, None, &[], log_format)?;
+            let (resp, _) = self.execute(&cmd, &[], log_format)?;
             let TpmGetCapabilityResponse {
                 more_data,
                 capability_data,

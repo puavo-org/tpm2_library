@@ -158,8 +158,7 @@ impl<W: Write> PolicyExecutor<'_, '_, W> {
         };
         let handles = [session_handle.into()];
         let sessions = crate::get_auth_sessions(&cmd, &handles, self.session.as_ref(), None)?;
-        self.chip
-            .execute(&cmd, Some(&[]), &sessions, self.log_format)?;
+        self.chip.execute(&cmd, &sessions, self.log_format)?;
         Ok(())
     }
 
@@ -184,8 +183,7 @@ impl<W: Write> PolicyExecutor<'_, '_, W> {
             self.session.as_ref(),
             self.auth.auth.as_deref(),
         )?;
-        self.chip
-            .execute(&cmd, Some(&[]), &sessions, self.log_format)?;
+        self.chip.execute(&cmd, &sessions, self.log_format)?;
         Ok(())
     }
 
@@ -221,8 +219,7 @@ impl<W: Write> PolicyExecutor<'_, '_, W> {
         };
         let handles = [session_handle.into()];
         let sessions = crate::get_auth_sessions(&cmd, &handles, self.session.as_ref(), None)?;
-        self.chip
-            .execute(&cmd, Some(&[]), &sessions, self.log_format)?;
+        self.chip.execute(&cmd, &sessions, self.log_format)?;
         Ok(())
     }
 
@@ -263,7 +260,7 @@ fn start_trial_session(
         symmetric: TpmtSymDefObject::default(),
         auth_hash,
     };
-    let (resp, _) = chip.execute(&cmd, Some(&[]), &[], log_format)?;
+    let (resp, _) = chip.execute(&cmd, &[], log_format)?;
     let start_resp = resp
         .StartAuthSession()
         .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
@@ -278,7 +275,7 @@ fn flush_session(
     let cmd = TpmFlushContextCommand {
         flush_handle: handle.into(),
     };
-    chip.execute(&cmd, Some(&[]), &[], log_format)?;
+    chip.execute(&cmd, &[], log_format)?;
     Ok(())
 }
 
@@ -293,7 +290,7 @@ fn get_policy_digest(
     };
     let handles = [session_handle.into()];
     let sessions = crate::get_auth_sessions(&cmd, &handles, session, None)?;
-    let (resp, _) = chip.execute(&cmd, Some(&[]), &sessions, log_format)?;
+    let (resp, _) = chip.execute(&cmd, &sessions, log_format)?;
     let digest_resp = resp
         .PolicyGetDigest()
         .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;

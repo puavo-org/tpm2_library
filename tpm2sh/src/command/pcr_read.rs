@@ -59,7 +59,7 @@ impl Command for PcrRead {
         let pcr_selection_in = parse_pcr_selection(&self.selection, pcr_count)?;
 
         let cmd = TpmPcrReadCommand { pcr_selection_in };
-        let (resp, _) = chip.execute(&cmd, None, &[], log_format)?;
+        let (resp, _) = chip.execute(&cmd, &[], log_format)?;
         let pcr_read_resp = resp
             .PcrRead()
             .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;

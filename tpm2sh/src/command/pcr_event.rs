@@ -94,7 +94,7 @@ impl Command for PcrEvent {
             session.as_ref(),
             self.auth.auth.as_deref(),
         )?;
-        let (resp, _) = chip.execute(&command, Some(&[]), &sessions, log_format)?;
+        let (resp, _) = chip.execute(&command, &sessions, log_format)?;
         resp.PcrEvent()
             .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
         println!("{:#010x}", self.pcr_handle);

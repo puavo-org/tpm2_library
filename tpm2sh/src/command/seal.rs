@@ -128,7 +128,7 @@ impl Command for Seal {
                 session.as_ref(),
                 self.parent_auth.auth.as_deref(),
             )?;
-            let (resp, _) = chip.execute(&cmd, Some(&[]), &sessions, log_format)?;
+            let (resp, _) = chip.execute(&cmd, &sessions, log_format)?;
 
             let create_resp = resp.Create().map_err(|e| {
                 TpmError::Execution(format!("unexpected response type for Create: {e:?}"))
@@ -160,10 +160,10 @@ impl Command for Seal {
             let flush_cmd = TpmFlushContextCommand {
                 flush_handle: parent_handle.into(),
             };
-            if let Err(flush_err) = chip.execute(&flush_cmd, Some(&[]), &[], log_format) {
+            if let Err(flush_err) = chip.execute(&flush_cmd, &[], log_format) {
                 warn!(
-                    "Failed to flush transient parent handle {parent_handle:#010x} after operation: {flush_err}"
-                );
+					"Failed to flush transient parent handle {parent_handle:#010x} after operation: {flush_err}"
+				);
                 if result.is_ok() {
                     return Err(flush_err);
                 }

@@ -109,7 +109,7 @@ impl Command for Import {
                 session.as_ref(),
                 self.parent_auth.auth.as_deref(),
             )?;
-            let (resp, _) = chip.execute(&import_cmd, Some(&[]), &sessions, log_format)?;
+            let (resp, _) = chip.execute(&import_cmd, &sessions, log_format)?;
             let import_resp = resp.Import().map_err(|e| {
                 TpmError::Execution(format!("unexpected response type for Import: {e:?}"))
             })?;
@@ -140,10 +140,10 @@ impl Command for Import {
             let flush_cmd = TpmFlushContextCommand {
                 flush_handle: parent_handle.into(),
             };
-            if let Err(flush_err) = chip.execute(&flush_cmd, Some(&[]), &[], log_format) {
+            if let Err(flush_err) = chip.execute(&flush_cmd, &[], log_format) {
                 warn!(
-                    "Failed to flush transient parent handle {parent_handle:#010x} after operation: {flush_err}"
-                );
+					"Failed to flush transient parent handle {parent_handle:#010x} after operation: {flush_err}"
+				);
                 if result.is_ok() {
                     return Err(flush_err);
                 }

@@ -95,8 +95,7 @@ impl Command for Unseal {
                     self.auth.auth.as_deref(),
                 )?;
 
-                let (unseal_resp, _) =
-                    chip.execute(&unseal_cmd, Some(&[]), &sessions, log_format)?;
+                let (unseal_resp, _) = chip.execute(&unseal_cmd, &sessions, log_format)?;
 
                 let unseal_resp = unseal_resp
                     .Unseal()

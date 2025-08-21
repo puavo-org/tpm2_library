@@ -83,8 +83,7 @@ impl Command for StartSession {
             symmetric: TpmtSymDefObject::default(),
             auth_hash,
         };
-        let handles = [TpmRh::Null as u32, TpmRh::Null as u32];
-        let (response, _) = chip.execute(&cmd, Some(&handles), &[], log_format)?;
+        let (response, _) = chip.execute(&cmd, &[], log_format)?;
         let start_auth_session_resp = response
             .StartAuthSession()
             .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;

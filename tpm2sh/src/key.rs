@@ -210,7 +210,7 @@ pub fn read_public(
     let cmd = TpmReadPublicCommand {
         object_handle: handle.0.into(),
     };
-    let (resp, _) = chip.execute(&cmd, Some(&[]), &[], log_format)?;
+    let (resp, _) = chip.execute(&cmd, &[], log_format)?;
     let read_public_resp = resp
         .ReadPublic()
         .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
@@ -255,7 +255,7 @@ where
         session,
         parent_auth.auth.as_deref(),
     )?;
-    let (load_resp, _) = chip.execute(&load_cmd, Some(&[]), &parent_sessions, log_format)?;
+    let (load_resp, _) = chip.execute(&load_cmd, &parent_sessions, log_format)?;
     let load_resp = load_resp
         .Load()
         .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
@@ -266,7 +266,7 @@ where
     let flush_cmd = TpmFlushContextCommand {
         flush_handle: object_handle.into(),
     };
-    let flush_err = chip.execute(&flush_cmd, Some(&[]), &[], log_format).err();
+    let flush_err = chip.execute(&flush_cmd, &[], log_format).err();
 
     if let Some(e) = flush_err {
         debug!(

@@ -128,7 +128,7 @@ pub fn save_key_context(
     let save_command = TpmContextSaveCommand {
         save_handle: handle,
     };
-    let (resp, _) = chip.execute(&save_command, Some(&[]), &[], log_format)?;
+    let (resp, _) = chip.execute(&save_command, &[], log_format)?;
 
     let save_resp = resp
         .ContextSave()
@@ -217,7 +217,7 @@ impl Command for CreatePrimary {
         };
         let sessions =
             get_auth_sessions(&cmd, &handles, session.as_ref(), self.auth.auth.as_deref())?;
-        let (resp, _) = chip.execute(&cmd, Some(&[]), &sessions, log_format)?;
+        let (resp, _) = chip.execute(&cmd, &sessions, log_format)?;
 
         let create_primary_resp = resp
             .CreatePrimary()
@@ -234,7 +234,7 @@ impl Command for CreatePrimary {
                 let evict_handles = [TpmRh::Owner as u32, object_handle.into()];
                 let evict_sessions =
                     get_auth_sessions(&evict_cmd, &evict_handles, session.as_ref(), None)?;
-                let (resp, _) = chip.execute(&evict_cmd, Some(&[]), &evict_sessions, log_format)?;
+                let (resp, _) = chip.execute(&evict_cmd, &evict_sessions, log_format)?;
                 resp.EvictControl()
                     .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
 
@@ -256,10 +256,10 @@ impl Command for CreatePrimary {
             let flush_cmd = TpmFlushContextCommand {
                 flush_handle: object_handle.into(),
             };
-            if let Err(flush_err) = chip.execute(&flush_cmd, Some(&[]), &[], log_format) {
+            if let Err(flush_err) = chip.execute(&flush_cmd, &[], log_format) {
                 warn!(
-                    "Failed to flush transient handle {object_handle:#010x} after operation: {flush_err}"
-                );
+					"Failed to flush transient handle {object_handle:#010x} after operation: {flush_err}"
+				);
                 if result.is_ok() {
                     return Err(flush_err);
                 }
