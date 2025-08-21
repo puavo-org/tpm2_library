@@ -17,7 +17,6 @@ use crate::{
 use core::fmt::Debug;
 
 pub type TpmiAlgCipherMode = TpmAlgId;
-pub type TpmiAlgMacScheme = TpmAlgId;
 
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
@@ -138,34 +137,5 @@ tpm_struct! {
     handles: {},
     parameters: {
         pub out_hmac: Tpm2bDigest,
-    }
-}
-
-tpm_struct! {
-    #[derive(Debug, PartialEq, Eq, Clone)]
-    kind: Command,
-    name: TpmMacCommand,
-    cc: TpmCc::Hmac,
-    no_sessions: false,
-    with_sessions: true,
-    handles: {
-        pub handle: crate::data::TpmiDhObject,
-    },
-    parameters: {
-        pub buffer: Tpm2bMaxBuffer,
-        pub in_scheme: TpmiAlgMacScheme,
-    }
-}
-
-tpm_struct! {
-    #[derive(Debug, PartialEq, Eq, Clone)]
-    kind: Response,
-    name: TpmMacResponse,
-    cc: TpmCc::Hmac,
-    no_sessions: false,
-    with_sessions: true,
-    handles: {},
-    parameters: {
-        pub out_mac: Tpm2bDigest,
     }
 }

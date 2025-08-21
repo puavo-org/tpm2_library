@@ -13,8 +13,6 @@ use crate::{
 };
 use core::fmt::Debug;
 
-use super::symmetric::TpmiAlgMacScheme;
-
 tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone)]
     kind: Command,
@@ -35,35 +33,6 @@ tpm_struct! {
     #[derive(Debug, PartialEq, Eq, Clone, Copy)]
     kind: Response,
     name: TpmHmacStartResponse,
-    cc: TpmCc::HmacStart,
-    no_sessions: false,
-    with_sessions: true,
-    handles: {
-        pub sequence_handle: TpmTransient,
-    },
-    parameters: {}
-}
-
-tpm_struct! {
-    #[derive(Debug, PartialEq, Eq, Clone)]
-    kind: Command,
-    name: TpmMacStartCommand,
-    cc: TpmCc::HmacStart,
-    no_sessions: false,
-    with_sessions: true,
-    handles: {
-        pub handle: crate::data::TpmiDhObject,
-    },
-    parameters: {
-        pub auth: Tpm2bAuth,
-        pub in_scheme: TpmiAlgMacScheme,
-    }
-}
-
-tpm_struct! {
-    #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-    kind: Response,
-    name: TpmMacStartResponse,
     cc: TpmCc::HmacStart,
     no_sessions: false,
     with_sessions: true,
