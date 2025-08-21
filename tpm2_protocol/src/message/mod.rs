@@ -2,7 +2,7 @@
 // Copyright (c) 2025 Opinsys Oy
 // Copyright (c) 2024-2025 Jarkko Sakkinen
 
-use crate::{data, tpm_dispatch, TpmBuild, TpmList, TpmParse};
+use crate::{data, tpm_dispatch, TpmBuild, TpmList, TpmParse, TpmResult, TpmWriter};
 use core::fmt::Debug;
 
 mod asymmetric;
@@ -57,6 +57,24 @@ pub trait TpmHeader: TpmBuild + TpmParse + Debug {
     const NO_SESSIONS: bool;
     const WITH_SESSIONS: bool;
     const HANDLES: usize;
+}
+
+/// A trait for building command bodies in separate handle and parameter sections.
+pub trait TpmHeaderCommand: TpmHeader {
+    /// Builds the handle area of the command.
+    ///
+    /// # Errors
+    ///
+    /// * `TpmErrorKind::Boundary` if the writer runs out of space.
+    fn build_handles(&self, writer: &mut TpmWriter) -> TpmResult<()>;
+
+    /// Builds the parameter area of the command.
+    ///
+    /// # Errors
+    ///
+    /// * `TpmErrorKind::ValueTooLarge` if the object contains a value that cannot be built.
+    /// * `TpmErrorKind::Boundary` if the writer runs out of space.
+    fn build_parameters(&self, writer: &mut TpmWriter) -> TpmResult<()>;
 }
 
 pub const TPM_HEADER_SIZE: usize = 10;

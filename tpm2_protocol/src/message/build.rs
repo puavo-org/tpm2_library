@@ -4,8 +4,8 @@
 
 use crate::{
     data::{TpmRc, TpmSt, TpmsAuthCommand, TpmsAuthResponse},
-    message::{TpmHeader, TPM_HEADER_SIZE},
-    TpmBuild, TpmErrorKind, TpmResult, TpmSized, TpmWriter, TPM_MAX_COMMAND_SIZE,
+    message::{TpmHeader, TpmHeaderCommand, TPM_HEADER_SIZE},
+    TpmBuild, TpmErrorKind, TpmResult, TpmSized,
 };
 use core::mem::size_of;
 
@@ -21,7 +21,7 @@ pub fn tpm_build_command<C>(
     writer: &mut crate::TpmWriter,
 ) -> TpmResult<()>
 where
-    C: TpmHeader,
+    C: TpmHeaderCommand,
 {
     match tag {
         TpmSt::NoSessions => {
@@ -47,28 +47,16 @@ where
         }
     }
 
-    let mut temp_body_buf = [0u8; TPM_MAX_COMMAND_SIZE];
-    let body_len = {
-        let mut temp_writer = TpmWriter::new(&mut temp_body_buf);
-        command.build(&mut temp_writer)?;
-        temp_writer.len()
-    };
-    let body_bytes = &temp_body_buf[..body_len];
-
     let handle_area_size = C::HANDLES * size_of::<u32>();
-    if body_len < handle_area_size {
-        return Err(TpmErrorKind::Unreachable);
-    }
-    let (handle_bytes, param_bytes) = body_bytes.split_at(handle_area_size);
-
-    let auth_area_len = if tag == TpmSt::Sessions {
+    let param_area_size = command.len() - handle_area_size;
+    let auth_area_size = if tag == TpmSt::Sessions {
         let sessions_len: usize = sessions.iter().map(TpmSized::len).sum();
         size_of::<u32>() + sessions_len
     } else {
         0
     };
 
-    let total_body_len = handle_bytes.len() + auth_area_len + param_bytes.len();
+    let total_body_len = handle_area_size + auth_area_size + param_area_size;
     let command_size =
         u32::try_from(TPM_HEADER_SIZE + total_body_len).map_err(|_| TpmErrorKind::ValueTooLarge)?;
 
@@ -76,10 +64,10 @@ where
     command_size.build(writer)?;
     (C::COMMAND as u32).build(writer)?;
 
-    writer.write_bytes(handle_bytes)?;
+    command.build_handles(writer)?;
 
     if tag == TpmSt::Sessions {
-        let sessions_len_u32 = u32::try_from(auth_area_len - size_of::<u32>())
+        let sessions_len_u32 = u32::try_from(auth_area_size - size_of::<u32>())
             .map_err(|_| TpmErrorKind::ValueTooLarge)?;
         sessions_len_u32.build(writer)?;
         for s in sessions {
@@ -87,7 +75,7 @@ where
         }
     }
 
-    writer.write_bytes(param_bytes)
+    command.build_parameters(writer)
 }
 
 /// Builds a TPM response.

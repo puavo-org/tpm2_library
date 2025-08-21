@@ -26,6 +26,20 @@ macro_rules! tpm_struct {
             $(pub $param_field: $param_type,)*
         }
 
+        impl $name {
+            #[allow(unused_variables)]
+            pub(crate) fn build_handles(&self, writer: &mut $crate::TpmWriter) -> $crate::TpmResult<()> {
+                $($crate::TpmBuild::build(&self.$handle_field, writer)?;)*
+                Ok(())
+            }
+
+            #[allow(unused_variables)]
+            pub(crate) fn build_parameters(&self, writer: &mut $crate::TpmWriter) -> $crate::TpmResult<()> {
+                $($crate::TpmBuild::build(&self.$param_field, writer)?;)*
+                Ok(())
+            }
+        }
+
         impl $crate::TpmSized for $name {
             const SIZE: usize = 0 $(+ <$handle_type>::SIZE)* $(+ <$param_type>::SIZE)*;
             fn len(&self) -> usize {
@@ -36,7 +50,20 @@ macro_rules! tpm_struct {
         impl $crate::TpmBuild for $name {
             #[allow(unused_variables)]
             fn build(&self, writer: &mut $crate::TpmWriter) -> $crate::TpmResult<()> {
+                self.build_handles(writer)?;
+                self.build_parameters(writer)
+            }
+        }
+
+        impl $crate::message::TpmHeaderCommand for $name {
+            #[allow(unused_variables)]
+            fn build_handles(&self, writer: &mut $crate::TpmWriter) -> $crate::TpmResult<()> {
                 $($crate::TpmBuild::build(&self.$handle_field, writer)?;)*
+                Ok(())
+            }
+
+            #[allow(unused_variables)]
+            fn build_parameters(&self, writer: &mut $crate::TpmWriter) -> $crate::TpmResult<()> {
                 $($crate::TpmBuild::build(&self.$param_field, writer)?;)*
                 Ok(())
             }
