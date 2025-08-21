@@ -642,11 +642,7 @@ impl TpmParseTagged for TpmuAttest {
                 let (val, buf) = TpmsNvDigestCertifyInfo::parse(buf)?;
                 Ok((Self::NvDigest(val), buf))
             }
-            _ => Err(TpmErrorKind::InvalidTag {
-                type_name: "TpmuAttest",
-                expected: 0,
-                got: tag as u16,
-            }),
+            _ => Err(TpmErrorKind::InvalidValue),
         }
     }
 }
