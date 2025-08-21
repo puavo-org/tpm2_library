@@ -34,6 +34,10 @@ fn hex_to_bytes(s: &str) -> Result<Vec<u8>, &'static str> {
         .map_err(|_| "Invalid hex character")
 }
 
+fn bytes_to_hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|b| format!("{:02x}", b)).collect()
+}
+
 fn test_rc_base_from_raw_rc() {
     let cases = [
         ("TPM_RC_SUCCESS", 0x0000, TpmRcBase::Success),
@@ -200,7 +204,10 @@ fn test_build_pcr_read_response() {
         0xDE, 0xDE, 0xDE, 0xDE, 0xDE, 0xDE, 0xDE, 0xDE, 0xDE, 0xDE, 0xDE,
     ];
 
-    assert_eq!(generated_bytes, expected_bytes);
+    assert_eq!(
+        bytes_to_hex(&generated_bytes),
+        bytes_to_hex(&expected_bytes)
+    );
 }
 
 fn test_build_error_response() {
@@ -426,9 +433,10 @@ fn test_parse_pcr_read_command() {
 }
 
 fn test_parse_context_save_command() {
-    let cmd = TpmContextSaveCommand {};
-    let save_handle = 0x8000_0001;
-    let handles = [save_handle];
+    let cmd = TpmContextSaveCommand {
+        save_handle: 0x8000_0001.into(),
+    };
+    let handles = [cmd.save_handle.0];
 
     let generated_bytes = {
         let mut buf = [0u8; TPM_MAX_COMMAND_SIZE];
@@ -447,8 +455,10 @@ fn test_parse_context_save_command() {
         buf[..len].to_vec()
     };
 
-    let expected_bytes = hex_to_bytes("80010000000e0000016280000001").unwrap();
-    assert_eq!(generated_bytes, expected_bytes.as_slice());
+    assert_eq!(
+        bytes_to_hex(&generated_bytes),
+        "80010000000e0000016280000001"
+    );
 
     match tpm_parse_command(&generated_bytes) {
         Ok((res_handles, cmd_data, sessions)) => {
@@ -463,10 +473,12 @@ fn test_parse_context_save_command() {
 }
 
 fn test_parse_evict_control_command() {
+    let handles = [TpmRh::Owner as u32, 0x8000_0000];
     let cmd = TpmEvictControlCommand {
+        auth: handles[0].into(),
+        object_handle: handles[1].into(),
         persistent_handle: TpmPersistent(0x8100_0001),
     };
-    let handles = [TpmRh::Owner as u32, 0x8000_0000];
     let mut sessions = TpmAuthCommands::new();
     sessions
         .try_push(tpm2_protocol::data::TpmsAuthCommand {
