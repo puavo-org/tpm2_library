@@ -5,14 +5,19 @@
 use crate::{
     arg_parser::{format_subcommand_help, CommandLineArgument, CommandLineOption},
     cli::{self, Commands, PcrEvent},
-    get_auth_sessions, parse_args, parse_hex_u32, Command, CommandIo, TpmDevice, TpmError,
+    get_auth_sessions, input_to_bytes, parse_args, parse_hex_u32, Command, CommandIo, TpmDevice,
+    TpmError,
 };
 use lexopt::prelude::*;
+use std::io::Write;
 use tpm2_protocol::{data::Tpm2bEvent, message::TpmPcrEventCommand};
 
 const ABOUT: &str = "Extends a PCR with an event";
 const USAGE: &str = "tpm2sh pcr-event [OPTIONS] <DATA>";
-const ARGS: &[CommandLineArgument] = &[("DATA", "Data to be hashed and extended")];
+const ARGS: &[CommandLineArgument] = &[(
+    "DATA",
+    "The data must be prefixed with 'str:', 'hex:', or 'file:'",
+)];
 const OPTIONS: &[CommandLineOption] = &[
     (
         None,
@@ -82,7 +87,8 @@ impl Command for PcrEvent {
 
         let handles = [self.pcr_handle];
 
-        let event_data = Tpm2bEvent::try_from(self.data.as_bytes())?;
+        let data_bytes = input_to_bytes(&self.data)?;
+        let event_data = Tpm2bEvent::try_from(data_bytes.as_slice())?;
         let command = TpmPcrEventCommand {
             pcr_handle: self.pcr_handle,
             event_data,
@@ -97,7 +103,9 @@ impl Command for PcrEvent {
         let (resp, _) = chip.execute(&command, &sessions, log_format)?;
         resp.PcrEvent()
             .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
-        println!("{:#010x}", self.pcr_handle);
-        Ok(())
+
+        writeln!(io.writer(), "{:#010x}", self.pcr_handle)?;
+
+        io.finalize()
     }
 }

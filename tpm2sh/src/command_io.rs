@@ -42,6 +42,11 @@ impl<W: Write> CommandIo<W> {
         })
     }
 
+    /// Returns a mutable reference to the underlying writer.
+    pub fn writer(&mut self) -> &mut W {
+        &mut self.writer
+    }
+
     /// Finds and removes the session object from the input pipeline, if it exists.
     ///
     /// # Errors

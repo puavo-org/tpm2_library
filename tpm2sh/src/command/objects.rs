@@ -4,7 +4,7 @@
 use crate::{
     arg_parser::{format_subcommand_help, CommandLineOption},
     cli::{self, Commands, Objects},
-    parse_args, Command, TpmDevice, TpmError,
+    parse_args, Command, CommandIo, TpmDevice, TpmError,
 };
 use tpm2_protocol::data::TpmRh;
 
@@ -40,20 +40,20 @@ impl Command for Objects {
         log_format: cli::LogFormat,
     ) -> Result<(), TpmError> {
         let device = device.as_mut().unwrap();
+        let mut io = CommandIo::new(std::io::stdout(), log_format)?;
+
         let transient_handles = cli::get_handles(device, TpmRh::TransientFirst, log_format)?;
         for handle in transient_handles {
             let obj = cli::Object::TpmObject(format!("{handle:#010x}"));
-            let json_line = obj.to_json().dump();
-            println!("{json_line}");
+            io.push_object(obj);
         }
 
         let persistent_handles = cli::get_handles(device, TpmRh::PersistentFirst, log_format)?;
         for handle in persistent_handles {
             let obj = cli::Object::TpmObject(format!("{handle:#010x}"));
-            let json_line = obj.to_json().dump();
-            println!("{json_line}");
+            io.push_object(obj);
         }
 
-        Ok(())
+        io.finalize()
     }
 }

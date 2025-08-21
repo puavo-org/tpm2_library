@@ -271,12 +271,16 @@ pub fn parse_parent_handle_from_json(object_data: &ObjectData) -> Result<TpmTran
 ///
 /// Returns a `TpmError` if the prefix is invalid or I/O fails.
 pub fn input_to_bytes(s: &str) -> Result<Vec<u8>, TpmError> {
-    if let Some(data_str) = s.strip_prefix("data:") {
+    if let Some(data_str) = s.strip_prefix("hex:") {
         hex::decode(data_str).map_err(TpmError::from)
-    } else if let Some(path_str) = s.strip_prefix("path:") {
+    } else if let Some(path_str) = s.strip_prefix("file:") {
         fs::read(path_str).map_err(|e| TpmError::File(path_str.to_string(), e))
+    } else if let Some(str_data) = s.strip_prefix("str:") {
+        Ok(str_data.as_bytes().to_vec())
     } else {
-        fs::read(s).map_err(|e| TpmError::File(s.to_string(), e))
+        Err(TpmError::Usage(
+            "Data input must be prefixed with 'str:', 'hex:', or 'file:'".to_string(),
+        ))
     }
 }
 
@@ -286,13 +290,17 @@ pub fn input_to_bytes(s: &str) -> Result<Vec<u8>, TpmError> {
 ///
 /// Returns a `TpmError` if the prefix is invalid, I/O fails, or the data is not valid UTF-8.
 pub fn input_to_utf8(s: &str) -> Result<String, TpmError> {
-    if let Some(data_str) = s.strip_prefix("data:") {
-        let bytes = hex::decode(data_str)?;
+    if let Some(str_data) = s.strip_prefix("str:") {
+        Ok(str_data.to_string())
+    } else if let Some(hex_str) = s.strip_prefix("hex:") {
+        let bytes = hex::decode(hex_str)?;
         String::from_utf8(bytes).map_err(|e| TpmError::Parse(e.to_string()))
-    } else if let Some(path_str) = s.strip_prefix("path:") {
+    } else if let Some(path_str) = s.strip_prefix("file:") {
         fs::read_to_string(path_str).map_err(|e| TpmError::File(path_str.to_string(), e))
     } else {
-        fs::read_to_string(s).map_err(|e| TpmError::File(s.to_string(), e))
+        Err(TpmError::Usage(
+            "Data input must be prefixed with 'str:', 'hex:', or 'file:'".to_string(),
+        ))
     }
 }
 
