@@ -738,46 +738,7 @@ impl TpmParseTagged for TpmuSigScheme {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum TpmuAsymScheme {
-    Any(TpmsSchemeHash),
-    Null,
-}
-
-impl TpmTagged for TpmuAsymScheme {
-    type Tag = TpmAlgId;
-    type Value = ();
-}
-
-impl TpmSized for TpmuAsymScheme {
-    const SIZE: usize = TPM_MAX_COMMAND_SIZE;
-    fn len(&self) -> usize {
-        match self {
-            Self::Any(s) => s.len(),
-            Self::Null => 0,
-        }
-    }
-}
-
-impl TpmBuild for TpmuAsymScheme {
-    fn build(&self, writer: &mut TpmWriter) -> TpmResult<()> {
-        match self {
-            Self::Any(s) => s.build(writer),
-            Self::Null => Ok(()),
-        }
-    }
-}
-
-impl TpmParseTagged for TpmuAsymScheme {
-    fn parse_tagged(tag: TpmAlgId, buf: &[u8]) -> TpmResult<(Self, &[u8])> {
-        if tag == TpmAlgId::Null {
-            Ok((Self::Null, buf))
-        } else {
-            let (val, buf) = TpmsSchemeHash::parse(buf)?;
-            Ok((Self::Any(val), buf))
-        }
-    }
-}
+pub type TpmuAsymScheme = TpmuSigScheme;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum TpmuNvPublic2 {
