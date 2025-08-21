@@ -5,7 +5,7 @@
 #![allow(clippy::all)]
 #![allow(clippy::pedantic)]
 
-use std::{convert::TryFrom, io::IsTerminal, string::ToString, vec::Vec};
+use std::{convert::TryFrom, io::IsTerminal, mem::size_of, string::ToString, vec::Vec};
 use tpm2_protocol::{
     build_tpm2b,
     data::{
@@ -19,7 +19,7 @@ use tpm2_protocol::{
         TpmFlushContextCommand, TpmFlushContextResponse, TpmGetCapabilityCommand, TpmHashCommand,
         TpmPcrEventResponse, TpmPcrReadCommand, TpmPcrReadResponse, TpmPolicyGetDigestResponse,
     },
-    TpmBuffer, TpmBuild, TpmErrorKind, TpmParse, TpmPersistent, TpmSession, TpmWriter,
+    TpmBuffer, TpmBuild, TpmErrorKind, TpmParse, TpmPersistent, TpmSession, TpmSized, TpmWriter,
     TPM_MAX_COMMAND_SIZE,
 };
 
@@ -35,7 +35,7 @@ fn hex_to_bytes(s: &str) -> Result<Vec<u8>, &'static str> {
 }
 
 fn bytes_to_hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|b| format!("{:02x}", b)).collect()
+    bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
 fn test_rc_base_from_raw_rc() {
@@ -138,7 +138,6 @@ fn test_build_get_capability_command() {
         tpm_build_command(
             &cmd,
             tpm2_protocol::data::TpmSt::NoSessions,
-            None,
             &[],
             &mut writer,
         )
@@ -163,7 +162,6 @@ fn test_build_hash_command() {
         tpm_build_command(
             &cmd,
             tpm2_protocol::data::TpmSt::NoSessions,
-            None,
             &[],
             &mut writer,
         )
@@ -204,10 +202,7 @@ fn test_build_pcr_read_response() {
         0xDE, 0xDE, 0xDE, 0xDE, 0xDE, 0xDE, 0xDE, 0xDE, 0xDE, 0xDE, 0xDE,
     ];
 
-    assert_eq!(
-        bytes_to_hex(&generated_bytes),
-        bytes_to_hex(&expected_bytes)
-    );
+    assert_eq!(bytes_to_hex(generated_bytes), bytes_to_hex(expected_bytes));
 }
 
 fn test_build_error_response() {
@@ -288,7 +283,6 @@ fn test_parse_get_capability_command() {
             tpm_build_command(
                 &cmd,
                 tpm2_protocol::data::TpmSt::NoSessions,
-                None,
                 &[],
                 &mut writer,
             )
@@ -326,7 +320,6 @@ fn test_parse_hash_command() {
             tpm_build_command(
                 &cmd,
                 tpm2_protocol::data::TpmSt::NoSessions,
-                None,
                 &[],
                 &mut writer,
             )
@@ -363,7 +356,6 @@ fn test_parse_flush_context_command() {
             tpm_build_command(
                 &cmd,
                 tpm2_protocol::data::TpmSt::NoSessions,
-                None,
                 &[],
                 &mut writer,
             )
@@ -408,7 +400,6 @@ fn test_parse_pcr_read_command() {
             tpm_build_command(
                 &cmd,
                 tpm2_protocol::data::TpmSt::NoSessions,
-                None,
                 &[],
                 &mut writer,
             )
@@ -436,7 +427,6 @@ fn test_parse_context_save_command() {
     let cmd = TpmContextSaveCommand {
         save_handle: 0x8000_0001.into(),
     };
-    let handles = [cmd.save_handle.0];
 
     let generated_bytes = {
         let mut buf = [0u8; TPM_MAX_COMMAND_SIZE];
@@ -445,7 +435,6 @@ fn test_parse_context_save_command() {
             tpm_build_command(
                 &cmd,
                 tpm2_protocol::data::TpmSt::NoSessions,
-                Some(&handles),
                 &[],
                 &mut writer,
             )
@@ -462,6 +451,7 @@ fn test_parse_context_save_command() {
 
     match tpm_parse_command(&generated_bytes) {
         Ok((res_handles, cmd_data, sessions)) => {
+            let handles = [cmd.save_handle.0];
             assert_eq!(res_handles.as_ref(), handles);
             assert_eq!(cmd_data, TpmCommandBody::ContextSave(cmd));
             if !sessions.is_empty() {
@@ -473,10 +463,9 @@ fn test_parse_context_save_command() {
 }
 
 fn test_parse_evict_control_command() {
-    let handles = [TpmRh::Owner as u32, 0x8000_0000];
     let cmd = TpmEvictControlCommand {
-        auth: handles[0].into(),
-        object_handle: handles[1].into(),
+        auth: (TpmRh::Owner as u32).into(),
+        object_handle: 0x8000_0000.into(),
         persistent_handle: TpmPersistent(0x8100_0001),
     };
     let mut sessions = TpmAuthCommands::new();
@@ -496,7 +485,6 @@ fn test_parse_evict_control_command() {
             tpm_build_command(
                 &cmd,
                 tpm2_protocol::data::TpmSt::Sessions,
-                Some(&handles),
                 &sessions,
                 &mut writer,
             )
@@ -508,6 +496,7 @@ fn test_parse_evict_control_command() {
 
     let (res_handles, res_cmd_data, res_sessions) = tpm_parse_command(&generated_bytes).unwrap();
 
+    let handles = [cmd.auth.0, cmd.object_handle.0];
     assert_eq!(res_handles.as_ref(), handles);
     assert_eq!(res_sessions, sessions);
     assert_eq!(res_cmd_data, TpmCommandBody::EvictControl(cmd));
@@ -515,12 +504,11 @@ fn test_parse_evict_control_command() {
 
 fn test_response_macro_parse_correctness() {
     let mut digests = tpm2_protocol::data::TpmlDigestValues::new();
-    digests
-        .try_push(tpm2_protocol::data::TpmtHa {
-            hash_alg: TpmAlgId::Sha256,
-            digest: tpm2_protocol::data::TpmuHa::Sha256([0xA1; 32]),
-        })
-        .unwrap();
+    let digest = tpm2_protocol::data::TpmtHa {
+        hash_alg: TpmAlgId::Sha256,
+        digest: tpm2_protocol::data::TpmuHa::Sha256([0xA1; 32]),
+    };
+    digests.try_push(digest).unwrap();
     let original_resp = TpmPcrEventResponse { digests };
 
     let mut body_buf = [0u8; 1024];
@@ -531,12 +519,17 @@ fn test_response_macro_parse_correctness() {
     };
     let response_body_bytes = &body_buf[..body_len];
 
-    assert_eq!(body_len, 42);
-    assert_eq!(&response_body_bytes[0..4], &38u32.to_be_bytes());
+    let expected_len = size_of::<u32>() + original_resp.digests.len();
+    assert_eq!(body_len, expected_len);
+    assert_eq!(
+        &response_body_bytes[0..4],
+        &u32::to_be_bytes(original_resp.digests.len() as u32)
+    );
+    assert_eq!(&response_body_bytes[4..8], &1u32.to_be_bytes());
 
     let result = TpmPcrEventResponse::parse(response_body_bytes);
 
-    assert!(result.is_ok(), "command parsing failed: {:?}", result.err());
+    assert!(result.is_ok(), "command parsing failed: {result:?}");
     let (parsed_resp, tail) = result.unwrap();
     assert_eq!(parsed_resp, original_resp, "response mismatch");
     assert!(tail.is_empty(), "tail data");
@@ -622,8 +615,7 @@ fn test_parse_policy_get_digest_response() {
 
     assert!(
         result.is_ok(),
-        "Parsing should succeed with the fixed parser. Result: {:?}",
-        result
+        "Parsing should succeed with the fixed parser. Result: {result:?}"
     );
     let (parsed_resp, remainder) = result.unwrap();
     assert_eq!(

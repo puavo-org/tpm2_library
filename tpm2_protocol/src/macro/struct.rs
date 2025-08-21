@@ -99,7 +99,7 @@ macro_rules! tpm_struct {
             fn len(&self) -> usize {
                 let params_len: usize = 0 $(+ $crate::TpmSized::len(&self.$param_field))*;
                 let handles_len: usize = 0 $(+ $crate::TpmSized::len(&self.$handle_field))*;
-                let parameter_area_size_field_len: usize = if params_len > 0 || $with_sessions {
+                let parameter_area_size_field_len: usize = if $with_sessions {
                     core::mem::size_of::<u32>()
                 } else {
                     0
@@ -112,7 +112,7 @@ macro_rules! tpm_struct {
             fn build(&self, writer: &mut $crate::TpmWriter) -> $crate::TpmResult<()> {
                 let params_len: usize = 0 $(+ $crate::TpmSized::len(&self.$param_field))*;
                 $($crate::TpmBuild::build(&self.$handle_field, writer)?;)*
-                if params_len > 0 || $with_sessions {
+                if $with_sessions {
                     let params_len_u32 = u32::try_from(params_len)
                         .map_err(|_| $crate::TpmErrorKind::ValueTooLarge)?;
                     $crate::TpmBuild::build(&params_len_u32, writer)?;
@@ -131,7 +131,7 @@ macro_rules! tpm_struct {
                     cursor = tail;
                 )*
 
-                let (mut params_cursor, final_tail) = if !cursor.is_empty() && ($with_sessions || $no_sessions) {
+                let (mut params_cursor, final_tail) = if $with_sessions {
                     let (size, buf) = u32::parse(cursor)?;
                     let size = size as usize;
                     if buf.len() < size {

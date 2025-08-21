@@ -5,7 +5,7 @@
 use crate::{
     data::{TpmRc, TpmSt, TpmsAuthCommand, TpmsAuthResponse},
     message::{TpmHeader, TPM_HEADER_SIZE},
-    TpmBuild, TpmErrorKind, TpmResult, TpmSized,
+    TpmBuild, TpmErrorKind, TpmResult, TpmSized, TpmWriter, TPM_MAX_COMMAND_SIZE,
 };
 use core::mem::size_of;
 
@@ -17,7 +17,6 @@ use core::mem::size_of;
 pub fn tpm_build_command<C>(
     command: &C,
     tag: TpmSt,
-    handles: Option<&[u32]>,
     sessions: &[TpmsAuthCommand],
     writer: &mut crate::TpmWriter,
 ) -> TpmResult<()>
@@ -48,13 +47,19 @@ where
         }
     }
 
-    let handles = handles.unwrap_or(&[]);
-    if handles.len() != C::HANDLES {
+    let mut temp_body_buf = [0u8; TPM_MAX_COMMAND_SIZE];
+    let body_len = {
+        let mut temp_writer = TpmWriter::new(&mut temp_body_buf);
+        command.build(&mut temp_writer)?;
+        temp_writer.len()
+    };
+    let body_bytes = &temp_body_buf[..body_len];
+
+    let handle_area_size = C::HANDLES * size_of::<u32>();
+    if body_len < handle_area_size {
         return Err(TpmErrorKind::Unreachable);
     }
-
-    let handle_area_len = core::mem::size_of_val(handles);
-    let parameters_len = command.len();
+    let (handle_bytes, param_bytes) = body_bytes.split_at(handle_area_size);
 
     let auth_area_len = if tag == TpmSt::Sessions {
         let sessions_len: usize = sessions.iter().map(TpmSized::len).sum();
@@ -63,7 +68,7 @@ where
         0
     };
 
-    let total_body_len = handle_area_len + auth_area_len + parameters_len;
+    let total_body_len = handle_bytes.len() + auth_area_len + param_bytes.len();
     let command_size =
         u32::try_from(TPM_HEADER_SIZE + total_body_len).map_err(|_| TpmErrorKind::ValueTooLarge)?;
 
@@ -71,9 +76,7 @@ where
     command_size.build(writer)?;
     (C::COMMAND as u32).build(writer)?;
 
-    for handle in handles {
-        handle.build(writer)?;
-    }
+    writer.write_bytes(handle_bytes)?;
 
     if tag == TpmSt::Sessions {
         let sessions_len_u32 = u32::try_from(auth_area_len - size_of::<u32>())
@@ -84,7 +87,7 @@ where
         }
     }
 
-    command.build(writer)
+    writer.write_bytes(param_bytes)
 }
 
 /// Builds a TPM response.

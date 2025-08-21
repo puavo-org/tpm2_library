@@ -8,9 +8,9 @@ use super::{
 };
 use crate::{
     data::{TpmCc, TpmRc, TpmSt, TpmsAuthCommand, TpmsAuthResponse},
-    TpmErrorKind, TpmNotDiscriminant, TpmParse, TpmResult,
+    TpmErrorKind, TpmNotDiscriminant, TpmParse, TpmResult, TPM_MAX_COMMAND_SIZE,
 };
-use core::convert::TryFrom;
+use core::{convert::TryFrom, mem::size_of};
 
 /// The result of parsing a TPM response, containing either the successfully parsed
 /// body and auth areas (with a success or warning code) or a fatal error code.
@@ -34,7 +34,7 @@ pub fn tpm_parse_command(buf: &[u8]) -> TpmResult<(TpmHandles, TpmCommandBody, T
         TpmErrorKind::NotDiscriminant("TpmSt", TpmNotDiscriminant::Unsigned(u64::from(tag_raw)))
     })?;
     let (size, buf) = u32::parse(buf)?;
-    let (cc_raw, mut buf) = u32::parse(buf)?;
+    let (cc_raw, body_buf) = u32::parse(buf)?;
 
     if command_len != size as usize {
         return Err(TpmErrorKind::Boundary);
@@ -65,23 +65,20 @@ pub fn tpm_parse_command(buf: &[u8]) -> TpmResult<(TpmHandles, TpmCommandBody, T
         });
     }
 
-    let mut handles = TpmHandles::new();
-    for _ in 0..dispatch.3 {
-        let (handle, rest) = u32::parse(buf)?;
-        handles
-            .try_push(handle)
-            .map_err(|_| TpmErrorKind::ValueTooLarge)?;
-        buf = rest;
+    let handle_area_size = dispatch.3 * size_of::<u32>();
+    if body_buf.len() < handle_area_size {
+        return Err(TpmErrorKind::Boundary);
     }
+    let (handle_area, after_handles) = body_buf.split_at(handle_area_size);
 
     let mut sessions = TpmAuthCommands::new();
-    let param_buf = if tag == TpmSt::Sessions {
-        let (auth_area_size, auth_buf) = u32::parse(buf)?;
+    let param_area = if tag == TpmSt::Sessions {
+        let (auth_area_size, buf_after_auth_size) = u32::parse(after_handles)?;
         let auth_area_size = auth_area_size as usize;
-        if auth_buf.len() < auth_area_size {
+        if buf_after_auth_size.len() < auth_area_size {
             return Err(TpmErrorKind::Boundary);
         }
-        let (mut auth_area, param_buf) = auth_buf.split_at(auth_area_size);
+        let (mut auth_area, param_area) = buf_after_auth_size.split_at(auth_area_size);
         while !auth_area.is_empty() {
             let (session, rest) = TpmsAuthCommand::parse(auth_area)?;
             sessions
@@ -92,15 +89,32 @@ pub fn tpm_parse_command(buf: &[u8]) -> TpmResult<(TpmHandles, TpmCommandBody, T
         if !auth_area.is_empty() {
             return Err(TpmErrorKind::TrailingData);
         }
-        param_buf
+        param_area
     } else {
-        buf
+        after_handles
     };
 
-    let (command_data, remainder) = (dispatch.4)(param_buf)?;
+    let mut temp_body_buf = [0u8; TPM_MAX_COMMAND_SIZE];
+    let full_body_len = handle_area.len() + param_area.len();
+    if full_body_len > temp_body_buf.len() {
+        return Err(TpmErrorKind::ValueTooLarge);
+    }
+    let full_body_for_parser = &mut temp_body_buf[..full_body_len];
+    full_body_for_parser[..handle_area.len()].copy_from_slice(handle_area);
+    full_body_for_parser[handle_area.len()..].copy_from_slice(param_area);
+
+    let (command_data, remainder) = (dispatch.4)(full_body_for_parser)?;
 
     if !remainder.is_empty() {
         return Err(TpmErrorKind::TrailingData);
+    }
+
+    let mut handles = TpmHandles::new();
+    let mut temp_handle_cursor = handle_area;
+    while !temp_handle_cursor.is_empty() {
+        let (handle, rest) = u32::parse(temp_handle_cursor)?;
+        handles.try_push(handle)?;
+        temp_handle_cursor = rest;
     }
 
     Ok((handles, command_data, sessions))
