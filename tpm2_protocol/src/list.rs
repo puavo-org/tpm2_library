@@ -85,8 +85,7 @@ impl<T: TpmParse + Copy + Default, const CAPACITY: usize> TpmParse for TpmList<T
         let mut list = Self::new();
         for _ in 0..count {
             let (item, rest) = T::parse(buf)?;
-            list.try_push(item)
-                .map_err(|_| TpmErrorKind::InternalError)?;
+            list.try_push(item).map_err(|_| TpmErrorKind::Unreachable)?;
             buf = rest;
         }
 

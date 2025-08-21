@@ -18,7 +18,7 @@ use core::ops::Deref;
 
 /// A helper to convert a slice into a fixed-size array, returning an internal error on failure.
 fn slice_to_fixed_array<const N: usize>(slice: &[u8]) -> TpmResult<[u8; N]> {
-    slice.try_into().map_err(|_| TpmErrorKind::InternalError)
+    slice.try_into().map_err(|_| TpmErrorKind::Unreachable)
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]

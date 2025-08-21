@@ -50,7 +50,7 @@ where
 
     let handles = handles.unwrap_or(&[]);
     if handles.len() != C::HANDLES {
-        return Err(TpmErrorKind::InternalError);
+        return Err(TpmErrorKind::Unreachable);
     }
 
     let handle_area_len = core::mem::size_of_val(handles);

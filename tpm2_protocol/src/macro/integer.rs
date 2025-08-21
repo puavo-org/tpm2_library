@@ -12,7 +12,7 @@ macro_rules! tpm_integer {
                     return Err(TpmErrorKind::Boundary);
                 }
                 let (bytes, buf) = buf.split_at(size);
-                let array = bytes.try_into().map_err(|_| TpmErrorKind::InternalError)?;
+                let array = bytes.try_into().map_err(|_| TpmErrorKind::Unreachable)?;
                 let val = <$ty>::from_be_bytes(array);
                 Ok((val, buf))
             }

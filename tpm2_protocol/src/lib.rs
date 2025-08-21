@@ -80,7 +80,7 @@ pub enum TpmErrorKind {
     /// An operation would exceed the fixed capacity of a container
     CapacityExceeded,
     /// An unresolvable internal error
-    InternalError,
+    Unreachable,
     /// Invalid magic number for the data
     InvalidMagic { expected: u32, got: u32 },
     /// Invalid tag for the data
@@ -132,14 +132,14 @@ impl fmt::Display for TpmErrorKind {
             }
             Self::CapacityExceeded => write!(f, "An operation would exceed a container's capacity"),
             Self::AuthMissing => write!(f, "Command requires authorization but none was provided"),
-            Self::InternalError => write!(f, "An unexpected internal error occurred"),
+            Self::Unreachable => write!(f, "An unexpected internal error occurred"),
         }
     }
 }
 
 impl From<core::num::TryFromIntError> for TpmErrorKind {
     fn from(_: core::num::TryFromIntError) -> Self {
-        Self::InternalError
+        Self::Unreachable
     }
 }
 

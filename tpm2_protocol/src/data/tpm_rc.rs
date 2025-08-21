@@ -77,10 +77,10 @@ impl TpmRc {
     ///
     /// # Errors
     ///
-    /// Returns a `TpmErrorKind::InternalError` on error, as the error case
+    /// Returns a `TpmErrorKind::Unreachable` on error, as the error case
     /// should be unreachable.
     pub fn base(self) -> Result<TpmRcBase, TpmErrorKind> {
-        TpmRcBase::try_from(get_base_code(self.0)).map_err(|()| TpmErrorKind::InternalError)
+        TpmRcBase::try_from(get_base_code(self.0)).map_err(|()| TpmErrorKind::Unreachable)
     }
 
     #[must_use]
