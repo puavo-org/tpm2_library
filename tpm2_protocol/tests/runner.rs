@@ -12,15 +12,16 @@ use std::{
 use tpm2_protocol::{
     build_tpm2b,
     data::{
-        Tpm2bAuth, Tpm2bDigest, Tpm2bMaxBuffer, Tpm2bNonce, TpmAlgId, TpmCap, TpmCc, TpmRc,
-        TpmRcBase, TpmRcIndex, TpmRh, TpmaSession, TpmlPcrSelection, TpmsClockInfo, TpmtSymDef,
-        TpmuSymKeyBits, TpmuSymMode,
+        Tpm2bAuth, Tpm2bDigest, Tpm2bMaxBuffer, Tpm2bMaxNvBuffer, Tpm2bNonce, TpmAlgId, TpmCap,
+        TpmCc, TpmRc, TpmRcBase, TpmRcIndex, TpmRh, TpmaSession, TpmlPcrSelection, TpmsAuthCommand,
+        TpmsClockInfo, TpmtSymDef, TpmuSymKeyBits, TpmuSymMode,
     },
     message::{
         tpm_build_command, tpm_build_response, tpm_parse_command, tpm_parse_response,
         TpmAuthCommands, TpmCommandBody, TpmContextSaveCommand, TpmEvictControlCommand,
         TpmFlushContextCommand, TpmFlushContextResponse, TpmGetCapabilityCommand, TpmHashCommand,
-        TpmPcrEventResponse, TpmPcrReadCommand, TpmPcrReadResponse, TpmPolicyGetDigestResponse,
+        TpmNvWriteCommand, TpmPcrEventResponse, TpmPcrReadCommand, TpmPcrReadResponse,
+        TpmPolicyGetDigestResponse,
     },
     TpmBuffer, TpmBuild, TpmErrorKind, TpmParse, TpmPersistent, TpmSession, TpmSized, TpmWriter,
     TPM_MAX_COMMAND_SIZE,
@@ -666,6 +667,79 @@ fn test_parse_evict_control_command() {
     assert_eq!(res_cmd_data, TpmCommandBody::EvictControl(cmd));
 }
 
+fn test_build_evict_control_command() {
+    let cmd = TpmEvictControlCommand {
+        auth: (TpmRh::Owner as u32).into(),
+        object_handle: 0x8000_0000.into(),
+        persistent_handle: TpmPersistent(0x8100_0001),
+    };
+    let mut sessions = TpmAuthCommands::new();
+    sessions
+        .try_push(TpmsAuthCommand {
+            session_handle: TpmSession(TpmRh::Password as u32),
+            nonce: Tpm2bNonce::default(),
+            session_attributes: TpmaSession::default(),
+            hmac: Tpm2bAuth::try_from(&b"123"[..]).unwrap(),
+        })
+        .unwrap();
+
+    let mut buf = [0u8; 1024];
+    let len = {
+        let mut writer = TpmWriter::new(&mut buf);
+        tpm_build_command(
+            &cmd,
+            tpm2_protocol::data::TpmSt::Sessions,
+            &sessions,
+            &mut writer,
+        )
+        .unwrap();
+        writer.len()
+    };
+    let generated_bytes = &buf[..len];
+    let expected_bytes = hex_to_bytes(
+        "8002000000260000012040000001800000000000000c40000009000000000331323381000001",
+    )
+    .unwrap();
+    assert_eq!(generated_bytes, expected_bytes.as_slice());
+}
+
+fn test_build_nv_write_command() {
+    let cmd = TpmNvWriteCommand {
+        auth_handle: (TpmRh::Owner as u32).into(),
+        nv_index: 0x0100_0000,
+        data: Tpm2bMaxNvBuffer::try_from(&[0xDE, 0xAD, 0xBE, 0xEF][..]).unwrap(),
+        offset: 0,
+    };
+    let mut sessions = TpmAuthCommands::new();
+    sessions
+        .try_push(TpmsAuthCommand {
+            session_handle: TpmSession(TpmRh::Password as u32),
+            nonce: Tpm2bNonce::default(),
+            session_attributes: TpmaSession::default(),
+            hmac: Tpm2bAuth::try_from(&b"123"[..]).unwrap(),
+        })
+        .unwrap();
+
+    let mut buf = [0u8; 1024];
+    let len = {
+        let mut writer = TpmWriter::new(&mut buf);
+        tpm_build_command(
+            &cmd,
+            tpm2_protocol::data::TpmSt::Sessions,
+            &sessions,
+            &mut writer,
+        )
+        .unwrap();
+        writer.len()
+    };
+    let generated_bytes = &buf[..len];
+    let expected_bytes = hex_to_bytes(
+        "80020000002a0000013740000001010000000000000c4000000900000000033132330004deadbeef0000",
+    )
+    .unwrap();
+    assert_eq!(generated_bytes, expected_bytes.as_slice());
+}
+
 fn test_response_macro_parse_correctness() {
     let mut digests = tpm2_protocol::data::TpmlDigestValues::new();
     let digest = tpm2_protocol::data::TpmtHa {
@@ -866,6 +940,11 @@ fn run_all_tests() -> usize {
             "test_dynamic_roundtrip_blind_parse",
             test_dynamic_roundtrip_blind_parse,
         ),
+        (
+            "test_build_evict_control_command",
+            test_build_evict_control_command,
+        ),
+        ("test_build_nv_write_command", test_build_nv_write_command),
     ];
 
     let mut failed = 0;
