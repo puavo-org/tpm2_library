@@ -65,7 +65,7 @@ impl Command for Load {
         let chip = device.as_mut().unwrap();
         if std::io::stdin().is_terminal() {
             Self::help();
-            std::process::exit(1);
+            return Err(TpmError::HelpDisplayed);
         }
 
         let mut io = CommandIo::new(io::stdout(), log_format)?;

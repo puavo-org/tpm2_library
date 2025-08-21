@@ -70,7 +70,7 @@ impl Command for Save {
         let chip = device.as_mut().unwrap();
         if self.object_handle == 0 && std::io::stdin().is_terminal() {
             Self::help();
-            std::process::exit(1);
+            return Err(TpmError::HelpDisplayed);
         }
 
         let mut io = CommandIo::new(std::io::stdout(), log_format)?;
