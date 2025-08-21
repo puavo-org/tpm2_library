@@ -162,7 +162,7 @@ impl Command for CreatePrimary {
                 args.hierarchy = parser.value()?.string()?.parse()?;
             }
             Long("alg") => {
-                args.alg = parser.value()?.string()?.parse().map_err(TpmError::Parse)?;
+                args.alg = parser.value()?.string()?.parse()?;
                 alg_set = true;
             }
             Long("persistent") => {

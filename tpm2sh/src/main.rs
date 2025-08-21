@@ -13,10 +13,6 @@ fn main() {
     match execute_cli() {
         Ok(()) => {}
         Err(TpmError::HelpDisplayed) => {}
-        Err(TpmError::Usage(msg)) => {
-            eprintln!("Error: {msg}");
-            std::process::exit(1);
-        }
         Err(err) => {
             error!("{err}");
             std::process::exit(1);
