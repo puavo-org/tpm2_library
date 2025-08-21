@@ -18,11 +18,6 @@ name = "tpm2sh"
 path = "src/main.rs"
 
 [[test]]
-name = "dynamic"
-path = "tests/dynamic.rs"
-harness = true
-
-[[test]]
 name = "parser"
 path = "tests/parser.rs"
 harness = true

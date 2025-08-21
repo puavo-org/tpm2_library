@@ -5,13 +5,16 @@
 #![allow(clippy::all)]
 #![allow(clippy::pedantic)]
 
-use std::{convert::TryFrom, io::IsTerminal, mem::size_of, string::ToString, vec::Vec};
+use std::{
+    any::Any, collections::HashMap, convert::TryFrom, fmt::Debug, io::IsTerminal, mem::size_of,
+    string::ToString, vec::Vec,
+};
 use tpm2_protocol::{
     build_tpm2b,
     data::{
         Tpm2bAuth, Tpm2bDigest, Tpm2bMaxBuffer, Tpm2bNonce, TpmAlgId, TpmCap, TpmCc, TpmRc,
-        TpmRcBase, TpmRcIndex, TpmRh, TpmaSession, TpmlPcrSelection, TpmtSymDef, TpmuSymKeyBits,
-        TpmuSymMode,
+        TpmRcBase, TpmRcIndex, TpmRh, TpmaSession, TpmlPcrSelection, TpmsClockInfo, TpmtSymDef,
+        TpmuSymKeyBits, TpmuSymMode,
     },
     message::{
         tpm_build_command, tpm_build_response, tpm_parse_command, tpm_parse_response,
@@ -22,6 +25,167 @@ use tpm2_protocol::{
     TpmBuffer, TpmBuild, TpmErrorKind, TpmParse, TpmPersistent, TpmSession, TpmSized, TpmWriter,
     TPM_MAX_COMMAND_SIZE,
 };
+
+/// A linear congruential generator (LCG) implementation.
+struct Rng {
+    seed: u64,
+}
+
+impl Rng {
+    fn new(seed: u64) -> Self {
+        Self { seed }
+    }
+
+    fn next_u16(&mut self) -> u16 {
+        self.seed = self.seed.wrapping_mul(6364136223846793005).wrapping_add(1);
+        (self.seed >> 32) as u16
+    }
+
+    fn next_u8(&mut self) -> u8 {
+        self.next_u16() as u8
+    }
+
+    fn next_u32(&mut self) -> u32 {
+        ((self.next_u16() as u32) << 16) | (self.next_u16() as u32)
+    }
+
+    fn next_u64(&mut self) -> u64 {
+        ((self.next_u32() as u64) << 32) | (self.next_u32() as u64)
+    }
+
+    fn gen_range(&mut self, range: std::ops::Range<u8>) -> u8 {
+        range.start + (self.next_u8() % (range.end - range.start))
+    }
+}
+
+pub trait TpmObject: Any + Debug {
+    fn build(&self, writer: &mut TpmWriter) -> Result<(), TpmErrorKind>;
+    fn as_any(&self) -> &dyn Any;
+    fn dyn_eq(&self, other: &dyn TpmObject) -> bool;
+}
+
+impl<T> TpmObject for T
+where
+    T: TpmBuild + TpmParse + PartialEq + Any + Debug,
+{
+    fn build(&self, writer: &mut TpmWriter) -> Result<(), TpmErrorKind> {
+        TpmBuild::build(self, writer)
+    }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn dyn_eq(&self, other: &dyn TpmObject) -> bool {
+        other
+            .as_any()
+            .downcast_ref::<T>()
+            .map_or(false, |a| self == a)
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+#[repr(u8)]
+enum TypeId {
+    Clock = 0,
+    Alg = 1,
+    SessionAttrs = 2,
+}
+
+impl TryFrom<u8> for TypeId {
+    type Error = TpmErrorKind;
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(Self::Clock),
+            1 => Ok(Self::Alg),
+            2 => Ok(Self::SessionAttrs),
+            _ => Err(TpmErrorKind::InvalidValue),
+        }
+    }
+}
+
+type ObjectParser = fn(&[u8]) -> Result<(Box<dyn TpmObject>, &[u8]), TpmErrorKind>;
+
+fn make_parser<T: TpmParse + TpmObject>() -> ObjectParser {
+    |bytes: &[u8]| {
+        let (obj, remainder) = T::parse(bytes)?;
+        Ok((Box::new(obj), remainder))
+    }
+}
+
+fn random_object(rng: &mut Rng) -> (TypeId, Box<dyn TpmObject>) {
+    match rng.gen_range(0..3) {
+        0 => (
+            TypeId::Clock,
+            Box::new(TpmsClockInfo {
+                clock: rng.next_u64(),
+                reset_count: rng.next_u32(),
+                restart_count: rng.next_u32(),
+                safe: (rng.next_u8() % 2 == 0).into(),
+            }),
+        ),
+        1 => {
+            let alg = loop {
+                if let Ok(alg) = TpmAlgId::try_from(rng.next_u16()) {
+                    break alg;
+                }
+            };
+            (TypeId::Alg, Box::new(alg))
+        }
+        _ => (
+            TypeId::SessionAttrs,
+            Box::new(TpmaSession::from_bits_truncate(rng.next_u8())),
+        ),
+    }
+}
+
+fn test_dynamic_roundtrip_blind_parse() {
+    let mut parsers: HashMap<TypeId, ObjectParser> = HashMap::new();
+    parsers.insert(TypeId::Clock, make_parser::<TpmsClockInfo>());
+    parsers.insert(TypeId::Alg, make_parser::<TpmAlgId>());
+    parsers.insert(TypeId::SessionAttrs, make_parser::<TpmaSession>());
+
+    const LIST_SIZE: usize = 100;
+    let mut rng = Rng::new(12345);
+    let (type_list, original_list): (Vec<_>, Vec<_>) =
+        (0..LIST_SIZE).map(|_| random_object(&mut rng)).unzip();
+    let mut byte_stream = [0u8; TPM_MAX_COMMAND_SIZE];
+    let final_len = {
+        let mut writer = TpmWriter::new(&mut byte_stream);
+        for i in 0..LIST_SIZE {
+            let type_id = type_list[i];
+            let item = &original_list[i];
+            TpmBuild::build(&(type_id as u8), &mut writer).unwrap();
+            item.build(&mut writer).unwrap();
+        }
+        writer.len()
+    };
+    let written_bytes = &byte_stream[..final_len];
+
+    let mut parsed_list: Vec<Box<dyn TpmObject>> = Vec::with_capacity(LIST_SIZE);
+    let mut remaining_bytes = written_bytes;
+
+    while !remaining_bytes.is_empty() {
+        let (tag_byte, stream_after_tag) = u8::parse(remaining_bytes).unwrap();
+        let type_id = TypeId::try_from(tag_byte).unwrap();
+
+        let parser_fn = parsers.get(&type_id).expect("Parser not registered!");
+
+        let (parsed_obj, next_bytes) = parser_fn(stream_after_tag).unwrap();
+        parsed_list.push(parsed_obj);
+        remaining_bytes = next_bytes;
+    }
+
+    assert!(
+        remaining_bytes.is_empty(),
+        "Byte stream had trailing data after parsing."
+    );
+    assert_eq!(original_list.len(), parsed_list.len());
+    for i in 0..LIST_SIZE {
+        assert!(
+            original_list[i].dyn_eq(parsed_list[i].as_ref()),
+            "Mismatch at index {i}"
+        );
+    }
+}
 
 fn hex_to_bytes(s: &str) -> Result<Vec<u8>, &'static str> {
     if s.len() % 2 != 0 {
@@ -514,7 +678,7 @@ fn test_response_macro_parse_correctness() {
     let mut body_buf = [0u8; 1024];
     let body_len = {
         let mut writer = TpmWriter::new(&mut body_buf);
-        original_resp.build(&mut writer).unwrap();
+        TpmBuild::build(&original_resp, &mut writer).unwrap();
         writer.len()
     };
     let response_body_bytes = &body_buf[..body_len];
@@ -545,7 +709,7 @@ fn test_parse_build_tpmt_sym_def_xor() {
     let mut buf = [0u8; 1024];
     let len = {
         let mut writer = TpmWriter::new(&mut buf);
-        original_sym_def.build(&mut writer).unwrap();
+        TpmBuild::build(&original_sym_def, &mut writer).unwrap();
         writer.len()
     };
     let built_bytes = &buf[..len];
@@ -697,6 +861,10 @@ fn run_all_tests() -> usize {
         (
             "test_parse_policy_get_digest_response",
             test_parse_policy_get_digest_response,
+        ),
+        (
+            "test_dynamic_roundtrip_blind_parse",
+            test_dynamic_roundtrip_blind_parse,
         ),
     ];
 
