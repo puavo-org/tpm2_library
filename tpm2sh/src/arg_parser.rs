@@ -39,6 +39,20 @@ fn format_help_section(title: &str, items: &[(String, &str)], max_len: usize) ->
     output
 }
 
+fn format_options<'a>((short, long, val, desc): &CommandLineOption<'a>) -> (String, &'a str) {
+    let mut left = if let Some(s) = short {
+        format!("{s}, ")
+    } else {
+        "    ".to_string()
+    };
+    left.push_str(long);
+    if !val.is_empty() {
+        left.push(' ');
+        left.push_str(val);
+    }
+    (left, desc)
+}
+
 #[must_use]
 pub fn format_subcommand_help(
     name: &str,
@@ -52,22 +66,7 @@ pub fn format_subcommand_help(
         .iter()
         .map(|(name, desc)| ((*name).to_string(), *desc))
         .collect();
-    let opt_items: Vec<(String, &str)> = options
-        .iter()
-        .map(|(short, long, val, desc)| {
-            let mut left = if let Some(s) = short {
-                format!("{s}, ")
-            } else {
-                "    ".to_string()
-            };
-            left.push_str(long);
-            if !val.is_empty() {
-                left.push(' ');
-                left.push_str(val);
-            }
-            (left, *desc)
-        })
-        .collect();
+    let opt_items: Vec<(String, &str)> = options.iter().map(format_options).collect();
     let max_len = arg_items
         .iter()
         .chain(opt_items.iter())
@@ -173,22 +172,7 @@ const GLOBAL_OPTIONS: &[CommandLineOption] = &[
 fn print_usage() {
     let mut output =
         format!("tpm2sh {VERSION}\nTPM 2.0 shell\n\nUSAGE:\n    tpm2sh [OPTIONS] <COMMAND>");
-    let opt_items: Vec<(String, &str)> = GLOBAL_OPTIONS
-        .iter()
-        .map(|(short, long, val, desc)| {
-            let mut left = if let Some(s) = short {
-                format!("{s}, ")
-            } else {
-                "    ".to_string()
-            };
-            left.push_str(long);
-            if !val.is_empty() {
-                left.push(' ');
-                left.push_str(val);
-            }
-            (left, *desc)
-        })
-        .collect();
+    let opt_items: Vec<(String, &str)> = GLOBAL_OPTIONS.iter().map(format_options).collect();
     let max_len = opt_items
         .iter()
         .map(|(left, _)| left.len())
