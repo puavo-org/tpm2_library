@@ -203,7 +203,7 @@ fn bytes_to_hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
-fn test_rc_base_from_raw_rc() {
+fn test_tpm_rc_base_from_raw() {
     let cases = [
         ("TPM_RC_SUCCESS", 0x0000, TpmRcBase::Success),
         ("TPM_RC_BAD_TAG", 0x001E, TpmRcBase::BadTag),
@@ -240,7 +240,7 @@ fn test_rc_base_from_raw_rc() {
     }
 }
 
-fn test_rc_index_from_value() {
+fn test_tpm_rc_index_from_raw() {
     let cases = [
         ("No index for success", 0x0000, None),
         ("No index for format 0", 0x0101, None),
@@ -260,7 +260,7 @@ fn test_rc_index_from_value() {
     }
 }
 
-fn test_rc_display() {
+fn test_tpm_rc_display() {
     let cases = [
         ("TPM_RC_SUCCESS", 0x0000, "TPM_RC_SUCCESS"),
         (
@@ -291,7 +291,7 @@ fn test_rc_display() {
     }
 }
 
-fn test_build_get_capability_command() {
+fn test_command_build_get_capability() {
     let cmd = TpmGetCapabilityCommand {
         cap: TpmCap::Algs,
         property: 1,
@@ -315,7 +315,7 @@ fn test_build_get_capability_command() {
     assert_eq!(generated_bytes, expected_bytes.as_slice(),);
 }
 
-fn test_build_hash_command() {
+fn test_command_build_hash() {
     let cmd = TpmHashCommand {
         data: Tpm2bMaxBuffer::try_from(&b"hello"[..]).unwrap(),
         hash_alg: TpmAlgId::Sha256,
@@ -339,7 +339,7 @@ fn test_build_hash_command() {
     assert_eq!(generated_bytes, expected_bytes.as_slice(),);
 }
 
-fn test_build_pcr_read_response() {
+fn test_response_build_pcr_read() {
     let mut pcr_values = tpm2_protocol::data::TpmlDigest::new();
     pcr_values
         .try_push(Tpm2bDigest::try_from(&[0xDE; 32][..]).unwrap())
@@ -370,7 +370,7 @@ fn test_build_pcr_read_response() {
     assert_eq!(bytes_to_hex(generated_bytes), bytes_to_hex(expected_bytes));
 }
 
-fn test_build_error_response() {
+fn test_response_build_error() {
     let resp = TpmFlushContextResponse::default();
     let rc = TpmRc::try_from(TpmRcBase::Failure as u32).unwrap();
 
@@ -393,7 +393,7 @@ fn test_build_error_response() {
     );
 }
 
-fn test_parse_tpm_pcr_event_response() {
+fn test_response_parse_pcr_event() {
     let mut digests = tpm2_protocol::data::TpmlDigestValues::new();
     digests
         .try_push(tpm2_protocol::data::TpmtHa {
@@ -434,7 +434,7 @@ fn test_parse_tpm_pcr_event_response() {
     assert_eq!(parsed_sessions, sessions);
 }
 
-fn test_parse_get_capability_command() {
+fn test_command_parse_get_capability() {
     let cmd = TpmGetCapabilityCommand {
         cap: TpmCap::Algs,
         property: 1,
@@ -464,14 +464,14 @@ fn test_parse_get_capability_command() {
         Ok((_handles, cmd_data, sessions)) => {
             assert_eq!(cmd_data, TpmCommandBody::GetCapability(cmd));
             if !sessions.is_empty() {
-                panic!("sessions should be empty");
+                panic!("Sessions should be empty");
             }
         }
-        Err(e) => panic!("command parsing failed: {e:?}"),
+        Err(e) => panic!("Parsing failed: {e:?}"),
     }
 }
 
-fn test_parse_hash_command() {
+fn test_command_parse_hash() {
     let cmd = TpmHashCommand {
         data: Tpm2bMaxBuffer::try_from(&[0xDE; 32][..]).unwrap(),
         hash_alg: TpmAlgId::Sha256,
@@ -502,14 +502,14 @@ fn test_parse_hash_command() {
         Ok((_handles, cmd_data, sessions)) => {
             assert_eq!(cmd_data, TpmCommandBody::Hash(cmd));
             if !sessions.is_empty() {
-                panic!("sessions should be empty");
+                panic!("Sessions should be empty");
             }
         }
-        Err(e) => panic!("command parsing failed: {e:?}"),
+        Err(e) => panic!("Parsing failed: {e:?}"),
     }
 }
 
-fn test_parse_flush_context_command() {
+fn test_command_parse_flush_context() {
     let cmd = TpmFlushContextCommand {
         flush_handle: 0x8000_0000,
     };
@@ -537,14 +537,14 @@ fn test_parse_flush_context_command() {
         Ok((_handles, cmd_data, sessions)) => {
             assert_eq!(cmd_data, TpmCommandBody::FlushContext(cmd));
             if !sessions.is_empty() {
-                panic!("sessions should be empty");
+                panic!("Sessions should be empty");
             }
         }
-        Err(e) => panic!("command parsing failed: {e:?}"),
+        Err(e) => panic!("Parsing failed: {e:?}"),
     }
 }
 
-fn test_parse_pcr_read_command() {
+fn test_command_parse_pcr_read() {
     let mut pcr_selection = tpm2_protocol::data::TpmlPcrSelection::new();
     pcr_selection
         .try_push(tpm2_protocol::data::TpmsPcrSelection {
@@ -581,14 +581,14 @@ fn test_parse_pcr_read_command() {
         Ok((_handles, cmd_data, sessions)) => {
             assert_eq!(cmd_data, TpmCommandBody::PcrRead(cmd.clone()));
             if !sessions.is_empty() {
-                panic!("sessions should be empty");
+                panic!("Sessions should be empty");
             }
         }
-        Err(e) => panic!("command parsing failed: {e:?}"),
+        Err(e) => panic!("Parsing failed: {e:?}"),
     }
 }
 
-fn test_parse_context_save_command() {
+fn test_command_parse_context_save() {
     let cmd = TpmContextSaveCommand {
         save_handle: 0x8000_0001.into(),
     };
@@ -620,14 +620,14 @@ fn test_parse_context_save_command() {
             assert_eq!(res_handles.as_ref(), handles);
             assert_eq!(cmd_data, TpmCommandBody::ContextSave(cmd));
             if !sessions.is_empty() {
-                panic!("sessions should be empty");
+                panic!("Sessions should be empty");
             }
         }
-        Err(e) => panic!("command parsing failed: {e:?}"),
+        Err(e) => panic!("Parsing failed: {e:?}"),
     }
 }
 
-fn test_parse_evict_control_command() {
+fn test_command_parse_evict_control() {
     let cmd = TpmEvictControlCommand {
         auth: (TpmRh::Owner as u32).into(),
         object_handle: 0x8000_0000.into(),
@@ -667,7 +667,7 @@ fn test_parse_evict_control_command() {
     assert_eq!(res_cmd_data, TpmCommandBody::EvictControl(cmd));
 }
 
-fn test_build_evict_control_command() {
+fn test_command_build_evict_control() {
     let cmd = TpmEvictControlCommand {
         auth: (TpmRh::Owner as u32).into(),
         object_handle: 0x8000_0000.into(),
@@ -703,7 +703,7 @@ fn test_build_evict_control_command() {
     assert_eq!(generated_bytes, expected_bytes.as_slice());
 }
 
-fn test_build_nv_write_command() {
+fn test_command_build_nv_write() {
     let cmd = TpmNvWriteCommand {
         auth_handle: (TpmRh::Owner as u32).into(),
         nv_index: 0x0100_0000,
@@ -740,7 +740,7 @@ fn test_build_nv_write_command() {
     assert_eq!(generated_bytes, expected_bytes.as_slice());
 }
 
-fn test_response_macro_parse_correctness() {
+fn test_macro_response_parse_correctness() {
     let mut digests = tpm2_protocol::data::TpmlDigestValues::new();
     let digest = tpm2_protocol::data::TpmtHa {
         hash_alg: TpmAlgId::Sha256,
@@ -767,13 +767,13 @@ fn test_response_macro_parse_correctness() {
 
     let result = TpmPcrEventResponse::parse(response_body_bytes);
 
-    assert!(result.is_ok(), "command parsing failed: {result:?}");
+    assert!(result.is_ok(), "Parsing failed: {result:?}");
     let (parsed_resp, tail) = result.unwrap();
-    assert_eq!(parsed_resp, original_resp, "response mismatch");
-    assert!(tail.is_empty(), "tail data");
+    assert_eq!(parsed_resp, original_resp, "Response mismatch");
+    assert!(tail.is_empty(), "Tail data");
 }
 
-fn test_parse_build_tpmt_sym_def_xor() {
+fn test_tpmt_roundtrip_sym_def_xor() {
     let original_sym_def = TpmtSymDef {
         algorithm: TpmAlgId::Xor,
         key_bits: TpmuSymKeyBits::Xor(TpmAlgId::Sha256),
@@ -800,7 +800,7 @@ fn test_parse_build_tpmt_sym_def_xor() {
     );
 }
 
-fn test_try_from_slice_larger_than_capacity() {
+fn test_tpmbuffer_try_from_slice_too_large() {
     const CAPACITY: usize = 4096;
     let data = vec![0; CAPACITY + 1];
 
@@ -813,7 +813,7 @@ fn test_try_from_slice_larger_than_capacity() {
     );
 }
 
-fn test_build_tpm2b_length_exceeds_u16_max() {
+fn test_tpm2b_build_length_too_large() {
     let large_slice: &[u8] = unsafe {
         std::slice::from_raw_parts(
             std::ptr::NonNull::<u8>::dangling().as_ptr(),
@@ -826,14 +826,10 @@ fn test_build_tpm2b_length_exceeds_u16_max() {
 
     let result = build_tpm2b(&mut writer, large_slice);
 
-    assert_eq!(
-        result,
-        Err(TpmErrorKind::ValueTooLarge),
-        "Should reject building a TPM2B structure with a length that does not fit in a u16"
-    );
+    assert_eq!(result, Err(TpmErrorKind::ValueTooLarge),);
 }
 
-fn test_parse_policy_get_digest_response() {
+fn test_response_parse_policy_get_digest() {
     let original_resp = TpmPolicyGetDigestResponse {
         policy_digest: Tpm2bDigest::try_from(&[0xAA; 32][..]).unwrap(),
     };
@@ -850,11 +846,7 @@ fn test_parse_policy_get_digest_response() {
     let body_buf = &response_bytes[10..];
 
     let result = TpmPolicyGetDigestResponse::parse(body_buf);
-
-    assert!(
-        result.is_ok(),
-        "Parsing should succeed with the fixed parser. Result: {result:?}"
-    );
+    assert!(result.is_ok(), "Parsing failed: {result:?}");
     let (parsed_resp, remainder) = result.unwrap();
     assert_eq!(
         parsed_resp, original_resp,
@@ -864,6 +856,49 @@ fn test_parse_policy_get_digest_response() {
         remainder.is_empty(),
         "Response should have no trailing data"
     );
+}
+
+fn test_macro_response_parse_remainder() {
+    let mut pcr_values = tpm2_protocol::data::TpmlDigest::new();
+    pcr_values
+        .try_push(Tpm2bDigest::try_from(&[0xAA; 32][..]).unwrap())
+        .unwrap();
+
+    let original_body = TpmPcrReadResponse {
+        pcr_update_counter: 1,
+        pcr_selection_out: TpmlPcrSelection::default(),
+        pcr_values,
+    };
+
+    let mut valid_body_bytes = Vec::new();
+    let mut writer_buf = [0u8; 1024];
+    let len = {
+        let mut writer = TpmWriter::new(&mut writer_buf);
+        TpmBuild::build(&original_body, &mut writer).unwrap();
+        writer.len()
+    };
+    valid_body_bytes.extend_from_slice(&writer_buf[..len]);
+
+    let trailing_data = [0xDE, 0xAD, 0xBE, 0xEF];
+    let mut malformed_body_with_trailer = valid_body_bytes;
+    malformed_body_with_trailer.extend_from_slice(&trailing_data);
+
+    let result = TpmPcrReadResponse::parse(&malformed_body_with_trailer);
+    match result {
+        Ok((parsed_body, remainder)) => {
+            assert_eq!(
+                parsed_body, original_body,
+                "Parsed body does not match original"
+            );
+            assert_eq!(
+                remainder, &trailing_data,
+                "Remainder does not match trailing data"
+            );
+        }
+        Err(e) => {
+            panic!("Parsing failed: {e:?}");
+        }
+    }
 }
 
 fn print_ok() {
@@ -882,85 +917,55 @@ fn print_failed() {
     }
 }
 
-fn run_all_tests() -> usize {
-    let tests: &[(&str, fn())] = &[
-        ("test_rc_base_from_raw_rc", test_rc_base_from_raw_rc),
-        ("test_rc_index_from_value", test_rc_index_from_value),
-        ("test_rc_display", test_rc_display),
-        (
-            "test_build_get_capability_command",
-            test_build_get_capability_command,
-        ),
-        ("test_build_hash_command", test_build_hash_command),
-        ("test_build_pcr_read_response", test_build_pcr_read_response),
-        ("test_build_error_response", test_build_error_response),
-        (
-            "test_parse_tpm_pcr_event_response",
-            test_parse_tpm_pcr_event_response,
-        ),
-        (
-            "test_parse_get_capability_command",
-            test_parse_get_capability_command,
-        ),
-        ("test_parse_hash_command", test_parse_hash_command),
-        (
-            "test_parse_flush_context_command",
-            test_parse_flush_context_command,
-        ),
-        ("test_parse_pcr_read_command", test_parse_pcr_read_command),
-        (
-            "test_parse_context_save_command",
-            test_parse_context_save_command,
-        ),
-        (
-            "test_parse_evict_control_command",
-            test_parse_evict_control_command,
-        ),
-        (
-            "test_response_macro_parse_correctness",
-            test_response_macro_parse_correctness,
-        ),
-        (
-            "test_parse_build_tpmt_sym_def_xor",
-            test_parse_build_tpmt_sym_def_xor,
-        ),
-        (
-            "test_try_from_slice_larger_than_capacity",
-            test_try_from_slice_larger_than_capacity,
-        ),
-        (
-            "test_build_tpm2b_length_exceeds_u16_max",
-            test_build_tpm2b_length_exceeds_u16_max,
-        ),
-        (
-            "test_parse_policy_get_digest_response",
-            test_parse_policy_get_digest_response,
-        ),
-        (
-            "test_dynamic_roundtrip_blind_parse",
-            test_dynamic_roundtrip_blind_parse,
-        ),
-        (
-            "test_build_evict_control_command",
-            test_build_evict_control_command,
-        ),
-        ("test_build_nv_write_command", test_build_nv_write_command),
-    ];
+macro_rules! test_suite {
+    ($($test_fn:ident),* $(,)?) => {
+        fn run_all_tests() -> usize {
+            let tests: &[(&str, fn())] = &[
+                $( (stringify!($test_fn), $test_fn) ),*
+            ];
 
-    let mut failed = 0;
-    println!("Running {} tests...", tests.len());
-    for (name, test) in tests {
-        print!("Test {name} ... ");
-        let result = std::panic::catch_unwind(test);
-        if result.is_err() {
-            print_failed();
-            failed += 1;
-        } else {
-            print_ok();
+            let mut failed = 0;
+            println!("Running {} tests...", tests.len());
+            for (name, test) in tests {
+                print!("Test {name} ... ");
+                let result = std::panic::catch_unwind(test);
+                if result.is_err() {
+                    print_failed();
+                    failed += 1;
+                } else {
+                    print_ok();
+                }
+            }
+            failed
         }
-    }
-    failed
+    };
 }
+
+test_suite!(
+    test_command_build_evict_control,
+    test_command_build_get_capability,
+    test_command_build_hash,
+    test_command_build_nv_write,
+    test_command_parse_context_save,
+    test_command_parse_evict_control,
+    test_command_parse_flush_context,
+    test_command_parse_get_capability,
+    test_command_parse_hash,
+    test_command_parse_pcr_read,
+    test_dynamic_roundtrip_blind_parse,
+    test_macro_response_parse_correctness,
+    test_macro_response_parse_remainder,
+    test_response_build_error,
+    test_response_build_pcr_read,
+    test_response_parse_pcr_event,
+    test_response_parse_policy_get_digest,
+    test_tpm2b_build_length_too_large,
+    test_tpmbuffer_try_from_slice_too_large,
+    test_tpm_rc_base_from_raw,
+    test_tpm_rc_display,
+    test_tpm_rc_index_from_raw,
+    test_tpmt_roundtrip_sym_def_xor,
+);
 
 fn main() {
     let failed = run_all_tests();

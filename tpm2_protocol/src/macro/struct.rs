@@ -131,34 +131,45 @@ macro_rules! tpm_struct {
                     cursor = tail;
                 )*
 
-                let (mut params_cursor, final_tail) = if $with_sessions {
-                    let (size, buf) = u32::parse(cursor)?;
+                if $with_sessions {
+                    let (size, buf_after_size) = u32::parse(cursor)?;
                     let size = size as usize;
-                    if buf.len() < size {
+                    if buf_after_size.len() < size {
                         return Err($crate::TpmErrorKind::Boundary);
                     }
-                    let (param_data, final_tail) = buf.split_at(size);
-                    (param_data, final_tail)
+                    let (mut params_cursor, final_tail) = buf_after_size.split_at(size);
+
+                    $(
+                        let ($param_field, tail) = <$param_type>::parse(params_cursor)?;
+                        params_cursor = tail;
+                    )*
+
+                    if !params_cursor.is_empty() {
+                        return Err($crate::TpmErrorKind::TrailingData);
+                    }
+
+                    Ok((
+                        Self {
+                            $($handle_field,)*
+                            $($param_field,)*
+                        },
+                        final_tail,
+                    ))
                 } else {
-                    (cursor, &[][..])
-                };
+                    let mut params_cursor = cursor;
+                    $(
+                        let ($param_field, tail) = <$param_type>::parse(params_cursor)?;
+                        params_cursor = tail;
+                    )*
 
-                $(
-                    let ($param_field, tail) = <$param_type>::parse(params_cursor)?;
-                    params_cursor = tail;
-                )*
-
-                if !params_cursor.is_empty() {
-                    return Err($crate::TpmErrorKind::TrailingData);
+                    Ok((
+                        Self {
+                            $($handle_field,)*
+                            $($param_field,)*
+                        },
+                        params_cursor,
+                    ))
                 }
-
-                Ok((
-                    Self {
-                        $($handle_field,)*
-                        $($param_field,)*
-                    },
-                    final_tail,
-                ))
             }
         }
 
