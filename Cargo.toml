@@ -3,9 +3,9 @@ members = [ "tpm2_protocol", "tpm2sh" ]
 resolver = "2"
 
 [workspace.package]
-version = "0.9.0"
-homepage = "https://github.com/puavo-os/tpm2_library.git"
-repository = "https://github.com/puavo-os/tpm2_library.git"
+version = "0.10.0"
+homepage = "https://github.com/puavo-org/tpm2_library.git"
+repository = "https://github.com/puavo-org/tpm2_library.git"
 edition = "2021"
 rust-version = "1.78"
 readme = "README.md"
