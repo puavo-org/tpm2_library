@@ -264,34 +264,34 @@ impl Command for Commands {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct AuthArgs {
-    pub auth: Option<String>,
+pub struct PasswordArgs {
+    pub password: Option<String>,
 }
 
 #[derive(Debug, Default)]
 pub struct CreatePrimary {
     pub hierarchy: Hierarchy,
-    pub alg: Alg,
-    pub persistent: Option<TpmPersistent>,
-    pub auth: AuthArgs,
+    pub algorithm: Alg,
+    pub handle: Option<TpmPersistent>,
+    pub password: PasswordArgs,
 }
 
 #[derive(Debug, Default)]
 pub struct Save {
-    pub object_handle: u32,
-    pub persistent_handle: TpmPersistent,
-    pub auth: AuthArgs,
+    pub from: String,
+    pub to: String,
+    pub password: PasswordArgs,
 }
 
 #[derive(Debug, Default)]
 pub struct Delete {
     pub handle: String,
-    pub auth: AuthArgs,
+    pub password: PasswordArgs,
 }
 
 #[derive(Debug, Default)]
 pub struct Import {
-    pub parent_auth: AuthArgs,
+    pub parent_password: PasswordArgs,
 }
 
 #[derive(Debug, Default)]
@@ -301,7 +301,7 @@ pub struct Algorithms {
 
 #[derive(Debug, Default)]
 pub struct Load {
-    pub parent_auth: AuthArgs,
+    pub parent_password: PasswordArgs,
 }
 
 #[derive(Debug, Default)]
@@ -314,9 +314,9 @@ pub struct PcrRead {
 
 #[derive(Debug, Default)]
 pub struct PcrEvent {
-    pub pcr_handle: u32,
+    pub handle: u32,
     pub data: String,
-    pub auth: AuthArgs,
+    pub password: PasswordArgs,
 }
 
 #[derive(Debug)]
@@ -329,7 +329,7 @@ pub struct PrintStack {}
 
 #[derive(Debug, Default)]
 pub struct ResetLock {
-    pub auth: AuthArgs,
+    pub password: PasswordArgs,
 }
 
 #[derive(Debug, Default)]
@@ -340,13 +340,13 @@ pub struct StartSession {
 
 #[derive(Debug, Default)]
 pub struct Seal {
-    pub parent_auth: AuthArgs,
-    pub object_auth: AuthArgs,
+    pub parent_password: PasswordArgs,
+    pub object_password: PasswordArgs,
 }
 
 #[derive(Debug, Default)]
 pub struct Unseal {
-    pub auth: AuthArgs,
+    pub password: PasswordArgs,
 }
 
 #[derive(Debug, Default)]
@@ -358,7 +358,7 @@ pub struct Convert {
 #[derive(Debug, Default)]
 pub struct Policy {
     pub expression: String,
-    pub auth: AuthArgs,
+    pub password: PasswordArgs,
 }
 
 /// Retrieves all handles of a specific type from the TPM.

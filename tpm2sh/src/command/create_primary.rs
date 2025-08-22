@@ -11,7 +11,6 @@ use crate::{
 };
 use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
 use lexopt::prelude::*;
-use std::io::IsTerminal;
 use tpm2_protocol::{
     data::{
         Tpm2bAuth, Tpm2bData, Tpm2bDigest, Tpm2bPublic, Tpm2bSensitiveCreate, Tpm2bSensitiveData,
@@ -24,7 +23,7 @@ use tpm2_protocol::{
 };
 
 const ABOUT: &str = "Creates a primary key";
-const USAGE: &str = "tpm2sh create-primary [OPTIONS] --alg <ALG>";
+const USAGE: &str = "tpm2sh create-primary [OPTIONS] --algorithm <ALGORITHM>";
 const OPTIONS: &[CommandLineOption] = &[
     (
         Some("-H"),
@@ -34,20 +33,20 @@ const OPTIONS: &[CommandLineOption] = &[
     ),
     (
         None,
-        "--alg",
+        "--algorithm",
         "<ALGORITHM>",
         "Public key algorithm. Run 'algorithms' for options",
     ),
     (
         None,
-        "--persistent",
+        "--handle",
         "<HANDLE>",
         "Store object to non-volatile memory",
     ),
     (
         None,
-        "--auth",
-        "<AUTH>",
+        "--password",
+        "<PASSWORD>",
         "Authorization value for the hierarchy",
     ),
     (Some("-h"), "--help", "", "Print help information"),
@@ -135,7 +134,6 @@ pub fn save_key_context(
         context_blob: base64_engine.encode(context_bytes),
     };
     let envelope = Envelope {
-        version: 1,
         object_type: "context".to_string(),
         data: data.to_json(),
     };
@@ -157,15 +155,15 @@ impl Command for CreatePrimary {
             Short('H') | Long("hierarchy") => {
                 args.hierarchy = parser.value()?.string()?.parse()?;
             }
-            Long("alg") => {
-                args.alg = parser.value()?.string()?.parse()?;
+            Long("algorithm") => {
+                args.algorithm = parser.value()?.string()?.parse()?;
                 alg_set = true;
             }
-            Long("persistent") => {
-                args.persistent = Some(parse_persistent_handle(&parser.value()?.string()?)?);
+            Long("handle") => {
+                args.handle = Some(parse_persistent_handle(&parser.value()?.string()?)?);
             }
-            Long("auth") => {
-                args.auth.auth = Some(parser.value()?.string()?);
+            Long("password") => {
+                args.password.password = Some(parser.value()?.string()?);
             }
             _ => {
                 return Err(TpmError::from(arg.unexpected()));
@@ -195,13 +193,13 @@ impl Command for CreatePrimary {
 
         let primary_handle: TpmRh = self.hierarchy.into();
         let handles = [primary_handle as u32];
-        let public_template = build_public_template(&self.alg);
-        let user_auth = self.auth.auth.as_deref().unwrap_or("").as_bytes();
+        let public_template = build_public_template(&self.algorithm);
+        let user_password = self.password.password.as_deref().unwrap_or("").as_bytes();
         let cmd = TpmCreatePrimaryCommand {
             primary_handle: (primary_handle as u32).into(),
             in_sensitive: Tpm2bSensitiveCreate {
                 inner: TpmsSensitiveCreate {
-                    user_auth: Tpm2bAuth::try_from(user_auth)?,
+                    user_auth: Tpm2bAuth::try_from(user_password)?,
                     data: Tpm2bSensitiveData::default(),
                 },
             },
@@ -211,8 +209,12 @@ impl Command for CreatePrimary {
             outside_info: Tpm2bData::default(),
             creation_pcr: TpmlPcrSelection::default(),
         };
-        let sessions =
-            get_auth_sessions(&cmd, &handles, session.as_ref(), self.auth.auth.as_deref())?;
+        let sessions = get_auth_sessions(
+            &cmd,
+            &handles,
+            session.as_ref(),
+            self.password.password.as_deref(),
+        )?;
         let (resp, _) = chip.execute(&cmd, &sessions, log_format)?;
 
         let create_primary_resp = resp
@@ -220,7 +222,7 @@ impl Command for CreatePrimary {
             .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
         let object_handle = create_primary_resp.object_handle;
 
-        if let Some(persistent_handle) = self.persistent {
+        let final_object = if let Some(persistent_handle) = self.handle {
             let evict_cmd = TpmEvictControlCommand {
                 auth: (TpmRh::Owner as u32).into(),
                 object_handle: object_handle.0.into(),
@@ -233,20 +235,21 @@ impl Command for CreatePrimary {
             resp.EvictControl()
                 .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
 
-            let obj = Object::TpmObject(format!("{persistent_handle:#010x}"));
-            println!("{}", obj.to_json().dump());
+            Object::TpmObject(format!("{persistent_handle:#010x}"))
         } else {
+            let mut final_json = json::JsonValue::Null;
             with_transient_handle(chip, object_handle, log_format, |chip_inner| {
-                let final_json = save_key_context(chip_inner, object_handle, log_format)?;
-                if std::io::stdout().is_terminal() {
-                    println!("{}", final_json.pretty(2));
-                } else {
-                    let pipe_obj = Object::TpmObject(final_json.dump());
-                    println!("{}", pipe_obj.to_json().dump());
-                }
+                final_json = save_key_context(chip_inner, object_handle, log_format)?;
                 Ok(())
             })?;
-        }
+            Object::TpmObject(final_json.dump())
+        };
+
+        let output_doc = json::object! {
+            version: 1,
+            objects: [final_object.to_json()]
+        };
+        println!("{}", output_doc.dump());
         Ok(())
     }
 }

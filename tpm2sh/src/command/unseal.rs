@@ -20,7 +20,7 @@ use tpm2_protocol::{
 const ABOUT: &str = "Unseals a keyedhash object";
 const USAGE: &str = "tpm2sh unseal [OPTIONS]";
 const OPTIONS: &[CommandLineOption] = &[
-    (None, "--auth", "<AUTH>", "Authorization value"),
+    (None, "--password", "<PASSWORD>", "Authorization value"),
     (Some("-h"), "--help", "", "Print help information"),
 ];
 
@@ -35,8 +35,8 @@ impl Command for Unseal {
     fn parse(parser: &mut lexopt::Parser) -> Result<Commands, TpmError> {
         let mut args = Unseal::default();
         parse_args!(parser, arg, Self::help, {
-            Long("auth") => {
-                args.auth.auth = Some(parser.value()?.string()?);
+            Long("password") => {
+                args.password.password = Some(parser.value()?.string()?);
             }
             _ => {
                 return Err(TpmError::from(arg.unexpected()));
@@ -78,7 +78,7 @@ impl Command for Unseal {
         let output = with_loaded_object(
             chip,
             parent_handle,
-            &self.auth,
+            &self.password,
             session.as_ref(),
             in_public,
             in_private,
@@ -92,7 +92,7 @@ impl Command for Unseal {
                     &unseal_cmd,
                     &unseal_handles,
                     session.as_ref(),
-                    self.auth.auth.as_deref(),
+                    self.password.password.as_deref(),
                 )?;
 
                 let (unseal_resp, _) = chip.execute(&unseal_cmd, &sessions, log_format)?;

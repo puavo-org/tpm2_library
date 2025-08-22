@@ -26,10 +26,12 @@ pub struct AuthSession {
 /// # Errors
 ///
 /// Returns `TpmError` on failure.
-pub fn build_password_session(auth: Option<&str>) -> Result<Vec<data::TpmsAuthCommand>, TpmError> {
-    match auth {
+pub fn build_password_session(
+    password: Option<&str>,
+) -> Result<Vec<data::TpmsAuthCommand>, TpmError> {
+    match password {
         Some(password) => {
-            debug!(target: "cli::session", "building password session: auth_len = {}", password.len());
+            debug!(target: "cli::session", "building password session: password_len = {}", password.len());
             Ok(vec![data::TpmsAuthCommand {
                 session_handle: tpm2_protocol::TpmSession(TpmRh::Password as u32),
                 nonce: data::Tpm2bNonce::default(),

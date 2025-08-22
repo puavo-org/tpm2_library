@@ -65,7 +65,6 @@ impl Command for PcrRead {
             .map_err(|e| TpmError::UnexpectedResponse(format!("{e:?}")))?;
         let pcr_output = pcr_response_to_output(&pcr_read_resp)?;
         let envelope = Envelope {
-            version: 1,
             object_type: "pcr-values".to_string(),
             data: pcr_output.to_json(),
         };

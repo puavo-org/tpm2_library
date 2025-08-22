@@ -20,7 +20,7 @@ const ARGS: &[CommandLineArgument] = &[(
     "Handle of the object to delete, or '-' to read from stdin",
 )];
 const OPTIONS: &[CommandLineOption] = &[
-    (None, "--auth", "<AUTH>", "Authorization value"),
+    (None, "--password", "<PASSWORD>", "Authorization value"),
     (Some("-h"), "--help", "", "Print help information"),
 ];
 
@@ -37,8 +37,8 @@ impl Command for Delete {
         let mut handle_arg = None;
 
         parse_args!(parser, arg, Self::help, {
-            Long("auth") => {
-                args.auth.auth = Some(parser.value()?.string()?);
+            Long("password") => {
+                args.password.password = Some(parser.value()?.string()?);
             }
             Value(val) if handle_arg.is_none() => {
                 handle_arg = Some(val.string()?);
@@ -92,7 +92,7 @@ impl Command for Delete {
                 &evict_cmd,
                 &handles,
                 session.as_ref(),
-                self.auth.auth.as_deref(),
+                self.password.password.as_deref(),
             )?;
             let (resp, _) = chip.execute(&evict_cmd, &sessions, log_format)?;
             resp.EvictControl()

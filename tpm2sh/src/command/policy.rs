@@ -43,9 +43,9 @@ enum PolicyAst {
 
 const ABOUT: &str = "Builds a policy using a policy expression";
 const USAGE: &str = "tpm2sh policy [OPTIONS] <EXPRESSION>";
-const ARGS: &[CommandLineArgument] = &[("EXPRESSION", "e.g. 'pcr(\"sha256:0\",\"...\")'")];
+const ARGS: &[CommandLineArgument] = &[("EXPRESSION", "e.g. 'pcr(\\\"sha256:0\\\",\\\"...\\\")'")];
 const OPTIONS: &[CommandLineOption] = &[
-    (None, "--auth", "<AUTH>", "Authorization value"),
+    (None, "--password", "<PASSWORD>", "Authorization value"),
     (Some("-h"), "--help", "", "Print help information"),
 ];
 
@@ -116,7 +116,7 @@ fn parse_policy_expression(input: &str) -> Result<PolicyAst, TpmError> {
 struct PolicyExecutor<'a, 'b, W: Write> {
     chip: &'a mut TpmDevice,
     io: &'b mut CommandIo<W>,
-    auth: &'b cli::AuthArgs,
+    password: &'b cli::PasswordArgs,
     pcr_count: usize,
     log_format: cli::LogFormat,
     session: Option<AuthSession>,
@@ -181,7 +181,7 @@ impl<W: Write> PolicyExecutor<'_, '_, W> {
             &cmd,
             &handles,
             self.session.as_ref(),
-            self.auth.auth.as_deref(),
+            self.password.password.as_deref(),
         )?;
         self.chip.execute(&cmd, &sessions, self.log_format)?;
         Ok(())
@@ -310,8 +310,8 @@ impl Command for Policy {
         let mut expression_arg: Option<String> = None;
 
         parse_args!(parser, arg, Self::help, {
-            Long("auth") => {
-                args.auth.auth = Some(parser.value()?.string()?);
+            Long("password") => {
+                args.password.password = Some(parser.value()?.string()?);
             }
             Value(val) if expression_arg.is_none() => {
                 expression_arg = Some(val.string()?);
@@ -366,7 +366,7 @@ impl Command for Policy {
         let mut executor = PolicyExecutor {
             chip,
             io: &mut io,
-            auth: &self.auth,
+            password: &self.password,
             pcr_count,
             log_format,
             session: None,
@@ -381,7 +381,6 @@ impl Command for Policy {
         } else {
             let next_session = Object::TpmObject(
                 Envelope {
-                    version: 1,
                     object_type: "session".to_string(),
                     data: session_data.to_json(),
                 }

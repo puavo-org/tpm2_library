@@ -10,7 +10,6 @@ use crate::{
 use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
 use lexopt::prelude::*;
 use rand::{thread_rng, RngCore};
-use std::io::IsTerminal;
 use tpm2_protocol::{
     data::{Tpm2b, Tpm2bNonce, TpmAlgId, TpmRh, TpmaSession, TpmtSymDefObject},
     message::TpmStartAuthSessionCommand,
@@ -98,17 +97,16 @@ impl Command for StartSession {
             policy_digest: hex::encode(vec![0; digest_len]),
         };
         let envelope = Envelope {
-            version: 1,
             object_type: "session".to_string(),
             data: data.to_json(),
         };
-        let final_json = envelope.to_json();
-        if std::io::stdout().is_terminal() {
-            println!("{}", final_json.pretty(2));
-        } else {
-            let pipe_obj = Object::TpmObject(final_json.dump());
-            println!("{}", pipe_obj.to_json().dump());
-        }
+        let pipe_obj = Object::TpmObject(envelope.to_json().dump());
+
+        let output_doc = json::object! {
+            version: 1,
+            objects: [pipe_obj.to_json()]
+        };
+        println!("{}", output_doc.dump());
 
         Ok(())
     }

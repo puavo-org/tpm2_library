@@ -30,12 +30,12 @@ use tpm2_protocol::{
 const INDENT: usize = 2;
 
 /// Pretty-prints a JSON object from the pipeline to stdout.
-pub fn pretty_print_json_object_to_stdout(obj: &json::JsonValue, indent: usize) {
+pub fn pretty_print_json_object_to_stdout(envelope: &json::JsonValue, indent: usize) {
     let prefix = " ".repeat(indent * INDENT);
-    let obj_type = obj["type"].as_str().unwrap_or("unknown");
+    let obj_type = envelope["type"].as_str().unwrap_or("unknown");
     println!("{prefix}Type: {obj_type}");
 
-    let data = &obj["data"];
+    let data = &envelope["data"];
     match obj_type {
         "object" => {
             if let Ok(d) = ObjectData::from_json(data) {

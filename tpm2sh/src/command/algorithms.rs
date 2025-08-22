@@ -3,7 +3,7 @@
 // Copyright (c) 2025 Opinsys Oy
 
 use crate::{
-    arg_parser::{format_subcommand_help, CommandLineOption},
+    arg_parser::{format_subcommand_help, CommandLineArgument, CommandLineOption},
     cli::{self, Algorithms, Commands},
     enumerate_all, parse_args, Command, TpmDevice, TpmError, TPM_CAP_PROPERTY_MAX,
 };
@@ -13,16 +13,9 @@ use std::collections::HashSet;
 use tpm2_protocol::data::{TpmAlgId, TpmCap, TpmuCapabilities};
 
 const ABOUT: &str = "Lists available algorithms";
-const USAGE: &str = "tpm2sh algorithms [OPTIONS]";
-const OPTIONS: &[CommandLineOption] = &[
-    (
-        None,
-        "--filter",
-        "<REGEX>",
-        "A regex to filter the algorithm names",
-    ),
-    (Some("-h"), "--help", "", "Print help information"),
-];
+const USAGE: &str = "tpm2sh algorithms [OPTIONS] [FILTER]";
+const ARGS: &[CommandLineArgument] = &[("FILTER", "A regex to filter the algorithm names")];
+const OPTIONS: &[CommandLineOption] = &[(Some("-h"), "--help", "", "Print help information")];
 
 fn get_chip_algorithms(
     device: &mut TpmDevice,
@@ -46,15 +39,15 @@ impl Command for Algorithms {
     fn help() {
         println!(
             "{}",
-            format_subcommand_help("algorithms", ABOUT, USAGE, &[], OPTIONS)
+            format_subcommand_help("algorithms", ABOUT, USAGE, ARGS, OPTIONS)
         );
     }
 
     fn parse(parser: &mut lexopt::Parser) -> Result<Commands, TpmError> {
         let mut args = Algorithms { filter: None };
         parse_args!(parser, arg, Self::help, {
-            Long("filter") => {
-                args.filter = Some(parser.value()?.string()?);
+            Value(val) if args.filter.is_none() => {
+                args.filter = Some(val.string()?);
             }
             _ => {
                 return Err(TpmError::from(arg.unexpected()));

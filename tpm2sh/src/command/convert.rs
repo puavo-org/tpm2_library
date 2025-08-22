@@ -66,11 +66,10 @@ fn tpm_key_to_json_string(key: TpmKey) -> String {
         private: base64_engine.encode(key.priv_key),
     };
     let envelope = Envelope {
-        version: 1,
         object_type: "object".to_string(),
         data: data.to_json(),
     };
-    envelope.to_json().pretty(2)
+    envelope.to_json().dump()
 }
 
 fn read_all(path: Option<&str>) -> Result<Vec<u8>, TpmError> {

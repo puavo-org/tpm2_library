@@ -27,14 +27,14 @@ const USAGE: &str = "tpm2sh seal [OPTIONS]";
 const OPTIONS: &[CommandLineOption] = &[
     (
         None,
-        "--parent-auth",
-        "<AUTH>",
+        "--parent-password",
+        "<PASSWORD>",
         "Authorization for the parent object",
     ),
     (
         None,
-        "--object-auth",
-        "<AUTH>",
+        "--object-password",
+        "<PASSWORD>",
         "Authorization for the new sealed object",
     ),
     (Some("-h"), "--help", "", "Print help information"),
@@ -51,11 +51,11 @@ impl Command for Seal {
     fn parse(parser: &mut lexopt::Parser) -> Result<Commands, TpmError> {
         let mut args = Seal::default();
         parse_args!(parser, arg, Self::help, {
-            Long("parent-auth") => {
-                args.parent_auth.auth = Some(parser.value()?.string()?);
+            Long("parent-password") => {
+                args.parent_password.password = Some(parser.value()?.string()?);
             }
-            Long("object-auth") => {
-                args.object_auth.auth = Some(parser.value()?.string()?);
+            Long("object-password") => {
+                args.object_password.password = Some(parser.value()?.string()?);
             }
             _ => {
                 return Err(TpmError::from(arg.unexpected()));
@@ -90,7 +90,7 @@ impl Command for Seal {
             let data_to_seal = input_to_bytes(&data_str)?;
 
             let mut object_attributes = TpmaObject::FIXED_TPM | TpmaObject::FIXED_PARENT;
-            if self.object_auth.auth.is_some() {
+            if self.object_password.password.is_some() {
                 object_attributes |= TpmaObject::USER_WITH_AUTH;
             }
             let public_template = TpmtPublic {
@@ -106,12 +106,17 @@ impl Command for Seal {
                 unique: TpmuPublicId::KeyedHash(tpm2_protocol::TpmBuffer::default()),
             };
 
-            let sealed_obj_auth = self.object_auth.auth.as_deref().unwrap_or("").as_bytes();
+            let sealed_obj_password = self
+                .object_password
+                .password
+                .as_deref()
+                .unwrap_or("")
+                .as_bytes();
             let cmd = TpmCreateCommand {
                 parent_handle: parent_handle.0.into(),
                 in_sensitive: Tpm2bSensitiveCreate {
                     inner: TpmsSensitiveCreate {
-                        user_auth: Tpm2bAuth::try_from(sealed_obj_auth)?,
+                        user_auth: Tpm2bAuth::try_from(sealed_obj_password)?,
                         data: Tpm2bSensitiveData::try_from(data_to_seal.as_slice())?,
                     },
                 },
@@ -126,7 +131,7 @@ impl Command for Seal {
                 &cmd,
                 &handles,
                 session.as_ref(),
-                self.parent_auth.auth.as_deref(),
+                self.parent_password.password.as_deref(),
             )?;
             let (resp, _) = chip.execute(&cmd, &sessions, log_format)?;
 
@@ -138,14 +143,13 @@ impl Command for Seal {
 
             let data = ObjectData {
                 oid: ID_SEALED_DATA.to_string(),
-                empty_auth: sealed_obj_auth.is_empty(),
+                empty_auth: sealed_obj_password.is_empty(),
                 parent: format!("{parent_handle:#010x}"),
                 public: base64_engine.encode(pub_bytes),
                 private: base64_engine.encode(priv_bytes),
             };
             let new_object = Object::TpmObject(
                 Envelope {
-                    version: 1,
                     object_type: "object".to_string(),
                     data: data.to_json(),
                 }

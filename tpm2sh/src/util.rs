@@ -63,7 +63,6 @@ pub(crate) fn parse_tpm_rc(s: &str) -> Result<TpmRc, TpmError> {
 
 #[derive(Debug)]
 pub struct Envelope {
-    pub version: u32,
     pub object_type: String,
     pub data: json::JsonValue,
 }
@@ -72,7 +71,6 @@ impl Envelope {
     #[must_use]
     pub fn to_json(&self) -> json::JsonValue {
         json::object! {
-            version: self.version,
             "type": self.object_type.clone(),
             data: self.data.clone(),
         }

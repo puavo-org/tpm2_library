@@ -4,10 +4,10 @@
 
 use crate::{cli, from_json_str, AuthSession, SessionData, TpmError};
 use base64::{engine::general_purpose::STANDARD as base64_engine, Engine};
-use std::io::{self, BufRead, BufReader, IsTerminal, Write};
+use std::io::{self, IsTerminal, Read, Write};
 use tpm2_protocol::data::{Tpm2bAuth, Tpm2bNonce, TpmAlgId, TpmaSession};
 
-/// Manages the streaming I/O for a command in the JSON Lines pipeline.
+/// Manages the streaming I/O for a command in the JSON pipeline.
 pub struct CommandIo<W: Write> {
     writer: W,
     input_objects: Vec<cli::Object>,
@@ -24,12 +24,18 @@ impl<W: Write> CommandIo<W> {
     pub fn new(writer: W, log_format: cli::LogFormat) -> Result<Self, TpmError> {
         let mut input_objects: Vec<cli::Object> = Vec::new();
         if !io::stdin().is_terminal() {
-            let buf_reader = BufReader::new(io::stdin());
-            for line in buf_reader.lines() {
-                let line = line?;
-                if !line.trim().is_empty() {
-                    let json_val = json::parse(&line)?;
-                    input_objects.push(cli::Object::from_json(&json_val)?);
+            let mut input_string = String::new();
+            io::stdin().read_to_string(&mut input_string)?;
+
+            if !input_string.trim().is_empty() {
+                let doc = json::parse(&input_string)?;
+                if !doc["objects"].is_array() {
+                    return Err(TpmError::Parse(
+                        "input JSON document is missing 'objects' array".to_string(),
+                    ));
+                }
+                for value in doc["objects"].members() {
+                    input_objects.push(cli::Object::from_json(value)?);
                 }
             }
         }
@@ -123,10 +129,21 @@ impl<W: Write> CommandIo<W> {
         let mut final_objects = self.input_objects;
         final_objects.append(&mut self.output_objects);
 
-        for obj in final_objects {
-            let json_str = obj.to_json().dump();
-            writeln!(self.writer, "{json_str}")?;
+        if final_objects.is_empty() {
+            return Ok(());
         }
+
+        let mut objects_array = json::JsonValue::new_array();
+        for obj in final_objects {
+            objects_array.push(obj.to_json())?;
+        }
+
+        let output_doc = json::object! {
+            version: 1,
+            objects: objects_array
+        };
+
+        writeln!(self.writer, "{}", output_doc.dump())?;
         Ok(())
     }
 }

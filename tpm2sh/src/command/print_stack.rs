@@ -57,9 +57,9 @@ impl Command for PrintStack {
 
         for obj in objects.iter().rev() {
             let cli::Object::TpmObject(json_str) = obj;
-            let json_val = json::parse(json_str)?;
+            let envelope = json::parse(json_str)?;
 
-            pretty_print_json_object_to_stdout(&json_val, 0);
+            pretty_print_json_object_to_stdout(&envelope, 0);
         }
 
         Ok(())

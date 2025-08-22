@@ -21,8 +21,8 @@ const USAGE: &str = "tpm2sh import [OPTIONS]";
 const OPTIONS: &[CommandLineOption] = &[
     (
         None,
-        "--auth",
-        "<AUTH>",
+        "--parent-password",
+        "<PASSWORD>",
         "Authorization for the parent object",
     ),
     (Some("-h"), "--help", "", "Print help information"),
@@ -39,8 +39,8 @@ impl Command for Import {
     fn parse(parser: &mut lexopt::Parser) -> Result<Commands, TpmError> {
         let mut args = Import::default();
         parse_args!(parser, arg, Self::help, {
-            Long("auth") => {
-                args.parent_auth.auth = Some(parser.value()?.string()?);
+            Long("parent-password") => {
+                args.parent_password.password = Some(parser.value()?.string()?);
             }
             _ => {
                 return Err(TpmError::from(arg.unexpected()));
@@ -107,7 +107,7 @@ impl Command for Import {
                 &import_cmd,
                 &handles,
                 session.as_ref(),
-                self.parent_auth.auth.as_deref(),
+                self.parent_password.password.as_deref(),
             )?;
             let (resp, _) = chip.execute(&import_cmd, &sessions, log_format)?;
             let import_resp = resp.Import().map_err(|e| {
@@ -125,7 +125,6 @@ impl Command for Import {
 
             let new_object = Object::TpmObject(
                 Envelope {
-                    version: 1,
                     object_type: "object".to_string(),
                     data: data.to_json(),
                 }

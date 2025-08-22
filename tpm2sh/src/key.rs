@@ -237,7 +237,7 @@ pub fn read_public(
 pub fn with_loaded_object<F, R>(
     chip: &mut TpmDevice,
     parent_handle: TpmTransient,
-    parent_auth: &cli::AuthArgs,
+    parent_password: &cli::PasswordArgs,
     session: Option<&AuthSession>,
     in_public: data::Tpm2bPublic,
     in_private: data::Tpm2bPrivate,
@@ -257,7 +257,7 @@ where
         &load_cmd,
         &parent_handles,
         session,
-        parent_auth.auth.as_deref(),
+        parent_password.password.as_deref(),
     )?;
     let (load_resp, _) = chip.execute(&load_cmd, &parent_sessions, log_format)?;
     let load_resp = load_resp

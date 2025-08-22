@@ -13,7 +13,7 @@ use tpm2_protocol::{data::TpmRh, message::TpmDictionaryAttackLockResetCommand};
 const ABOUT: &str = "Resets the dictionary attack lockout timer";
 const USAGE: &str = "tpm2sh reset-lock [OPTIONS]";
 const OPTIONS: &[CommandLineOption] = &[
-    (None, "--auth", "<AUTH>", "Authorization value"),
+    (None, "--password", "<PASSWORD>", "Authorization value"),
     (Some("-h"), "--help", "", "Print help information"),
 ];
 
@@ -28,8 +28,8 @@ impl Command for ResetLock {
     fn parse(parser: &mut lexopt::Parser) -> Result<Commands, TpmError> {
         let mut args = ResetLock::default();
         parse_args!(parser, arg, Self::help, {
-            Long("auth") => {
-                args.auth.auth = Some(parser.value()?.string()?);
+            Long("password") => {
+                args.password.password = Some(parser.value()?.string()?);
             }
             _ => {
                 return Err(TpmError::from(arg.unexpected()));
@@ -60,7 +60,7 @@ impl Command for ResetLock {
             &command,
             &handles,
             session.as_ref(),
-            self.auth.auth.as_deref(),
+            self.password.password.as_deref(),
         )?;
         let (resp, _) = chip.execute(&command, &sessions, log_format)?;
         resp.DictionaryAttackLockReset()
