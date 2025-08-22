@@ -11,7 +11,7 @@ use crate::{
 use core::fmt::Debug;
 
 tpm_struct! {
-    #[derive(Debug, Default, PartialEq, Eq, Clone)]
+    #[derive(Debug, PartialEq, Eq, Clone)]
     kind: Command,
     name: TpmStartAuthSessionCommand,
     cc: TpmCc::StartAuthSession,

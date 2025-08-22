@@ -9,7 +9,7 @@ use crate::{
 use core::fmt::Debug;
 
 tpm_struct! {
-    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    #[derive(Debug, PartialEq, Eq, Copy, Clone)]
     kind: Command,
     name: TpmStartupCommand,
     cc: TpmCc::Startup,
@@ -33,7 +33,7 @@ tpm_struct! {
 }
 
 tpm_struct! {
-    #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
+    #[derive(Debug, PartialEq, Eq, Copy, Clone)]
     kind: Command,
     name: TpmShutdownCommand,
     cc: TpmCc::Shutdown,

@@ -72,9 +72,8 @@ tpm_enum! {
 }
 
 tpm_enum! {
-    #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Default)]
+    #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone)]
     pub enum TpmCc(u32) {
-        #[default]
         (NvUndefineSpaceSpecial, 0x0000_011F, "TPM_CC_NV_UndefineSpaceSpecial"),
         (EvictControl, 0x0000_0120, "TPM_CC_EvictControl"),
         (HierarchyControl, 0x0000_0121, "TPM_CC_HierarchyControl"),
@@ -251,11 +250,10 @@ tpm_enum! {
 }
 
 tpm_enum! {
-    #[derive(Debug, PartialEq, Eq, Copy, Clone, Default)]
+    #[derive(Debug, PartialEq, Eq, Copy, Clone)]
     pub enum TpmHt(u8) {
         (Pcr, 0x00, "TPM_HT_PCR"),
         (NvIndex, 0x01, "TPM_HT_NV_INDEX"),
-        #[default]
         (HmacSession, 0x02, "TPM_HT_HMAC_SESSION"),
         (PolicySession, 0x03, "TPM_HT_POLICY_SESSION"),
         (ExternalNv, 0x11, "TPM_HT_EXTERNAL_NV"),
@@ -283,9 +281,8 @@ tpm_enum! {
 }
 
 tpm_enum! {
-    #[derive(Debug, PartialEq, Eq, Copy, Clone, Default)]
+    #[derive(Debug, PartialEq, Eq, Copy, Clone)]
     pub enum TpmSe(u8) {
-        #[default]
         (Hmac, 0x00, "TPM_SE_HMAC"),
         (Policy, 0x01, "TPM_SE_POLICY"),
         (Trial, 0x03, "TPM_SE_TRIAL"),
@@ -317,10 +314,9 @@ tpm_enum! {
 }
 
 tpm_enum! {
-    #[derive(Debug, PartialEq, Eq, Copy, Clone, Default)]
+    #[derive(Debug, PartialEq, Eq, Copy, Clone)]
     pub enum TpmSu(u16) {
         (Clear, 0x0000, "TPM_SU_CLEAR"),
-        #[default]
         (State, 0x0001, "TPM_SU_STATE"),
     }
 }
