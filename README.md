@@ -1,5 +1,14 @@
 # TPM 2.0 library crate
 
+This repository has been archived and is no longer maintained.
+
+New URLs:
+
+* tpm2-protocol: https://git.kernel.org/pub/scm/linux/kernel/git/jarkko/tpm2-protocol.git
+* tpm2sh: https://github.com/puavo-org/tpm2sh
+
+## Overview
+
 1. `tpm2_protocol`: a unipolar `no_std` TPM 2.0 implementation that does not
    require heap allocator and has zero dependencies.
 2. `tpm2sh`: a command-line interface for TPM 2.0 chips.
@@ -34,5 +43,3 @@ a particular command.
 The `tpm2-protocol` library is licensed under the permissive `MIT OR Apache-2.0`
 license to allow for wide adoption. The `tpm2-cli` binary and associated tooling
 are licensed under the copyleft `GPL-3.0-or-later` license.
-
-
